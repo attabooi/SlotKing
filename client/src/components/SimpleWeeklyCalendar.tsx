@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { X, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
@@ -71,10 +71,10 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   
   // Prevent text selection during drag
   useEffect(() => {
+    if (!isDragging) return;
+    
     const handleDisableSelect = (e: Event) => {
-      if (isDragging) {
-        e.preventDefault();
-      }
+      e.preventDefault();
     };
     
     document.addEventListener('selectstart', handleDisableSelect);
@@ -161,8 +161,8 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     }
   };
   
-  // Handle mouse up to end drag
-  const handleMouseUp = () => {
+  // Helper function for the mouse up action wrapped in useCallback
+  const processMouseUp = useCallback(() => {
     if (isDragging && draggedSlots.length > 0) {
       // Add the dragged slots to the already selected slots (without duplicates)
       const newSelectedSlots = [...selectedSlots];
@@ -191,7 +191,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     setDragStart(null);
     setDragEnd(null);
     setDraggedSlots([]);
-  };
+  }, [isDragging, draggedSlots, selectedSlots, onSelectTimeSlots]);
   
   // Handle delete slot
   const handleDeleteSlot = (e: React.MouseEvent, day: number, hour: number) => {
@@ -238,7 +238,9 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   // Add document-wide mouse up event listener
   useEffect(() => {
     const handleDocumentMouseUp = () => {
-      handleMouseUp();
+      if (isDragging) {
+        processMouseUp();
+      }
     };
     
     document.addEventListener('mouseup', handleDocumentMouseUp);
@@ -246,7 +248,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     return () => {
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [isDragging, dragStart, dragEnd, draggedSlots, selectedSlots]);
+  }, [isDragging, processMouseUp]);
   
   // Format the week range for display
   const weekRangeText = `${format(days[0], 'MMM d')} - ${format(days[6], 'MMM d, yyyy')}`;
