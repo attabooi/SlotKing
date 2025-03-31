@@ -1,13 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 
 interface Participant {
   name: string;
   color: string;
   isHost?: boolean;
+}
+
+interface LanguageOption {
+  name: string;
+  code: string;
+  flag: string;
+}
+
+interface SelectionGroup {
+  id: string;
+  slots: Array<{ day: number; hour: number }>;
+  topSlot: { day: number; hour: number };
 }
 
 interface SimpleWeeklyCalendarProps {
@@ -25,23 +43,46 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   isHost = false,
   participants = []
 }) => {
-  // Week navigation state
+  // State variables first
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
+  const [isDragging, setIsDragging] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
     return startOfWeek(today, { weekStartsOn: 1 }); // 1 = Monday
   });
-  
-  const days = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
-  
-  // Define all 24 hours
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-  
-  // State for tracking selections
   const [selectedSlots, setSelectedSlots] = useState<Array<{ day: number; hour: number }>>([]);
-  const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ day: number; hour: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ day: number; hour: number } | null>(null);
   const [draggedSlots, setDraggedSlots] = useState<Array<{ day: number; hour: number }>>([]);
+  
+  // Available languages
+  const languages: LanguageOption[] = [
+    { name: 'English', code: 'en', flag: '🇺🇸' },
+    { name: '한국어', code: 'ko', flag: '🇰🇷' },
+    { name: '日本語', code: 'ja', flag: '🇯🇵' },
+    { name: '中文', code: 'zh', flag: '🇨🇳' },
+    { name: 'Español', code: 'es', flag: '🇪🇸' },
+    { name: 'Français', code: 'fr', flag: '🇫🇷' },
+  ];
+  
+  // Derived data
+  const days = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  
+  // Prevent text selection during drag
+  useEffect(() => {
+    const handleDisableSelect = (e: Event) => {
+      if (isDragging) {
+        e.preventDefault();
+      }
+    };
+    
+    document.addEventListener('selectstart', handleDisableSelect);
+    
+    return () => {
+      document.removeEventListener('selectstart', handleDisableSelect);
+    };
+  }, [isDragging]);
   
   // Generate a color for the user based on their name
   const getUserColor = (name: string) => {
@@ -215,6 +256,82 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     { name: userName, color: userColor, isHost }
   ];
   
+  // Group selected slots into contiguous groups
+  const selectionGroups = useMemo(() => {
+    if (selectedSlots.length === 0) return [];
+    
+    const getAdjacentSlots = (slot: { day: number; hour: number }, slots: Array<{ day: number; hour: number }>) => {
+      const { day, hour } = slot;
+      return slots.filter(s => 
+        (s.day === day && (s.hour === hour - 1 || s.hour === hour + 1)) || 
+        ((s.day === day - 1 || s.day === day + 1) && s.hour === hour)
+      );
+    };
+    
+    const visited = new Set<string>();
+    const groups: SelectionGroup[] = [];
+    
+    // Helper function to convert slot to string key
+    const slotKey = (slot: { day: number; hour: number }) => `${slot.day}-${slot.hour}`;
+    
+    // Find all groups using breadth-first search
+    selectedSlots.forEach(slot => {
+      const key = slotKey(slot);
+      if (visited.has(key)) return;
+      
+      const group: SelectionGroup = {
+        id: `group-${groups.length}`,
+        slots: [],
+        topSlot: slot // Will be updated if needed
+      };
+      
+      const queue = [slot];
+      
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const currentKey = slotKey(current);
+        
+        if (visited.has(currentKey)) continue;
+        
+        visited.add(currentKey);
+        group.slots.push(current);
+        
+        // Update topSlot if this is the topmost slot (lowest hour)
+        if (current.hour < group.topSlot.hour || 
+            (current.hour === group.topSlot.hour && current.day < group.topSlot.day)) {
+          group.topSlot = current;
+        }
+        
+        // Add all adjacent slots to the queue
+        const adjacent = getAdjacentSlots(current, selectedSlots);
+        adjacent.forEach(adj => {
+          const adjKey = slotKey(adj);
+          if (!visited.has(adjKey)) {
+            queue.push(adj);
+          }
+        });
+      }
+      
+      groups.push(group);
+    });
+    
+    return groups;
+  }, [selectedSlots]);
+  
+  // Function to check if a slot is the top slot of its group
+  const isTopSlotOfGroup = (day: number, hour: number) => {
+    return selectionGroups.some(group => 
+      group.topSlot.day === day && group.topSlot.hour === hour
+    );
+  };
+  
+  // Find group for a slot
+  const getSlotGroup = (day: number, hour: number) => {
+    return selectionGroups.find(group => 
+      group.slots.some(slot => slot.day === day && slot.hour === hour)
+    );
+  };
+  
   return (
     <div className="w-full overflow-auto">
       <div className="bg-primary/5 rounded-lg p-3 mb-4 text-sm text-muted-foreground flex flex-col gap-2">
@@ -226,7 +343,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
         </div>
       </div>
       
-      {/* Week navigation */}
+      {/* Week navigation and Language selection */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Button 
@@ -255,6 +372,36 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
+          
+          {/* Language Selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 ml-2 pl-2 pr-3 gap-1">
+                <Globe className="h-3.5 w-3.5 mr-1" />
+                <span className="mr-1">
+                  {languages.find(lang => lang.code === selectedLanguage)?.flag}
+                </span>
+                <span className="text-xs">
+                  {languages.find(lang => lang.code === selectedLanguage)?.name}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[180px]">
+              {languages.map(language => (
+                <DropdownMenuItem 
+                  key={language.code}
+                  className={cn(
+                    "flex items-center gap-2 cursor-pointer",
+                    selectedLanguage === language.code && "bg-primary/10"
+                  )}
+                  onClick={() => setSelectedLanguage(language.code)}
+                >
+                  <span className="text-base">{language.flag}</span>
+                  <span>{language.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         
         <div className="text-sm font-medium">{weekRangeText}</div>
@@ -337,39 +484,71 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
                             <X className="w-3 h-3" />
                           </button>
                           
-                          {/* Participant icons */}
-                          <div className="absolute top-1 left-1 flex -space-x-1">
-                            {mockParticipants.slice(0, 5).map((participant, index) => (
-                              <div
-                                key={`p-${index}`}
-                                className="participant-icon w-5 h-5 flex items-center justify-center rounded-full border border-background/50 animate-in fade-in zoom-in duration-300"
-                                style={{
-                                  backgroundColor: participant.color,
-                                  zIndex: mockParticipants.length - index,
-                                  animationDelay: `${index * 0.05}s`
-                                }}
-                                title={`${participant.name}${participant.isHost ? ' (Host)' : ''}`}
-                              >
-                                {participant.isHost && (
-                                  <span className="absolute -top-1.5 -right-1.5 text-[8px] host-crown">
-                                    👑
+                          {/* Get the current cell's selection group (if any) */}
+                          {isTopSlotOfGroup(dayIndex, hour) && (
+                            <div className="absolute top-1 left-1 flex -space-x-1">
+                              {mockParticipants.slice(0, 5).map((participant, index) => (
+                                <div
+                                  key={`p-${index}`}
+                                  className="participant-icon w-5 h-5 flex items-center justify-center rounded-full border border-background/50 animate-in fade-in zoom-in duration-300"
+                                  style={{
+                                    backgroundColor: participant.color,
+                                    zIndex: mockParticipants.length - index,
+                                    animationDelay: `${index * 0.05}s`
+                                  }}
+                                  title={`${participant.name}${participant.isHost ? ' (Host)' : ''}`}
+                                >
+                                  {participant.isHost && (
+                                    <span className="absolute -top-1.5 -right-1.5 text-[8px] host-crown">
+                                      👑
+                                    </span>
+                                  )}
+                                  <span className="text-[8px] font-medium text-white">
+                                    {participant.name.charAt(0).toUpperCase()}
                                   </span>
-                                )}
-                                <span className="text-[8px] font-medium text-white">
-                                  {participant.name.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                            ))}
-                            
-                            {mockParticipants.length > 5 && (
-                              <div 
-                                className="w-5 h-5 flex items-center justify-center rounded-full bg-muted text-[8px] border border-background/50"
-                                title={`${mockParticipants.length - 5} more participants`}
-                              >
-                                +{mockParticipants.length - 5}
-                              </div>
-                            )}
-                          </div>
+                                </div>
+                              ))}
+                              
+                              {mockParticipants.length > 5 && (
+                                <div 
+                                  className="w-5 h-5 flex items-center justify-center rounded-full bg-muted text-[8px] border border-background/50"
+                                  title={`${mockParticipants.length - 5} more participants`}
+                                >
+                                  +{mockParticipants.length - 5}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Visual indicators for grouped and connected slots */}
+                          {isSlotSelected && !isTopSlotOfGroup(dayIndex, hour) && (
+                            <div className="absolute inset-0 group-indicator opacity-30 pointer-events-none"></div>
+                          )}
+                          
+                          {/* Show connection indicators based on adjacent selected slots */}
+                          {isSlotSelected && (
+                            <>
+                              {/* Check if there's a selected slot above */}
+                              {selectedSlots.some(slot => slot.day === dayIndex && slot.hour === hour - 1) && (
+                                <div className="absolute inset-x-0 top-0 h-1/4 slot-connected-top pointer-events-none"></div>
+                              )}
+                              
+                              {/* Check if there's a selected slot below */}
+                              {selectedSlots.some(slot => slot.day === dayIndex && slot.hour === hour + 1) && (
+                                <div className="absolute inset-x-0 bottom-0 h-1/4 slot-connected-bottom pointer-events-none"></div>
+                              )}
+                              
+                              {/* Check if there's a selected slot to the left */}
+                              {selectedSlots.some(slot => slot.day === dayIndex - 1 && slot.hour === hour) && (
+                                <div className="absolute inset-y-0 left-0 w-1/4 slot-connected-left pointer-events-none"></div>
+                              )}
+                              
+                              {/* Check if there's a selected slot to the right */}
+                              {selectedSlots.some(slot => slot.day === dayIndex + 1 && slot.hour === hour) && (
+                                <div className="absolute inset-y-0 right-0 w-1/4 slot-connected-right pointer-events-none"></div>
+                              )}
+                            </>
+                          )}
                         </>
                       )}
                     </div>
