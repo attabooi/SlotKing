@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useRef, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import SimpleWeeklyCalendar from '@/components/SimpleWeeklyCalendar';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Calendar, Copy, Check, RefreshCw, Share2, Link2, ChevronRight, Users, Clock, ThumbsUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
+import { useToast } from '@/hooks/use-toast';
+import party from 'party-js';
 
 interface Participant {
   name: string;
@@ -29,6 +43,25 @@ const SimpleCalendarPage: React.FC = () => {
   const [isHost, setIsHost] = useState(true);
   const [mockParticipants, setMockParticipants] = useState<Participant[]>([]);
   const [selectionGroups, setSelectionGroups] = useState<SelectionGroup[]>([]);
+  
+  // New state variables for voting mode
+  const [isVotingMode, setIsVotingMode] = useState(false);
+  const [confirmedGroups, setConfirmedGroups] = useState<SelectionGroup[]>([]);
+  const [shareUrl, setShareUrl] = useState('');
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [animatedGroups, setAnimatedGroups] = useState<string[]>([]);
+  const { toast } = useToast();
+  
+  // Generate a share URL when confirmed groups are set
+  useEffect(() => {
+    if (confirmedGroups.length > 0) {
+      // In a real app, this would be a unique URL with a meeting ID
+      // For this demo, we'll just create a mock URL
+      const base = window.location.origin;
+      const mockMeetingId = Math.random().toString(36).substring(2, 10);
+      setShareUrl(`${base}/join/${mockMeetingId}`);
+    }
+  }, [confirmedGroups]);
 
   const handleSelectTimeSlots = (slots: Array<{ day: number; hour: number }>) => {
     setSelectedSlots(slots);
@@ -87,6 +120,126 @@ const SimpleCalendarPage: React.FC = () => {
     setSelectionGroups(groups);
   };
   
+  // Handler for confirming schedule and transitioning to voting mode
+  const handleConfirmSchedule = () => {
+    if (selectionGroups.length === 0) {
+      toast({
+        title: "No Time Slots Selected",
+        description: "Please select at least one time slot before confirming the schedule.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Save the current groups as confirmed
+    setConfirmedGroups([...selectionGroups]);
+    
+    // Transition to voting mode
+    setIsVotingMode(true);
+    
+    // Set all groups to be animated initially
+    setAnimatedGroups(selectionGroups.map(group => group.id));
+    
+    toast({
+      title: "Schedule Confirmed!",
+      description: "Your time slots are now ready for participants to vote on.",
+      variant: "default"
+    });
+    
+    // After 3 seconds, stop the animation
+    setTimeout(() => {
+      setAnimatedGroups([]);
+    }, 3000);
+  };
+  
+  // Handler for resetting all selections and returning to host mode
+  const handleResetAll = () => {
+    setIsVotingMode(false);
+    setConfirmedGroups([]);
+    setSelectedSlots([]);
+    setSelectionGroups([]);
+    setShareUrl('');
+    setMockParticipants([]);
+    
+    toast({
+      title: "Reset Complete",
+      description: "All selections have been cleared. You can now create a new schedule.",
+      variant: "default"
+    });
+  };
+  
+  // Handler for copying share link to clipboard
+  const handleCopyLink = () => {
+    if (shareUrl) {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setCopySuccess(true);
+        toast({
+          title: "Link Copied!",
+          description: "Share link has been copied to clipboard.",
+          variant: "default"
+        });
+        
+        // Reset the copy success state after 2 seconds
+        setTimeout(() => {
+          setCopySuccess(false);
+        }, 2000);
+      });
+    }
+  };
+  
+  // Reference to time slot elements
+  const timeSlotRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
+  
+  // Handler for participant voting on a time slot
+  const handleVoteForTimeSlot = (groupId: string) => {
+    if (!isVotingMode) return;
+    
+    // Get the DOM element for the time slot
+    const timeSlotElement = timeSlotRefs.current[groupId];
+    
+    // Visual indicator animation
+    setAnimatedGroups([groupId]);
+    setTimeout(() => setAnimatedGroups([]), 1000);
+    
+    // Create confetti effect with party.js if element exists
+    if (timeSlotElement) {
+      // Create confetti burst effect
+      party.confetti(timeSlotElement, {
+        count: 40,
+        size: 1.2,
+        spread: 50,
+        speed: 300,
+        color: [party.Color.fromHex(getUserColor(userName || 'Anonymous')), party.Color.fromHex('#60A5FA')]
+      });
+      
+      // Additional sparkles animation
+      party.sparkles(timeSlotElement, {
+        count: 20,
+        size: 1.2
+      });
+    }
+    
+    // In a real app, this would make an API call to register the vote
+    // For this demo, we'll update the mock participants
+    setMockParticipants(prevParticipants => {
+      // If the user is already in the list, don't add again
+      if (prevParticipants.some(p => p.name === userName)) {
+        return prevParticipants;
+      }
+      
+      return [
+        ...prevParticipants,
+        { name: userName || 'Anonymous', color: getUserColor(userName || 'Anonymous') }
+      ];
+    });
+    
+    toast({
+      title: "Vote Recorded! 🎉",
+      description: "Your availability has been recorded for this time slot.",
+      variant: "default"
+    });
+  };
+  
   // Generate a color for the user based on their name
   const getUserColor = (name: string) => {
     const colors = [
@@ -111,10 +264,32 @@ const SimpleCalendarPage: React.FC = () => {
   return (
     <div className="w-full max-w-6xl mx-auto pb-16">
       <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle className="text-2xl text-primary">Weekly Availability Calendar</CardTitle>
-          <CardDescription>
-            Select time slots to schedule your meetings. You can choose multiple slots across different days.
+        <CardHeader className="pb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-primary" />
+            </div>
+            <CardTitle className="text-2xl text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">
+              Weekly Availability Calendar
+            </CardTitle>
+          </div>
+          <CardDescription className="text-base">
+            {isVotingMode ? (
+              <div className="flex flex-col gap-2">
+                <p>Select your available time slots by clicking on them. Each selection will be recorded as a vote.</p>
+                <div className="flex items-center gap-1.5 text-xs px-3 py-2 bg-primary/5 rounded-md text-primary/80 mt-1">
+                  <ThumbsUp className="w-4 h-4" />
+                  <span>Voting is now open! Click any time slot to register your vote.</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p>Select time slots to schedule your meetings. You can choose multiple slots across different days.</p>
+                <div className="flex items-center gap-1.5 text-xs px-3 py-2 bg-muted rounded-md mt-1">
+                  <span>💡 Tip: Click and drag to select multiple hours in a row.</span>
+                </div>
+              </div>
+            )}
           </CardDescription>
         </CardHeader>
         
@@ -167,33 +342,79 @@ const SimpleCalendarPage: React.FC = () => {
             participants={mockParticipants}
           />
           
-          {selectedSlots.length > 0 && (
-            <div className="mt-6 p-4 bg-muted/40 rounded-lg border border-border/20">
-              <h3 className="text-sm font-semibold mb-2">Meeting Summary</h3>
-              <p className="text-sm mb-2">
-                <span className="font-medium">Title:</span> {meetingTitle || "Untitled Meeting"}
-              </p>
-              <div className="flex items-center gap-2 mb-4">
-                <div 
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium shadow-sm"
-                  style={{ backgroundColor: getUserColor(userName || 'User') }}
-                >
-                  {(userName || 'User').charAt(0).toUpperCase()}
-                </div>
-                <div className="text-sm font-medium">
-                  {userName || 'User'} {isHost && <span className="text-[10px] ml-1">👑</span>}
-                </div>
-                <span className="text-xs px-2 py-0.5 bg-primary/20 rounded-full text-primary">
-                  {selectedSlots.length} {selectedSlots.length === 1 ? 'slot' : 'slots'}
-                </span>
+          {(selectedSlots.length > 0 || isVotingMode) && (
+            <div className="mt-8 p-6 bg-muted/30 rounded-xl border border-border/20 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
+                  {isVotingMode ? (
+                    <>
+                      <ThumbsUp className="w-5 h-5" />
+                      <span>Meeting Voting Phase</span>
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="w-5 h-5" />
+                      <span>Meeting Summary</span>
+                    </>
+                  )}
+                </h3>
+                
+                {isVotingMode && (
+                  <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 px-3 py-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                      <span>Voting Open</span>
+                    </div>
+                  </Badge>
+                )}
               </div>
               
-              <h4 className="text-xs font-medium mb-2">Selected Time Slots:</h4>
-              <div className="mt-2 text-xs text-muted-foreground flex flex-wrap gap-2">
+              <div className="mb-5 p-4 bg-background rounded-lg shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-1">Meeting Title</h4>
+                    <p className="text-base font-medium">{meetingTitle || "Untitled Meeting"}</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium shadow-sm border-2 border-background"
+                      style={{ backgroundColor: getUserColor(userName || 'User') }}
+                    >
+                      {(userName || 'User').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium flex items-center">
+                        {userName || 'User'} {isHost && <span className="text-[10px] ml-1">👑</span>}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {isHost ? 'Meeting Host' : 'Participant'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 justify-end mt-1">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs px-2 py-0.5 bg-primary/10 rounded-full text-primary font-medium">
+                    {selectedSlots.length} {selectedSlots.length === 1 ? 'time slot' : 'time slots'} selected
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <h4 className="text-sm font-medium">Available Time Slots</h4>
+                <div className="h-px flex-1 bg-border/30"></div>
+              </div>
+              
+              {/* Grid layout for time slots */}
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {selectionGroups.map((group) => {
                   // Get the day for this group
                   const dayOfWeek = group.slots[0].day;
-                  const day = format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), dayOfWeek), 'EEE');
+                  const dayDate = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), dayOfWeek);
+                  const day = format(dayDate, 'EEE');
                   
                   // Find the earliest and latest hour in this group
                   // We know that groups are only formed within the same day
@@ -211,37 +432,280 @@ const SimpleCalendarPage: React.FC = () => {
                     ? startTime 
                     : `${startTime} - ${endTime}`;
                   
+                  // Color per weekday
+                  const dayColors = {
+                    Mon: "text-blue-600",
+                    Tue: "text-purple-600",
+                    Wed: "text-green-600",
+                    Thu: "text-amber-600",
+                    Fri: "text-rose-600",
+                    Sat: "text-cyan-600",
+                    Sun: "text-indigo-600"
+                  };
+                  
+                  const dayColor = dayColors[day as keyof typeof dayColors] || "text-primary";
+                  
                   return (
-                    <span 
-                      key={group.id} 
-                      className="px-3 py-1.5 bg-background rounded-md border border-border/20 inline-flex items-center gap-2 relative"
+                    <div 
+                      key={group.id}
+                      ref={el => timeSlotRefs.current[group.id] = el}
+                      className={`time-slot-card bg-gradient-to-b from-background to-muted/10 rounded-lg shadow-sm border p-4 transition-all relative group
+                        ${isVotingMode ? 'cursor-pointer hover:scale-102 transform border-primary/40 hover:shadow-lg' : 'border-border/30 hover:shadow-md'}
+                        ${mockParticipants.length > 0 ? 'hover:border-primary' : ''}
+                        ${animatedGroups.includes(group.id) ? 'ring-2 ring-primary ring-opacity-50' : ''}
+                      `}
+                      onClick={() => isVotingMode && handleVoteForTimeSlot(group.id)}
                     >
-                      <span className="text-green-500 text-xs mr-0.5">🟢</span>
-                      <span className="mr-1 font-medium">{day}</span>
-                      <span>{timeRange}</span>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteSelectionGroup(group.id);
-                        }}
-                        className="ml-2 w-4 h-4 rounded-full hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-destructive"
-                        title="Remove this time slot"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </span>
+                      {/* Day with colored badge */}
+                      <div className="flex justify-between items-center mb-3">
+                        <div className={`flex items-center gap-2`}>
+                          <div className={`px-2 py-1 rounded-md font-bold ${dayColor} bg-${dayColor.split('-')[1]}-50/30`}>
+                            {day}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(dayDate, 'MMM d')}
+                          </div>
+                        </div>
+                        
+                        {!isVotingMode && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteSelectionGroup(group.id);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all w-8 h-8 rounded-full hover:bg-destructive/10 flex items-center justify-center absolute top-2 right-2"
+                            title="Remove this time slot"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      
+                      {/* Time range with larger font */}
+                      <div className="text-xl font-medium text-foreground mb-1 flex items-center">
+                        <Clock className="w-4 h-4 mr-2 text-primary/70" />
+                        {timeRange}
+                      </div>
+                      
+                      {/* Date display */}
+                      <div className="text-xs text-muted-foreground">
+                        {format(dayDate, 'EEEE, MMMM d, yyyy')}
+                      </div>
+                      
+                      {/* Hours count badge */}
+                      <div className="mt-2 flex justify-between items-center">
+                        <div className="text-xs px-2 py-0.5 bg-muted/50 rounded-full">
+                          {slots.length} {slots.length === 1 ? 'hour' : 'hours'}
+                        </div>
+                        
+                        {isVotingMode && (
+                          <div className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                            <ThumbsUp className="w-3 h-3" />
+                            <span>Click to vote</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Divider */}
+                      <div className="h-px w-full bg-border/30 my-3"></div>
+                      
+                      {/* Participant indicator section */}
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-muted-foreground font-medium">
+                          {mockParticipants.length > 0 ? 'Participants' : 'No participants yet'}
+                        </div>
+                        
+                        <div className="flex -space-x-1.5">
+                          {mockParticipants.slice(0, 6).map((participant, index) => (
+                            <div
+                              key={`p-${index}-${participant.name}`}
+                              className="w-7 h-7 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-medium text-white shadow-sm"
+                              style={{ 
+                                backgroundColor: participant.color,
+                                zIndex: 10 - index
+                              }}
+                              title={participant.name}
+                            >
+                              {participant.name.charAt(0).toUpperCase()}
+                              {participant.isHost && (
+                                <span className="absolute -top-1 -right-1 text-[8px]">👑</span>
+                              )}
+                            </div>
+                          ))}
+                          
+                          {mockParticipants.length > 6 && (
+                            <div 
+                              className="w-7 h-7 rounded-full bg-muted text-[10px] flex items-center justify-center font-medium border-2 border-background shadow-sm"
+                              title={`${mockParticipants.length - 6} more participants`}
+                            >
+                              +{mockParticipants.length - 6}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Animation effect for confirmed/voted slots */}
+                      {isVotingMode && animatedGroups.includes(group.id) && (
+                        <div className="absolute inset-0 rounded-lg animate-pulse bg-primary/20 pointer-events-none"></div>
+                      )}
+                    </div>
                   );
                 })}
                 
                 {selectionGroups.length === 0 && selectedSlots.length > 0 && (
-                  <div className="text-muted-foreground italic text-xs">
+                  <div className="text-muted-foreground italic text-sm col-span-full">
                     Loading time slot groups...
+                  </div>
+                )}
+                
+                {selectionGroups.length === 0 && selectedSlots.length === 0 && (
+                  <div className="text-muted-foreground italic text-sm col-span-full bg-muted/20 rounded-lg p-5 text-center">
+                    No time slots selected yet. Click and drag on the calendar to select time slots.
+                  </div>
+                )}
+              </div>
+              
+              {/* Action buttons */}
+              <div className="mt-8 pt-5 border-t border-border/30">
+                {!isVotingMode && isHost && (
+                  <div className="flex justify-center">
+                    <Button 
+                      onClick={handleConfirmSchedule}
+                      className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white flex items-center gap-2 px-6 py-6 h-auto shadow-md hover:shadow-lg"
+                      disabled={selectionGroups.length === 0}
+                      size="lg"
+                    >
+                      <Calendar className="w-5 h-5 mr-1" />
+                      <span className="text-base">Confirm Schedule</span>
+                    </Button>
+                  </div>
+                )}
+                
+                {isVotingMode && (
+                  <div className="flex flex-col space-y-6">
+                    {/* Share section */}
+                    <div className="bg-muted/20 rounded-lg p-4 shadow-sm">
+                      <h4 className="text-sm font-medium mb-3 flex items-center gap-2 text-primary">
+                        <Link2 className="w-4 h-4" />
+                        <span>Share Meeting Link</span>
+                      </h4>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+                        <div className="flex-1 relative">
+                          <div className="absolute left-3 top-0 bottom-0 flex items-center text-muted-foreground">
+                            <Link2 className="w-4 h-4" />
+                          </div>
+                          <Input
+                            value={shareUrl}
+                            readOnly
+                            className="pl-10 pr-10 bg-background border-primary/20 w-full h-full"
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="absolute right-1 top-1 bottom-1"
+                            onClick={handleCopyLink}
+                          >
+                            {copySuccess ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleCopyLink}
+                            variant="secondary"
+                            className="flex-1 sm:flex-none flex items-center gap-2 bg-secondary/80 hover:bg-secondary"
+                          >
+                            <Copy className="w-4 h-4" />
+                            {copySuccess ? "Copied!" : "Copy Link"}
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            className="border-primary/30 text-primary hover:bg-primary/10 flex items-center gap-2 flex-1 sm:flex-none"
+                            onClick={() => {
+                              if (navigator.share) {
+                                navigator.share({
+                                  title: meetingTitle || "Meeting Schedule",
+                                  text: `Join my meeting and vote on available times.`,
+                                  url: shareUrl
+                                }).catch(err => {
+                                  toast({
+                                    title: "Sharing Failed",
+                                    description: "Could not open the sharing menu. You can manually copy the link instead.",
+                                    variant: "destructive"
+                                  });
+                                });
+                              } else {
+                                handleCopyLink();
+                              }
+                            }}
+                          >
+                            <Share2 className="w-4 h-4" />
+                            Share
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Reset button with confirmation */}
+                    <div className="flex justify-end">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10 flex items-center gap-2">
+                            <RefreshCw className="w-4 h-4" />
+                            Reset Meeting
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Reset Meeting Schedule?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will clear all selected time slots and return to the selection phase.
+                              Any participants who have already voted will need to vote again.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleResetAll} className="bg-destructive text-destructive-foreground">
+                              Reset
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           )}
         </CardContent>
+        
+        {/* Helpful instruction or status for voting phase */}
+        {isVotingMode && (
+          <CardFooter className="flex flex-col px-6 pb-6 pt-0">
+            <div className="flex items-center justify-center p-4 bg-primary/5 border border-primary/20 rounded-lg max-w-lg mx-auto w-full mt-4">
+              <div className="flex-shrink-0 mr-4">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-primary" />
+                </div>
+              </div>
+              <div className="text-left">
+                <h4 className="text-sm font-medium text-primary">Invite Participants</h4>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Share this link with participants to let them vote on their preferred time slots.
+                  <span className="hidden md:inline"> Click the time slots to record your own votes.</span>
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center mt-6 gap-1.5 text-xs text-muted-foreground">
+              <span>Each click </span>
+              <span className="px-1.5 py-0.5 bg-green-500/10 text-green-600 rounded">🎉</span>
+              <span>creates a confetti animation!</span>
+            </div>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );
