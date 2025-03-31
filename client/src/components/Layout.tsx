@@ -42,7 +42,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <div className="flex-shrink-0 flex items-center cursor-pointer interactive-element">
                   <Calendar className="h-5 w-5 text-primary" />
                   <span className="ml-2 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 text-transparent bg-clip-text">
-                    TabScheduler
+                    SlotKing
                   </span>
                 </div>
               </Link>
@@ -103,7 +103,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-4">
             <div className="text-xs text-muted-foreground">
-              © 2025 TabScheduler
+              © 2025 SlotKing
             </div>
             <div className="flex space-x-6">
               <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Privacy</a>
