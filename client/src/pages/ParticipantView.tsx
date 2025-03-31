@@ -3,7 +3,7 @@ import { useParams, useLocation, useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Meeting, TimeSlot } from "@shared/schema";
+import { Meeting, TimeSlot, Participant, Availability } from "@shared/schema";
 import { generateTimeSlots, formatDateRange } from "@/lib/date-utils";
 import { useTimeSlots } from "@/hooks/useTimeSlots";
 
@@ -23,13 +23,19 @@ const ParticipantView = () => {
   const { toast } = useToast();
   const [_, navigate] = useLocation();
   
+  interface MeetingData {
+    meeting: Meeting;
+    participants: Participant[];
+    availabilities: Availability[];
+  }
+
   // Fetch meeting data
-  const { data: meetingData, isLoading, error } = useQuery({ 
+  const { data: meetingData, isLoading, error } = useQuery<MeetingData>({ 
     queryKey: [`/api/meetings/${params.id}`],
   });
   
   // Time slots state
-  const { timeSlots, toggleTimeSlot, clearSelections, selectedTimeSlots } = useTimeSlots();
+  const { timeSlots, toggleTimeSlot, clearSelections, selectedTimeSlots, setTimeSlots } = useTimeSlots();
   
   // Initialize time slots when meeting data loads
   useEffect(() => {
@@ -38,21 +44,21 @@ const ParticipantView = () => {
       const generatedTimeSlots = generateTimeSlots(
         meeting.startDate, 
         meeting.endDate, 
-        meeting.startTime,
-        meeting.endTime, 
+        meeting.startTime.toString(),
+        meeting.endTime.toString(), 
         meeting.timeSlotDuration
       );
       
       // Check if participant already submitted availability
       const participantAvailability = meetingData.availabilities.find(
-        a => a.participantId === parseInt(participantId || "0")
+        availability => availability.participantId === parseInt(participantId || "0")
       );
       
       // If participant has existing availability, mark those slots as selected
       if (participantAvailability) {
         generatedTimeSlots.forEach((slot, index) => {
           const slotKey = `${slot.date}-${slot.time}`;
-          if (participantAvailability.timeSlots.includes(slotKey)) {
+          if ((participantAvailability.timeSlots as string[]).includes(slotKey)) {
             generatedTimeSlots[index].selected = true;
           }
         });
@@ -61,7 +67,7 @@ const ParticipantView = () => {
       // Set the time slots
       setTimeSlots(generatedTimeSlots);
     }
-  }, [meetingData, participantId]);
+  }, [meetingData, participantId, setTimeSlots]);
   
   // Submit availability mutation
   const submitAvailability = useMutation({
@@ -158,9 +164,24 @@ const ParticipantView = () => {
     );
   }
 
+  if (!('meeting' in meetingData) || !('participants' in meetingData)) {
+    return (
+      <Card className="w-full p-6">
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>
+            Invalid meeting data format. Please try again.
+          </AlertDescription>
+        </Alert>
+        <Button onClick={() => navigate(`/join/${params.id}`)} className="mt-4">
+          Go back to join
+        </Button>
+      </Card>
+    );
+  }
+
   const { meeting } = meetingData;
   const participant = meetingData.participants.find(
-    p => p.id === parseInt(participantId)
+    p => p.id === parseInt(participantId || "0")
   );
   
   if (!participant) {

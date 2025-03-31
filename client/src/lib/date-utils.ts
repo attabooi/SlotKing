@@ -15,8 +15,10 @@ export const generateTimeSlots = (
   endDate: string,
   startTime: string,
   endTime: string,
-  slotDuration: number
+  slotDuration: number | string
 ): TimeSlot[] => {
+  // Convert slotDuration to number if it's a string
+  const duration: number = typeof slotDuration === 'string' ? parseInt(slotDuration, 10) : slotDuration;
   const start = parseISO(startDate);
   const end = parseISO(endDate);
   
@@ -24,8 +26,24 @@ export const generateTimeSlots = (
   const days = eachDayOfInterval({ start, end });
   
   // Parse start and end times
-  const [startHour, startMinute] = startTime.split(':').map(Number);
-  const [endHour, endMinute] = endTime.split(':').map(Number);
+  let startHour: number;
+  let startMinute: number;
+  let endHour: number;
+  let endMinute: number;
+  
+  if (startTime.includes(':')) {
+    [startHour, startMinute] = startTime.split(':').map(Number);
+  } else {
+    startHour = parseInt(startTime, 10);
+    startMinute = 0;
+  }
+  
+  if (endTime.includes(':')) {
+    [endHour, endMinute] = endTime.split(':').map(Number);
+  } else {
+    endHour = parseInt(endTime, 10);
+    endMinute = 0;
+  }
   
   const slots: TimeSlot[] = [];
   
@@ -56,7 +74,7 @@ export const generateTimeSlots = (
       });
       
       // Increment time by slot duration
-      currentMinute += slotDuration;
+      currentMinute += duration;
       if (currentMinute >= 60) {
         currentHour += Math.floor(currentMinute / 60);
         currentMinute %= 60;

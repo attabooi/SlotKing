@@ -154,8 +154,8 @@ const OrganizerView = () => {
   const timeSlots = generateTimeSlots(
     meeting.startDate, 
     meeting.endDate, 
-    meeting.startTime,
-    meeting.endTime, 
+    meeting.startTime.toString(),
+    meeting.endTime.toString(), 
     meeting.timeSlotDuration
   );
   

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Participant {
   name: string;
@@ -10,15 +11,19 @@ interface Participant {
   isHost?: boolean;
 }
 
+// Enhanced SelectionGroup to represent a contiguous block of time
 interface SelectionGroup {
   id: string;
   slots: Array<{ day: number; hour: number }>;
-  topSlot: { day: number; hour: number };
+  startTime: { day: number; hour: number };
+  endTime: { day: number; hour: number };
+  topSlot?: { day: number; hour: number };
 }
 
 interface SimpleWeeklyCalendarProps {
   onSelectTimeSlots?: (selectedSlots: Array<{ day: number; hour: number }>) => void;
   onDeleteTimeSlot?: (day: number, hour: number) => void;
+  onDeleteSelectionGroup?: (groupId: string) => void;
   userName?: string;
   isHost?: boolean;
   participants?: Participant[];
@@ -27,6 +32,7 @@ interface SimpleWeeklyCalendarProps {
 const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({ 
   onSelectTimeSlots,
   onDeleteTimeSlot,
+  onDeleteSelectionGroup,
   userName = 'User',
   isHost = false,
   participants = []
@@ -41,6 +47,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   const [dragStart, setDragStart] = useState<{ day: number; hour: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ day: number; hour: number } | null>(null);
   const [draggedSlots, setDraggedSlots] = useState<Array<{ day: number; hour: number }>>([]);
+  const [selectionGroups, setSelectionGroups] = useState<SelectionGroup[]>([]);
   
   // Derived data
   const days = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
@@ -141,25 +148,54 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   // Helper function for the mouse up action wrapped in useCallback
   const processMouseUp = useCallback(() => {
     if (isDragging && draggedSlots.length > 0) {
-      // Add the dragged slots to the already selected slots (without duplicates)
-      const newSelectedSlots = [...selectedSlots];
-      
-      draggedSlots.forEach(draggedSlot => {
-        const alreadySelected = newSelectedSlots.some(
-          slot => slot.day === draggedSlot.day && slot.hour === draggedSlot.hour
+      // Create a new selection group based on the current drag
+      if (dragStart && dragEnd) {
+        // Sort the dragged slots by day and hour
+        const sortedSlots = [...draggedSlots].sort((a, b) => {
+          if (a.day !== b.day) return a.day - b.day;
+          return a.hour - b.hour;
+        });
+        
+        // Get the first and last slots to determine the range
+        const firstSlot = sortedSlots[0];
+        const lastSlot = sortedSlots[sortedSlots.length - 1];
+        
+        // Check if this selection overlaps with existing selections
+        // If it does, remove those slots as we'll replace them with a single group
+        const overlappingSlots = selectedSlots.filter(existingSlot => 
+          draggedSlots.some(draggedSlot => 
+            existingSlot.day === draggedSlot.day && existingSlot.hour === draggedSlot.hour
+          )
         );
         
-        if (!alreadySelected) {
-          newSelectedSlots.push(draggedSlot);
+        // Remove any overlapping slots from the current selection
+        const filteredSelectedSlots = selectedSlots.filter(existingSlot => 
+          !overlappingSlots.some(overlap => 
+            existingSlot.day === overlap.day && existingSlot.hour === overlap.hour
+          )
+        );
+        
+        // Combine the filtered selected slots with the new dragged slots
+        const newSelectedSlots = [...filteredSelectedSlots, ...draggedSlots];
+        
+        // Create a new selection group for this drag operation
+        const newGroup: SelectionGroup = {
+          id: uuidv4(),
+          slots: draggedSlots,
+          startTime: firstSlot,
+          endTime: lastSlot
+        };
+        
+        // Update the state with the new selection group
+        setSelectionGroups(prevGroups => [...prevGroups, newGroup]);
+        
+        // Update selected slots
+        setSelectedSlots(newSelectedSlots);
+        
+        // Call the callback if provided
+        if (onSelectTimeSlots) {
+          onSelectTimeSlots(newSelectedSlots);
         }
-      });
-      
-      // Update selected slots
-      setSelectedSlots(newSelectedSlots);
-      
-      // Call the callback if provided
-      if (onSelectTimeSlots) {
-        onSelectTimeSlots(newSelectedSlots);
       }
     }
     
@@ -168,7 +204,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     setDragStart(null);
     setDragEnd(null);
     setDraggedSlots([]);
-  }, [isDragging, draggedSlots, selectedSlots, onSelectTimeSlots]);
+  }, [isDragging, draggedSlots, dragStart, dragEnd, selectedSlots, onSelectTimeSlots]);
   
   // Handle delete slot
   const handleDeleteSlot = (e: React.MouseEvent, day: number, hour: number) => {
@@ -236,7 +272,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   ];
   
   // Group selected slots into contiguous groups
-  const selectionGroups = useMemo(() => {
+  const calculatedGroups = useMemo(() => {
     if (selectedSlots.length === 0) return [];
     
     const getAdjacentSlots = (slot: { day: number; hour: number }, slots: Array<{ day: number; hour: number }>) => {
@@ -261,6 +297,8 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
       const group: SelectionGroup = {
         id: `group-${groups.length}`,
         slots: [],
+        startTime: slot,
+        endTime: slot,
         topSlot: slot // Will be updated if needed
       };
       
@@ -276,8 +314,8 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
         group.slots.push(current);
         
         // Update topSlot if this is the topmost slot (lowest hour)
-        if (current.hour < group.topSlot.hour || 
-            (current.hour === group.topSlot.hour && current.day < group.topSlot.day)) {
+        if (group.topSlot && (current.hour < group.topSlot.hour || 
+            (current.hour === group.topSlot.hour && current.day < group.topSlot.day))) {
           group.topSlot = current;
         }
         
@@ -299,14 +337,14 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   
   // Function to check if a slot is the top slot of its group
   const isTopSlotOfGroup = (day: number, hour: number) => {
-    return selectionGroups.some(group => 
-      group.topSlot.day === day && group.topSlot.hour === hour
+    return calculatedGroups.some(group => 
+      group.topSlot && group.topSlot.day === day && group.topSlot.hour === hour
     );
   };
   
   // Find group for a slot
   const getSlotGroup = (day: number, hour: number) => {
-    return selectionGroups.find(group => 
+    return calculatedGroups.find(group => 
       group.slots.some(slot => slot.day === day && slot.hour === hour)
     );
   };
