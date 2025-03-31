@@ -24,6 +24,7 @@ interface SimpleWeeklyCalendarProps {
   onSelectTimeSlots?: (selectedSlots: Array<{ day: number; hour: number }>) => void;
   onDeleteTimeSlot?: (day: number, hour: number) => void;
   onDeleteSelectionGroup?: (groupId: string) => void;
+  onGroupsChanged?: (groups: SelectionGroup[]) => void;
   userName?: string;
   isHost?: boolean;
   participants?: Participant[];
@@ -33,6 +34,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   onSelectTimeSlots,
   onDeleteTimeSlot,
   onDeleteSelectionGroup,
+  onGroupsChanged,
   userName = 'User',
   isHost = false,
   participants = []
@@ -377,6 +379,13 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
       group.slots.some(slot => slot.day === day && slot.hour === hour)
     );
   };
+  
+  // Notify parent component about group changes
+  useEffect(() => {
+    if (onGroupsChanged) {
+      onGroupsChanged(calculatedGroups);
+    }
+  }, [calculatedGroups, onGroupsChanged]);
   
   return (
     <div className="w-full overflow-auto">

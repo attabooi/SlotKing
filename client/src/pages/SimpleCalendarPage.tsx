@@ -6,11 +6,20 @@ import { Switch } from '@/components/ui/switch';
 import SimpleWeeklyCalendar from '@/components/SimpleWeeklyCalendar';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Trash2 } from 'lucide-react';
 
 interface Participant {
   name: string;
   color: string;
   isHost?: boolean;
+}
+
+interface SelectionGroup {
+  id: string;
+  slots: Array<{ day: number; hour: number }>;
+  startTime: { day: number; hour: number };
+  endTime: { day: number; hour: number };
+  topSlot?: { day: number; hour: number };
 }
 
 const SimpleCalendarPage: React.FC = () => {
@@ -19,6 +28,7 @@ const SimpleCalendarPage: React.FC = () => {
   const [selectedSlots, setSelectedSlots] = useState<Array<{ day: number; hour: number }>>([]);
   const [isHost, setIsHost] = useState(true);
   const [mockParticipants, setMockParticipants] = useState<Participant[]>([]);
+  const [selectionGroups, setSelectionGroups] = useState<SelectionGroup[]>([]);
 
   const handleSelectTimeSlots = (slots: Array<{ day: number; hour: number }>) => {
     setSelectedSlots(slots);
@@ -66,6 +76,15 @@ const SimpleCalendarPage: React.FC = () => {
       slot => !(slot.day === day && slot.hour === hour)
     );
     setSelectedSlots(newSelectedSlots);
+  };
+  
+  const handleDeleteSelectionGroup = (groupId: string) => {
+    // This will be automatically handled by SimpleWeeklyCalendar
+    // as it updates the selected slots which triggers our handleSelectTimeSlots
+  };
+  
+  const handleGroupsChanged = (groups: SelectionGroup[]) => {
+    setSelectionGroups(groups);
   };
   
   // Generate a color for the user based on their name
@@ -141,6 +160,8 @@ const SimpleCalendarPage: React.FC = () => {
           <SimpleWeeklyCalendar 
             onSelectTimeSlots={handleSelectTimeSlots} 
             onDeleteTimeSlot={handleDeleteTimeSlot}
+            onDeleteSelectionGroup={handleDeleteSelectionGroup}
+            onGroupsChanged={handleGroupsChanged}
             userName={userName || 'User'}
             isHost={isHost}
             participants={mockParticipants}
@@ -169,22 +190,54 @@ const SimpleCalendarPage: React.FC = () => {
               
               <h4 className="text-xs font-medium mb-2">Selected Time Slots:</h4>
               <div className="mt-2 text-xs text-muted-foreground flex flex-wrap gap-2">
-                {selectedSlots.map((slot, index) => {
-                  // Format day
-                  const day = format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), slot.day), 'EEE');
-                  // Format hour
-                  const hour = format(new Date(2023, 0, 1, slot.hour), 'h a');
+                {selectionGroups.map((group) => {
+                  // Get the day for this group
+                  const dayOfWeek = group.slots[0].day;
+                  const day = format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), dayOfWeek), 'EEE');
+                  
+                  // Find the earliest and latest hour in this group
+                  // We know that groups are only formed within the same day
+                  const slots = group.slots.filter(slot => slot.day === dayOfWeek);
+                  const sortedSlots = [...slots].sort((a, b) => a.hour - b.hour);
+                  
+                  const earliestHour = sortedSlots[0].hour;
+                  const latestHour = sortedSlots[sortedSlots.length - 1].hour;
+                  
+                  // Format the time range
+                  const startTime = format(new Date(2023, 0, 1, earliestHour), 'h a');
+                  const endTime = format(new Date(2023, 0, 1, latestHour + 1), 'h a');
+                  
+                  const timeRange = earliestHour === latestHour 
+                    ? startTime 
+                    : `${startTime} - ${endTime}`;
                   
                   return (
                     <span 
-                      key={index} 
-                      className="px-2 py-1 bg-background rounded-md border border-border/20 inline-flex items-center gap-1"
+                      key={group.id} 
+                      className="px-3 py-1.5 bg-background rounded-md border border-border/20 inline-flex items-center gap-2 relative"
                     >
-                      <span>{day}</span>
-                      <span>{hour}</span>
+                      <span className="text-green-500 text-xs mr-0.5">🟢</span>
+                      <span className="mr-1 font-medium">{day}</span>
+                      <span>{timeRange}</span>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSelectionGroup(group.id);
+                        }}
+                        className="ml-2 w-4 h-4 rounded-full hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-destructive"
+                        title="Remove this time slot"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </span>
                   );
                 })}
+                
+                {selectionGroups.length === 0 && selectedSlots.length > 0 && (
+                  <div className="text-muted-foreground italic text-xs">
+                    Loading time slot groups...
+                  </div>
+                )}
               </div>
             </div>
           )}
