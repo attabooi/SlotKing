@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import CalendarGrid from "@/components/CalendarGrid";
+import WeeklyCalendarGrid from "@/components/WeeklyCalendarGrid";
 import ActivityFeed from "@/components/ActivityFeed";
 import { ClipboardCopy, Settings, Info } from "lucide-react";
 
@@ -205,14 +206,14 @@ const OrganizerView = () => {
       </div>
       
       <div className="p-6">
-        <div className="bg-white p-4 rounded-md mb-6 border border-gray-200 shadow-sm">
+        <div className="dark-card p-4 rounded-md mb-6 shadow-sm">
           <div className="flex">
             <div className="flex-shrink-0">
               <Info className="h-5 w-5 text-primary" />
             </div>
             <div className="ml-3 flex-1 md:flex md:justify-between">
-              <p className="text-sm text-gray-700">
-                Shareable link: <span className="font-medium text-primary">{window.location.origin}/join/{params.id}</span>
+              <p className="text-sm text-muted-foreground">
+                Share link: <span className="font-medium text-primary">{window.location.origin}/join/{params.id}</span>
               </p>
               <button 
                 onClick={handleCopyLink}
@@ -225,32 +226,64 @@ const OrganizerView = () => {
         </div>
         
         <div className="mb-6">
-          <h2 className="text-lg font-medium text-primary mb-4">Best Time</h2>
-          <div className="bg-white border border-gray-200 shadow-sm px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 rounded-md">
-            <div className="text-sm font-medium text-gray-500">Optimal time slot</div>
-            <div className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 font-semibold">
-              {bestTimeSlot ? (
-                <span className="text-primary">{bestTimeSlot} <span className="text-gray-500 font-normal">(everyone available)</span></span>
-              ) : (
-                participants.length === 0 ? 
-                  "No participants have joined this tab yet" : 
-                  "No common availability found yet"
-              )}
-            </div>
-          </div>
+          <h2 className="text-xl font-medium text-primary mb-4">Schedule Meeting</h2>
         </div>
         
-        <Tabs defaultValue="availability" onValueChange={setActiveTab}>
-          <TabsList className="mb-6 border-b border-gray-200 w-full justify-start">
-            <TabsTrigger value="availability" className="pb-4">
-              Availability Grid
+        <Tabs defaultValue="weekly" onValueChange={setActiveTab}>
+          <TabsList className="mb-6 border-b border-border/10 w-full justify-start">
+            <TabsTrigger value="weekly" className="pb-4">
+              Weekly View
+            </TabsTrigger>
+            <TabsTrigger value="grid" className="pb-4">
+              Grid View
             </TabsTrigger>
             <TabsTrigger value="participants" className="pb-4">
               Participants ({participants.length})
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="availability">
+          <TabsContent value="weekly">
+            <WeeklyCalendarGrid 
+              meeting={meeting} 
+              timeSlots={processedTimeSlots}
+              isOrganizer={true}
+              selectedSlots={selectedTimeSlots}
+              onTimeSlotSelect={(date, time) => {
+                const slotKey = `${date}-${time}`;
+                
+                // Check if the slot is already selected
+                const isAlreadySelected = selectedTimeSlots.some(
+                  slot => slot.date === date && slot.time === time
+                );
+                
+                if (isAlreadySelected) {
+                  // Remove the slot if already selected
+                  setSelectedTimeSlots(
+                    selectedTimeSlots.filter(
+                      slot => !(slot.date === date && slot.time === time)
+                    )
+                  );
+                } else {
+                  // Add the slot if not selected
+                  setSelectedTimeSlots([...selectedTimeSlots, { date, time }]);
+                }
+              }}
+              participants={participants.map((p, i) => ({
+                name: p.name,
+                color: [
+                  '#F87171', // red-400
+                  '#FB923C', // orange-400
+                  '#FBBF24', // amber-400
+                  '#4ADE80', // green-400
+                  '#60A5FA', // blue-400
+                  '#A78BFA', // violet-400
+                  '#F472B6', // pink-400
+                ][i % 7]
+              }))}
+            />
+          </TabsContent>
+          
+          <TabsContent value="grid">
             <CalendarGrid 
               meeting={meeting} 
               timeSlots={processedTimeSlots}

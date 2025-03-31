@@ -1,108 +1,117 @@
-import { TimeSlot } from "@shared/schema";
-import { format, addDays, parse, addMinutes } from "date-fns";
+import { format, eachDayOfInterval, addDays, parseISO, startOfDay } from 'date-fns';
+import { TimeSlot } from '@shared/schema';
 
-// Function to generate time slots based on meeting parameters
+/**
+ * Generates an array of time slots based on the meeting parameters
+ * @param startDate Start date of the meeting (YYYY-MM-DD)
+ * @param endDate End date of the meeting (YYYY-MM-DD)
+ * @param startTime Start time of each day (HH:MM)
+ * @param endTime End time of each day (HH:MM)
+ * @param slotDuration Duration of each time slot in minutes
+ * @returns Array of time slots with date and time formatted
+ */
 export const generateTimeSlots = (
   startDate: string,
   endDate: string,
-  startTime: number,
-  endTime: number,
-  timeSlotDuration: number
+  startTime: string,
+  endTime: string,
+  slotDuration: number
 ): TimeSlot[] => {
-  const startDateObj = new Date(startDate);
-  const endDateObj = new Date(endDate);
-  const timeSlots: TimeSlot[] = [];
+  const start = parseISO(startDate);
+  const end = parseISO(endDate);
   
-  // For each day in the range
-  let currentDate = startDateObj;
+  // Generate days between start and end (inclusive)
+  const days = eachDayOfInterval({ start, end });
   
-  while (currentDate <= endDateObj) {
-    // Format date to YYYY-MM-DD
-    const dateString = format(currentDate, "yyyy-MM-dd");
+  // Parse start and end times
+  const [startHour, startMinute] = startTime.split(':').map(Number);
+  const [endHour, endMinute] = endTime.split(':').map(Number);
+  
+  const slots: TimeSlot[] = [];
+  
+  // For each day, generate time slots
+  days.forEach(day => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const formattedDate = format(day, 'MMM d');
     
-    // For each time slot in the day
-    let currentTime = startTime;
+    // Generate time slots for the day
+    let currentHour = startHour;
+    let currentMinute = startMinute;
     
-    while (currentTime < endTime) {
-      // Calculate minutes based on the time
-      const hours = Math.floor(currentTime);
-      const minutes = Math.round((currentTime - hours) * 60);
+    while (
+      currentHour < endHour || 
+      (currentHour === endHour && currentMinute < endMinute)
+    ) {
+      const timeStr = `${currentHour}:${currentMinute.toString().padStart(2, '0')}`;
+      const formattedTime = format(
+        new Date(2023, 0, 1, currentHour, currentMinute),
+        'h:mm a'
+      );
       
-      // Format time as HH:MM
-      const timeString = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-      
-      // Create time slot
-      timeSlots.push({
-        date: dateString,
-        time: timeString,
-        formattedDate: format(currentDate, "EEE, MMM d"),
-        formattedTime: format(new Date().setHours(hours, minutes, 0), "h:mm a"),
-        selected: false,
+      slots.push({
+        date: dateStr,
+        time: timeStr,
+        formattedDate,
+        formattedTime
       });
       
-      // Move to next time slot
-      currentTime += timeSlotDuration / 60;
+      // Increment time by slot duration
+      currentMinute += slotDuration;
+      if (currentMinute >= 60) {
+        currentHour += Math.floor(currentMinute / 60);
+        currentMinute %= 60;
+      }
     }
-    
-    // Move to next day
-    currentDate = addDays(currentDate, 1);
-  }
+  });
   
-  return timeSlots;
+  return slots;
 };
 
-// Format the date range for display
+/**
+ * Formats a date range for display
+ * @param startDate Start date string (YYYY-MM-DD)
+ * @param endDate End date string (YYYY-MM-DD)
+ * @returns Formatted date range string
+ */
 export const formatDateRange = (startDate: string, endDate: string): string => {
-  const startDateObj = new Date(startDate);
-  const endDateObj = new Date(endDate);
+  const start = parseISO(startDate);
+  const end = parseISO(endDate);
   
-  // If same month and year, just show date range
-  if (
-    startDateObj.getMonth() === endDateObj.getMonth() &&
-    startDateObj.getFullYear() === endDateObj.getFullYear()
-  ) {
-    return `${format(startDateObj, "MMMM d")} - ${format(endDateObj, "d, yyyy")}`;
+  const isSameMonth = format(start, 'MMM') === format(end, 'MMM');
+  
+  if (isSameMonth) {
+    return `${format(start, 'MMM d')} - ${format(end, 'd, yyyy')}`;
+  } else {
+    return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
   }
-  
-  // If same year, show month and date range
-  if (startDateObj.getFullYear() === endDateObj.getFullYear()) {
-    return `${format(startDateObj, "MMMM d")} - ${format(endDateObj, "MMMM d, yyyy")}`;
-  }
-  
-  // Otherwise, show full dates
-  return `${format(startDateObj, "MMMM d, yyyy")} - ${format(endDateObj, "MMMM d, yyyy")}`;
 };
 
-// Calculate the best time slots based on availabilities
+/**
+ * Finds the best time slots based on participants' availabilities
+ * @param timeSlots Array of time slots with availability counts
+ * @param minAvailability Minimum number of participants required to be available
+ * @param maxResults Maximum number of results to return
+ * @returns Array of best time slots
+ */
 export const findBestTimeSlots = (
-  timeSlots: TimeSlot[],
-  availabilities: any[],
-  numParticipants: number
-): TimeSlot[] => {
-  if (availabilities.length === 0) return [];
-  
-  // Count availability for each time slot
-  const slotCounts = new Map<string, number>();
-  
-  availabilities.forEach(availability => {
-    availability.timeSlots.forEach(slotKey => {
-      const count = slotCounts.get(slotKey) || 0;
-      slotCounts.set(slotKey, count + 1);
-    });
-  });
-  
-  // Mark the slots with their availability count
-  const slotsWithCounts = timeSlots.map(slot => {
-    const slotKey = `${slot.date}-${slot.time}`;
-    const count = slotCounts.get(slotKey) || 0;
-    
-    return {
-      ...slot,
-      available: count,
-      total: numParticipants
-    };
-  });
+  timeSlots: Array<TimeSlot & { available: number, total: number }>,
+  minAvailability: number = 1,
+  maxResults: number = 3
+): Array<TimeSlot & { available: number, total: number }> => {
+  // Filter slots with at least the minimum required availability
+  const eligibleSlots = timeSlots.filter(slot => slot.available >= minAvailability);
   
   // Sort by availability (highest first)
-  return [...slotsWithCounts].sort((a, b) => (b.available || 0) - (a.available || 0));
+  const sortedSlots = [...eligibleSlots].sort((a, b) => {
+    // Sort by available count first
+    if (b.available !== a.available) {
+      return b.available - a.available;
+    }
+    
+    // If tied, sort by date and time
+    return `${a.date}-${a.time}`.localeCompare(`${b.date}-${b.time}`);
+  });
+  
+  // Return the top results
+  return sortedSlots.slice(0, maxResults);
 };
