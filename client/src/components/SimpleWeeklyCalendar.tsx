@@ -209,22 +209,33 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     setDraggedSlots([]);
   }, [isDragging, draggedSlots, dragStart, dragEnd, selectedSlots, onSelectTimeSlots]);
   
-  // Handle delete slot
+  // Handle delete slot - but we'll instead find which group this slot belongs to
+  // and remove the entire group for consistency
   const handleDeleteSlot = (e: React.MouseEvent, day: number, hour: number) => {
     e.stopPropagation();
     
-    // Remove the slot from selected slots
-    const newSelectedSlots = selectedSlots.filter(
-      slot => !(slot.day === day && slot.hour === hour)
+    // Find which group this slot belongs to
+    const groupToDelete = selectionGroups.find(group => 
+      group.slots.some(slot => slot.day === day && slot.hour === hour)
     );
     
-    setSelectedSlots(newSelectedSlots);
-    
-    // Call the delete callback if provided
-    if (onDeleteTimeSlot) {
-      onDeleteTimeSlot(day, hour);
-    } else if (onSelectTimeSlots) {
-      onSelectTimeSlots(newSelectedSlots);
+    if (groupToDelete) {
+      // Use the existing handleDeleteGroup function to delete the entire group
+      handleDeleteGroup(e, groupToDelete.id);
+    } else {
+      // Fallback for individual slot deletion (should not happen with our new approach)
+      const newSelectedSlots = selectedSlots.filter(
+        slot => !(slot.day === day && slot.hour === hour)
+      );
+      
+      setSelectedSlots(newSelectedSlots);
+      
+      // Call the delete callback if provided
+      if (onDeleteTimeSlot) {
+        onDeleteTimeSlot(day, hour);
+      } else if (onSelectTimeSlots) {
+        onSelectTimeSlots(newSelectedSlots);
+      }
     }
   };
   
@@ -232,8 +243,8 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   const handleDeleteGroup = (e: React.MouseEvent, groupId: string) => {
     e.stopPropagation();
     
-    // Find the group to delete (handles both UUID and string formats)
-    const groupToDelete = calculatedGroups.find(group => 
+    // Find the group to delete
+    const groupToDelete = selectionGroups.find(group => 
       group.id === groupId
     );
     
@@ -246,12 +257,20 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
       )
     );
     
+    // Also remove the group from the selectionGroups state
+    const newSelectionGroups = selectionGroups.filter(group => group.id !== groupId);
+    
+    // Update states
     setSelectedSlots(newSelectedSlots);
+    setSelectionGroups(newSelectionGroups);
     
     // Call the onDeleteSelectionGroup callback if provided
     if (onDeleteSelectionGroup) {
       onDeleteSelectionGroup(groupId);
-    } else if (onSelectTimeSlots) {
+    }
+    
+    // Always call onSelectTimeSlots to notify parent
+    if (onSelectTimeSlots) {
       onSelectTimeSlots(newSelectedSlots);
     }
   };
@@ -302,69 +321,42 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     { name: userName, color: userColor, isHost }
   ];
   
-  // Group selected slots into contiguous groups
+  // Instead of calculating groups from selectedSlots, we'll use the selectionGroups state
+  // which is updated every time a new drag operation is completed
   const calculatedGroups = useMemo(() => {
-    if (selectedSlots.length === 0) return [];
+    if (selectionGroups.length === 0) return [];
     
-    const getAdjacentSlots = (slot: { day: number; hour: number }, slots: Array<{ day: number; hour: number }>) => {
-      const { day, hour } = slot;
-      // Only consider slots within the same day to be adjacent
-      return slots.filter(s => 
-        s.day === day && (s.hour === hour - 1 || s.hour === hour + 1)
-      );
-    };
-    
-    const visited = new Set<string>();
-    const groups: SelectionGroup[] = [];
-    
-    // Helper function to convert slot to string key
-    const slotKey = (slot: { day: number; hour: number }) => `${slot.day}-${slot.hour}`;
-    
-    // Find all groups using breadth-first search
-    selectedSlots.forEach(slot => {
-      const key = slotKey(slot);
-      if (visited.has(key)) return;
+    // Process each group to ensure it has the right metadata
+    return selectionGroups.map(group => {
+      if (group.slots.length === 0) return group;
       
-      const group: SelectionGroup = {
-        id: uuidv4(), // Using UUIDs for consistent group identification
-        slots: [],
-        startTime: slot,
-        endTime: slot,
-        topSlot: slot // Will be updated if needed
-      };
+      // Sort the slots by day and hour
+      const sortedSlots = [...group.slots].sort((a, b) => {
+        if (a.day !== b.day) return a.day - b.day;
+        return a.hour - b.hour;
+      });
       
-      const queue = [slot];
+      // Get the first and last slots to determine the range
+      const firstSlot = sortedSlots[0];
+      const lastSlot = sortedSlots[sortedSlots.length - 1];
       
-      while (queue.length > 0) {
-        const current = queue.shift()!;
-        const currentKey = slotKey(current);
-        
-        if (visited.has(currentKey)) continue;
-        
-        visited.add(currentKey);
-        group.slots.push(current);
-        
-        // Update topSlot if this is the topmost slot (lowest hour)
-        if (group.topSlot && (current.hour < group.topSlot.hour || 
-            (current.hour === group.topSlot.hour && current.day < group.topSlot.day))) {
-          group.topSlot = current;
+      // Update the topSlot (the one with the lowest hour on the earliest day)
+      let topSlot = firstSlot;
+      for (const slot of sortedSlots) {
+        if (slot.hour < topSlot.hour || (slot.hour === topSlot.hour && slot.day < topSlot.day)) {
+          topSlot = slot;
         }
-        
-        // Add all adjacent slots to the queue
-        const adjacent = getAdjacentSlots(current, selectedSlots);
-        adjacent.forEach(adj => {
-          const adjKey = slotKey(adj);
-          if (!visited.has(adjKey)) {
-            queue.push(adj);
-          }
-        });
       }
       
-      groups.push(group);
-    });
-    
-    return groups;
-  }, [selectedSlots]);
+      // Return the updated group
+      return {
+        ...group,
+        startTime: firstSlot,
+        endTime: lastSlot,
+        topSlot: topSlot
+      };
+    }).filter(group => group.slots.length > 0); // Filter out any empty groups
+  }, [selectionGroups]);
   
   // Function to check if a slot is the top slot of its group
   const isTopSlotOfGroup = (day: number, hour: number) => {
@@ -570,28 +562,39 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
                             <div className="absolute inset-0 group-indicator opacity-30 pointer-events-none"></div>
                           )}
                           
-                          {/* Show connection indicators based on adjacent selected slots */}
+                          {/* Show connection indicators only for slots within the same group */}
                           {isSlotSelected && (
                             <>
-                              {/* Check if there's a selected slot above */}
-                              {selectedSlots.some(slot => slot.day === dayIndex && slot.hour === hour - 1) && (
-                                <div className="absolute inset-x-0 top-0 h-1/4 slot-connected-top pointer-events-none"></div>
-                              )}
-                              
-                              {/* Check if there's a selected slot below */}
-                              {selectedSlots.some(slot => slot.day === dayIndex && slot.hour === hour + 1) && (
-                                <div className="absolute inset-x-0 bottom-0 h-1/4 slot-connected-bottom pointer-events-none"></div>
-                              )}
-                              
-                              {/* Check if there's a selected slot to the left */}
-                              {selectedSlots.some(slot => slot.day === dayIndex - 1 && slot.hour === hour) && (
-                                <div className="absolute inset-y-0 left-0 w-1/4 slot-connected-left pointer-events-none"></div>
-                              )}
-                              
-                              {/* Check if there's a selected slot to the right */}
-                              {selectedSlots.some(slot => slot.day === dayIndex + 1 && slot.hour === hour) && (
-                                <div className="absolute inset-y-0 right-0 w-1/4 slot-connected-right pointer-events-none"></div>
-                              )}
+                              {/* Get the current slot's group */}
+                              {(() => {
+                                const currentGroup = getSlotGroup(dayIndex, hour);
+                                if (!currentGroup) return null;
+                                
+                                // Only show connections within the same group
+                                return (
+                                  <>
+                                    {/* Check if there's a selected slot above in the same group */}
+                                    {currentGroup.slots.some(slot => slot.day === dayIndex && slot.hour === hour - 1) && (
+                                      <div className="absolute inset-x-0 top-0 h-1/4 slot-connected-top pointer-events-none"></div>
+                                    )}
+                                    
+                                    {/* Check if there's a selected slot below in the same group */}
+                                    {currentGroup.slots.some(slot => slot.day === dayIndex && slot.hour === hour + 1) && (
+                                      <div className="absolute inset-x-0 bottom-0 h-1/4 slot-connected-bottom pointer-events-none"></div>
+                                    )}
+                                    
+                                    {/* Check if there's a selected slot to the left in the same group */}
+                                    {currentGroup.slots.some(slot => slot.day === dayIndex - 1 && slot.hour === hour) && (
+                                      <div className="absolute inset-y-0 left-0 w-1/4 slot-connected-left pointer-events-none"></div>
+                                    )}
+                                    
+                                    {/* Check if there's a selected slot to the right in the same group */}
+                                    {currentGroup.slots.some(slot => slot.day === dayIndex + 1 && slot.hour === hour) && (
+                                      <div className="absolute inset-y-0 right-0 w-1/4 slot-connected-right pointer-events-none"></div>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </>
                           )}
                         </>
