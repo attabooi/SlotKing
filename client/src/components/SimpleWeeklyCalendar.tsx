@@ -1,29 +1,48 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { format, startOfWeek, addDays } from 'date-fns';
+import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Crown, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+interface Participant {
+  name: string;
+  color: string;
+  isHost?: boolean;
+}
 
 interface SimpleWeeklyCalendarProps {
   onSelectTimeSlots?: (selectedSlots: Array<{ day: number; hour: number }>) => void;
+  onDeleteTimeSlot?: (day: number, hour: number) => void;
   userName?: string;
+  isHost?: boolean;
+  participants?: Participant[];
 }
 
 const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({ 
   onSelectTimeSlots,
-  userName = 'User'
+  onDeleteTimeSlot,
+  userName = 'User',
+  isHost = false,
+  participants = []
 }) => {
-  // Get days of the week starting from Monday
-  const today = new Date();
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // 1 = Monday
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  // Week navigation state
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const today = new Date();
+    return startOfWeek(today, { weekStartsOn: 1 }); // 1 = Monday
+  });
   
-  // Define hours (e.g., 9 AM to 6 PM)
-  const hours = Array.from({ length: 10 }, (_, i) => i + 9); // 9 AM to 6 PM
+  const days = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
+  
+  // Define all 24 hours
+  const hours = Array.from({ length: 24 }, (_, i) => i);
   
   // State for tracking selections
   const [selectedSlots, setSelectedSlots] = useState<Array<{ day: number; hour: number }>>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ day: number; hour: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ day: number; hour: number } | null>(null);
+  const [draggedSlots, setDraggedSlots] = useState<Array<{ day: number; hour: number }>>([]);
   
   // Generate a color for the user based on their name
   const getUserColor = (name: string) => {
@@ -46,6 +65,27 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     return colors[Math.abs(hash) % colors.length];
   };
   
+  // Determine time of day for styling
+  const getTimeOfDay = (hour: number) => {
+    if (hour >= 6 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 18) return 'afternoon';
+    return 'night';
+  };
+  
+  // Get background styles based on time of day
+  const getBackgroundStyle = (hour: number) => {
+    const timeOfDay = getTimeOfDay(hour);
+    
+    if (timeOfDay === 'morning') {
+      return 'time-morning'; // Sunrise tones
+    } else if (timeOfDay === 'afternoon') {
+      return 'time-afternoon'; // Sunlight tones
+    } else {
+      return 'time-night'; // Night tones
+    }
+  };
+  
+  // User information
   const userColor = getUserColor(userName);
   const userInitial = userName.charAt(0).toUpperCase();
   
@@ -54,32 +94,48 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     setIsDragging(true);
     setDragStart({ day, hour });
     setDragEnd({ day, hour });
+    setDraggedSlots([{ day, hour }]);
   };
   
   // Handle mouse over during drag
   const handleMouseOver = (day: number, hour: number) => {
-    if (isDragging) {
+    if (isDragging && dragStart) {
       setDragEnd({ day, hour });
+      
+      // Calculate the selected range
+      const startDay = Math.min(dragStart.day, day);
+      const endDay = Math.max(dragStart.day, day);
+      const startHour = Math.min(dragStart.hour, hour);
+      const endHour = Math.max(dragStart.hour, hour);
+      
+      // Create array of dragged slots
+      const newDraggedSlots = [];
+      
+      for (let d = startDay; d <= endDay; d++) {
+        for (let h = startHour; h <= endHour; h++) {
+          newDraggedSlots.push({ day: d, hour: h });
+        }
+      }
+      
+      setDraggedSlots(newDraggedSlots);
     }
   };
   
   // Handle mouse up to end drag
   const handleMouseUp = () => {
-    if (isDragging && dragStart && dragEnd) {
-      // Calculate the selected range
-      const startDay = Math.min(dragStart.day, dragEnd.day);
-      const endDay = Math.max(dragStart.day, dragEnd.day);
-      const startHour = Math.min(dragStart.hour, dragEnd.hour);
-      const endHour = Math.max(dragStart.hour, dragEnd.hour);
+    if (isDragging && draggedSlots.length > 0) {
+      // Add the dragged slots to the already selected slots (without duplicates)
+      const newSelectedSlots = [...selectedSlots];
       
-      // Create array of selected slots
-      const newSelectedSlots = [];
-      
-      for (let d = startDay; d <= endDay; d++) {
-        for (let h = startHour; h <= endHour; h++) {
-          newSelectedSlots.push({ day: d, hour: h });
+      draggedSlots.forEach(draggedSlot => {
+        const alreadySelected = newSelectedSlots.some(
+          slot => slot.day === draggedSlot.day && slot.hour === draggedSlot.hour
+        );
+        
+        if (!alreadySelected) {
+          newSelectedSlots.push(draggedSlot);
         }
-      }
+      });
       
       // Update selected slots
       setSelectedSlots(newSelectedSlots);
@@ -94,23 +150,49 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     setIsDragging(false);
     setDragStart(null);
     setDragEnd(null);
+    setDraggedSlots([]);
+  };
+  
+  // Handle delete slot
+  const handleDeleteSlot = (e: React.MouseEvent, day: number, hour: number) => {
+    e.stopPropagation();
+    
+    // Remove the slot from selected slots
+    const newSelectedSlots = selectedSlots.filter(
+      slot => !(slot.day === day && slot.hour === hour)
+    );
+    
+    setSelectedSlots(newSelectedSlots);
+    
+    // Call the delete callback if provided
+    if (onDeleteTimeSlot) {
+      onDeleteTimeSlot(day, hour);
+    } else if (onSelectTimeSlots) {
+      onSelectTimeSlots(newSelectedSlots);
+    }
   };
   
   // Check if a slot is in the current drag selection
   const isInDragSelection = (day: number, hour: number) => {
-    if (!isDragging || !dragStart || !dragEnd) return false;
-    
-    const startDay = Math.min(dragStart.day, dragEnd.day);
-    const endDay = Math.max(dragStart.day, dragEnd.day);
-    const startHour = Math.min(dragStart.hour, dragEnd.hour);
-    const endHour = Math.max(dragStart.hour, dragEnd.hour);
-    
-    return day >= startDay && day <= endDay && hour >= startHour && hour <= endHour;
+    return draggedSlots.some(slot => slot.day === day && slot.hour === hour);
   };
   
   // Check if a slot is selected
   const isSelected = (day: number, hour: number) => {
     return selectedSlots.some(slot => slot.day === day && slot.hour === hour);
+  };
+  
+  // Week navigation
+  const goToPreviousWeek = () => {
+    setCurrentWeekStart(prev => subWeeks(prev, 1));
+  };
+  
+  const goToNextWeek = () => {
+    setCurrentWeekStart(prev => addWeeks(prev, 1));
+  };
+  
+  const goToCurrentWeek = () => {
+    setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
   };
   
   // Add document-wide mouse up event listener
@@ -124,68 +206,195 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     return () => {
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [isDragging, dragStart, dragEnd]);
+  }, [isDragging, dragStart, dragEnd, draggedSlots, selectedSlots]);
+  
+  // Format the week range for display
+  const weekRangeText = `${format(days[0], 'MMM d')} - ${format(days[6], 'MMM d, yyyy')}`;
+  
+  // Mock participants data for demonstration
+  const mockParticipants: Participant[] = participants.length > 0 ? participants : [
+    { name: userName, color: userColor, isHost }
+  ];
   
   return (
     <div className="w-full overflow-auto">
-      <div className="bg-primary/5 rounded-lg p-3 mb-4 text-sm text-muted-foreground">
-        <span className="text-primary font-medium">💡 Tip:</span> Click and drag to select multiple time slots.
+      <div className="bg-primary/5 rounded-lg p-3 mb-4 text-sm text-muted-foreground flex flex-col gap-2">
+        <div>
+          <span className="text-primary font-medium">💡 Tip:</span> Click and drag to select multiple time slots.
+        </div>
+        <div>
+          <span className="text-primary font-medium">💡 Pro tip:</span> Selected slots will remain selected after dragging. Click (X) to remove a selection.
+        </div>
       </div>
       
-      <div className="min-w-[700px]">
+      {/* Week navigation */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={goToPreviousWeek}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={goToCurrentWeek}
+            className="text-xs h-8"
+          >
+            Today
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={goToNextWeek}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <div className="text-sm font-medium">{weekRangeText}</div>
+      </div>
+      
+      <div className="min-w-[800px] border border-border/20 rounded-lg overflow-hidden">
         {/* Header row with days */}
-        <div className="grid grid-cols-[60px_repeat(7,1fr)]">
+        <div className="grid grid-cols-[60px_repeat(7,1fr)] bg-muted/30">
           <div className="border-b border-r border-border/20 p-2"></div>
           
-          {days.map((day, index) => (
-            <div 
-              key={`day-${index}`} 
-              className="border-b border-r border-border/20 p-2 text-center"
-            >
-              <div className="text-sm font-medium">{format(day, "EEE")}</div>
-              <div className="text-xs text-muted-foreground">{format(day, "MMM d")}</div>
-            </div>
-          ))}
+          {days.map((day, index) => {
+            const isToday = isSameDay(day, new Date());
+            
+            return (
+              <div 
+                key={`day-${index}`} 
+                className={cn(
+                  "border-b border-r border-border/20 p-2 text-center",
+                  isToday && "bg-primary/10"
+                )}
+              >
+                <div className="text-sm font-medium">{format(day, "EEE")}</div>
+                <div className={cn(
+                  "text-xs text-muted-foreground",
+                  isToday && "text-primary font-medium"
+                )}>
+                  {format(day, "MMM d")}
+                </div>
+              </div>
+            );
+          })}
         </div>
         
         {/* Time grid */}
         <div>
-          {hours.map((hour, hourIndex) => (
-            <div key={`hour-${hour}`} className="grid grid-cols-[60px_repeat(7,1fr)]">
-              {/* Time label */}
-              <div className="border-b border-r border-border/20 p-2 text-xs font-medium text-muted-foreground text-right pr-3">
-                {format(new Date(2023, 0, 1, hour), "h a")}
-              </div>
-              
-              {/* Day cells */}
-              {Array.from({ length: 7 }, (_, dayIndex) => {
-                const isInSelection = isInDragSelection(dayIndex, hourIndex);
-                const isSlotSelected = isSelected(dayIndex, hourIndex);
+          {hours.map((hour) => {
+            const timeOfDay = getTimeOfDay(hour);
+            const bgStyle = getBackgroundStyle(hour);
+            
+            return (
+              <div 
+                key={`hour-${hour}`} 
+                className={cn(
+                  "grid grid-cols-[60px_repeat(7,1fr)]",
+                  bgStyle
+                )}
+              >
+                {/* Time label */}
+                <div className="border-b border-r border-border/20 p-2 text-xs font-medium text-muted-foreground text-right pr-3">
+                  {format(new Date(2023, 0, 1, hour), "h a")}
+                </div>
                 
-                return (
-                  <div 
-                    key={`cell-${dayIndex}-${hourIndex}`} 
-                    className={cn(
-                      "border-b border-r border-border/20 h-12 relative transition-colors duration-150",
-                      (isSlotSelected || isInSelection) ? "bg-primary/20 hover:bg-primary/25" : "hover:bg-muted/50",
-                      isDragging && "cursor-pointer"
-                    )}
-                    onMouseDown={() => handleMouseDown(dayIndex, hourIndex)}
-                    onMouseOver={() => handleMouseOver(dayIndex, hourIndex)}
-                  >
-                    {isSlotSelected && (
-                      <div 
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium shadow-sm animate-in fade-in zoom-in duration-300"
-                        style={{ backgroundColor: userColor }}
-                      >
-                        {userInitial}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+                {/* Day cells */}
+                {Array.from({ length: 7 }, (_, dayIndex) => {
+                  const isInSelection = isInDragSelection(dayIndex, hour);
+                  const isSlotSelected = isSelected(dayIndex, hour);
+                  
+                  return (
+                    <div 
+                      key={`cell-${dayIndex}-${hour}`} 
+                      className={cn(
+                        "border-b border-r border-border/20 h-12 relative transition-colors duration-150",
+                        isInSelection && "bg-primary/15 hover:bg-primary/20",
+                        isSlotSelected && isHost && "bg-primary/25 hover:bg-primary/30",
+                        isSlotSelected && !isHost && "bg-secondary/25 hover:bg-secondary/30",
+                        !isSlotSelected && !isInSelection && `hover:bg-muted/30 ${bgStyle}`,
+                        isDragging && "cursor-pointer"
+                      )}
+                      onMouseDown={() => handleMouseDown(dayIndex, hour)}
+                      onMouseOver={() => handleMouseOver(dayIndex, hour)}
+                    >
+                      {/* Icons for selected slots */}
+                      {isSlotSelected && (
+                        <>
+                          {/* Close button */}
+                          <button 
+                            onClick={(e) => handleDeleteSlot(e, dayIndex, hour)}
+                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center z-10"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          
+                          {/* Participant icons */}
+                          <div className="absolute top-1 left-1 flex -space-x-1">
+                            {mockParticipants.slice(0, 5).map((participant, index) => (
+                              <TooltipProvider key={index}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      key={`p-${index}`}
+                                      className="participant-icon w-5 h-5 flex items-center justify-center rounded-full border border-background/50 animate-in fade-in zoom-in duration-300"
+                                      style={{
+                                        backgroundColor: participant.color,
+                                        zIndex: mockParticipants.length - index,
+                                        animationDelay: `${index * 0.05}s`
+                                      }}
+                                    >
+                                      {participant.isHost && (
+                                        <span className="absolute -top-1.5 -right-1.5 text-[8px] host-crown">
+                                          👑
+                                        </span>
+                                      )}
+                                      <span className="text-[8px] font-medium text-white">
+                                        {participant.name.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">
+                                      {participant.name} {participant.isHost ? '(Host)' : ''}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ))}
+                            
+                            {mockParticipants.length > 5 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="w-5 h-5 flex items-center justify-center rounded-full bg-muted text-[8px] border border-background/50">
+                                      +{mockParticipants.length - 5}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">{mockParticipants.length - 5} more participants</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
