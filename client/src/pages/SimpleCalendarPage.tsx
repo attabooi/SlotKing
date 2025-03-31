@@ -273,24 +273,24 @@ const SimpleCalendarPage: React.FC = () => {
               Weekly Availability Calendar
             </CardTitle>
           </div>
-          <CardDescription className="text-base">
+          <div className="mt-1 text-sm text-muted-foreground">
             {isVotingMode ? (
-              <div className="flex flex-col gap-2">
-                <p>Select your available time slots by clicking on them. Each selection will be recorded as a vote.</p>
+              <>
+                <div className="mb-2">Select your available time slots by clicking on them. Each selection will be recorded as a vote.</div>
                 <div className="flex items-center gap-1.5 text-xs px-3 py-2 bg-primary/5 rounded-md text-primary/80 mt-1">
                   <ThumbsUp className="w-4 h-4" />
                   <span>Voting is now open! Click any time slot to register your vote.</span>
                 </div>
-              </div>
+              </>
             ) : (
-              <div className="flex flex-col gap-2">
-                <p>Select time slots to schedule your meetings. You can choose multiple slots across different days.</p>
+              <>
+                <div className="mb-2">Select time slots to schedule your meetings. You can choose multiple slots across different days.</div>
                 <div className="flex items-center gap-1.5 text-xs px-3 py-2 bg-muted rounded-md mt-1">
                   <span>💡 Tip: Click and drag to select multiple hours in a row.</span>
                 </div>
-              </div>
+              </>
             )}
-          </CardDescription>
+          </div>
         </CardHeader>
         
         <CardContent>
@@ -450,7 +450,7 @@ const SimpleCalendarPage: React.FC = () => {
                       key={group.id}
                       ref={el => timeSlotRefs.current[group.id] = el}
                       className={`time-slot-card bg-gradient-to-b from-background to-muted/10 rounded-lg shadow-sm border p-4 transition-all relative group
-                        ${isVotingMode ? 'cursor-pointer hover:scale-102 transform border-primary/40 hover:shadow-lg' : 'border-border/30 hover:shadow-md'}
+                        ${isVotingMode ? 'cursor-pointer hover:scale-105 transform border-primary/40 hover:shadow-lg' : 'border-border/30 hover:shadow-md'}
                         ${mockParticipants.length > 0 ? 'hover:border-primary' : ''}
                         ${animatedGroups.includes(group.id) ? 'ring-2 ring-primary ring-opacity-50' : ''}
                       `}
@@ -459,7 +459,14 @@ const SimpleCalendarPage: React.FC = () => {
                       {/* Day with colored badge */}
                       <div className="flex justify-between items-center mb-3">
                         <div className={`flex items-center gap-2`}>
-                          <div className={`px-2 py-1 rounded-md font-bold ${dayColor} bg-${dayColor.split('-')[1]}-50/30`}>
+                          <div className={`px-2 py-1 rounded-md font-bold ${dayColor} bg-opacity-10`}
+                               style={{ backgroundColor: dayColor.includes('blue') ? 'rgba(59, 130, 246, 0.1)' : 
+                                                        dayColor.includes('purple') ? 'rgba(147, 51, 234, 0.1)' :
+                                                        dayColor.includes('green') ? 'rgba(34, 197, 94, 0.1)' :
+                                                        dayColor.includes('amber') ? 'rgba(245, 158, 11, 0.1)' :
+                                                        dayColor.includes('rose') ? 'rgba(244, 63, 94, 0.1)' :
+                                                        dayColor.includes('cyan') ? 'rgba(6, 182, 212, 0.1)' :
+                                                        dayColor.includes('indigo') ? 'rgba(79, 70, 229, 0.1)' : 'rgba(147, 197, 253, 0.1)' }}>
                             {day}
                           </div>
                           <div className="text-xs text-muted-foreground">
