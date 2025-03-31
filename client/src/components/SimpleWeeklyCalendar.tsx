@@ -1,9 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Crown, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Participant {
   name: string;
@@ -341,50 +340,34 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
                           {/* Participant icons */}
                           <div className="absolute top-1 left-1 flex -space-x-1">
                             {mockParticipants.slice(0, 5).map((participant, index) => (
-                              <TooltipProvider key={index}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      key={`p-${index}`}
-                                      className="participant-icon w-5 h-5 flex items-center justify-center rounded-full border border-background/50 animate-in fade-in zoom-in duration-300"
-                                      style={{
-                                        backgroundColor: participant.color,
-                                        zIndex: mockParticipants.length - index,
-                                        animationDelay: `${index * 0.05}s`
-                                      }}
-                                    >
-                                      {participant.isHost && (
-                                        <span className="absolute -top-1.5 -right-1.5 text-[8px] host-crown">
-                                          👑
-                                        </span>
-                                      )}
-                                      <span className="text-[8px] font-medium text-white">
-                                        {participant.name.charAt(0).toUpperCase()}
-                                      </span>
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-xs">
-                                      {participant.name} {participant.isHost ? '(Host)' : ''}
-                                    </p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <div
+                                key={`p-${index}`}
+                                className="participant-icon w-5 h-5 flex items-center justify-center rounded-full border border-background/50 animate-in fade-in zoom-in duration-300"
+                                style={{
+                                  backgroundColor: participant.color,
+                                  zIndex: mockParticipants.length - index,
+                                  animationDelay: `${index * 0.05}s`
+                                }}
+                                title={`${participant.name}${participant.isHost ? ' (Host)' : ''}`}
+                              >
+                                {participant.isHost && (
+                                  <span className="absolute -top-1.5 -right-1.5 text-[8px] host-crown">
+                                    👑
+                                  </span>
+                                )}
+                                <span className="text-[8px] font-medium text-white">
+                                  {participant.name.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
                             ))}
                             
                             {mockParticipants.length > 5 && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="w-5 h-5 flex items-center justify-center rounded-full bg-muted text-[8px] border border-background/50">
-                                      +{mockParticipants.length - 5}
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-xs">{mockParticipants.length - 5} more participants</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <div 
+                                className="w-5 h-5 flex items-center justify-center rounded-full bg-muted text-[8px] border border-background/50"
+                                title={`${mockParticipants.length - 5} more participants`}
+                              >
+                                +{mockParticipants.length - 5}
+                              </div>
                             )}
                           </div>
                         </>
