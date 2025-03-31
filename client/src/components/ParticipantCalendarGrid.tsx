@@ -1,7 +1,8 @@
 import { Meeting, TimeSlot } from "@shared/schema";
 import { format } from "date-fns";
-import { Check } from 'lucide-react';
+import { Crown, Check } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import React from "react";
 
 type ParticipantCalendarGridProps = {
   meeting: Meeting;
@@ -58,9 +59,8 @@ const ParticipantCalendarGrid = ({
         ))}
         
         {times.map((time, timeIndex) => (
-          <>
+          <React.Fragment key={`row-${timeIndex}`}>
             <div 
-              key={`time-${timeIndex}`} 
               className="text-center py-2 text-sm text-gray-700 border-b border-gray-100"
             >
               {formattedTimes[timeIndex]}
@@ -68,26 +68,50 @@ const ParticipantCalendarGrid = ({
             
             {dates.map((date, dateIndex) => {
               const [slot, index] = getTimeSlot(date, time);
+              const isSelected = slot?.selected;
               
               return (
                 <div key={`slot-${dateIndex}-${timeIndex}`} className="p-1">
                   <div 
                     className={cn(
-                      "time-slot-reddit h-12 flex items-center justify-center",
-                      slot?.selected 
-                        ? "bg-gradient-to-br from-primary/5 to-primary/20 border-primary" 
-                        : "border-gray-200 hover:bg-gray-50"
+                      "calendar-button h-12 flex items-center justify-center relative",
+                      isSelected && "selected",
                     )}
-                    onClick={() => onTimeSlotClick(index)}
+                    onClick={() => index >= 0 && onTimeSlotClick(index)}
                   >
-                    {slot?.selected && (
-                      <Check className="h-5 w-5 text-primary" />
+                    {/* Crown icon indicating this is a selected organizer time slot */}
+                    {isSelected && (
+                      <>
+                        <div className="crown-icon">
+                          <Crown className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div 
+                          className="participant-icon"
+                          style={{
+                            top: `-8px`,
+                            left: `12px`,
+                            backgroundColor: '#F87171',
+                            width: '18px',
+                            height: '18px',
+                            borderRadius: '50%',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontSize: '8px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          <span>Y</span>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
               );
             })}
-          </>
+          </React.Fragment>
         ))}
       </div>
     </div>

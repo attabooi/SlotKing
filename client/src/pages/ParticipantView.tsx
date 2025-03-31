@@ -184,19 +184,19 @@ const ParticipantView = () => {
     <Card className="w-full">
       <div className="p-6 border-b border-gray-200">
         <div className="text-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-800">{meeting.title}</h1>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/90 text-transparent bg-clip-text">{meeting.title}</h1>
           <p className="text-gray-600">Organized by: {meeting.organizer}</p>
           <p className="text-gray-600">{dateRange}</p>
         </div>
         
-        <div className="bg-indigo-50 p-4 rounded-md mb-4">
+        <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 mb-4">
           <div className="flex">
             <div className="flex-shrink-0">
               <Info className="h-5 w-5 text-primary" />
             </div>
             <div className="ml-3">
-              <p className="text-sm text-indigo-700">
-                Tap or click on the time slots when you're available. Selected slots will be highlighted.
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Tap </span> the time slots when you're available. Your icon will appear next to the organizer's crown.
               </p>
             </div>
           </div>

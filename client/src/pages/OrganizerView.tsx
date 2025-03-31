@@ -21,6 +21,7 @@ const OrganizerView = () => {
   const [_, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("availability");
   const [bestTimeSlot, setBestTimeSlot] = useState<string | null>(null);
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<Array<{ date: string; time: string }>>([]);
   const [meetingData, setMeetingData] = useState<{
     meeting: Meeting;
     participants: Participant[];
@@ -53,14 +54,24 @@ const OrganizerView = () => {
 
   useEffect(() => {
     if (data) {
-      setMeetingData(data);
+      setMeetingData(data as {
+        meeting: Meeting;
+        participants: Participant[];
+        availabilities: Availability[];
+      });
       
       // Calculate best time slot
-      if (data.participants.length > 0 && data.availabilities.length > 0) {
+      const typedData = data as {
+        meeting: Meeting;
+        participants: Participant[];
+        availabilities: Availability[];
+      };
+      
+      if (typedData.participants.length > 0 && typedData.availabilities.length > 0) {
         const timeSlotCounts = new Map<string, number>();
         
-        data.availabilities.forEach(availability => {
-          availability.timeSlots.forEach(slot => {
+        typedData.availabilities.forEach((availability: Availability) => {
+          (availability.timeSlots as string[]).forEach((slot: string) => {
             const count = timeSlotCounts.get(slot) || 0;
             timeSlotCounts.set(slot, count + 1);
           });
@@ -76,7 +87,7 @@ const OrganizerView = () => {
           }
         });
         
-        if (bestSlot && maxCount === data.participants.length) {
+        if (bestSlot && maxCount === typedData.participants.length) {
           setBestTimeSlot(bestSlot);
         }
       }
@@ -153,7 +164,7 @@ const OrganizerView = () => {
     
     availabilities.forEach(availability => {
       const slotKey = `${slot.date}-${slot.time}`;
-      if (availability.timeSlots.includes(slotKey)) {
+      if ((availability.timeSlots as string[]).includes(slotKey)) {
         availableCount++;
       }
     });
@@ -242,7 +253,42 @@ const OrganizerView = () => {
           <TabsContent value="availability">
             <CalendarGrid 
               meeting={meeting} 
-              timeSlots={processedTimeSlots} 
+              timeSlots={processedTimeSlots}
+              isOrganizer={true}
+              selectedSlots={selectedTimeSlots}
+              onTimeSlotSelect={(date, time) => {
+                const slotKey = `${date}-${time}`;
+                
+                // Check if the slot is already selected
+                const isAlreadySelected = selectedTimeSlots.some(
+                  slot => slot.date === date && slot.time === time
+                );
+                
+                if (isAlreadySelected) {
+                  // Remove the slot if already selected
+                  setSelectedTimeSlots(
+                    selectedTimeSlots.filter(
+                      slot => !(slot.date === date && slot.time === time)
+                    )
+                  );
+                } else {
+                  // Add the slot if not selected
+                  setSelectedTimeSlots([...selectedTimeSlots, { date, time }]);
+                }
+              }}
+              participants={participants.map((p, i) => ({
+                name: p.name,
+                color: [
+                  '#F87171', // red-400
+                  '#FB923C', // orange-400
+                  '#FBBF24', // amber-400
+                  '#4ADE80', // green-400
+                  '#60A5FA', // blue-400
+                  '#A78BFA', // violet-400
+                  '#F472B6', // pink-400
+                ][i % 7]
+              }))}
+              showDragHint={true}
             />
           </TabsContent>
           

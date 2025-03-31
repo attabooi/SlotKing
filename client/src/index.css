@@ -10,22 +10,43 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+  }
 }
 
 @layer components {
   .card {
-    @apply rounded-md border bg-card text-card-foreground shadow-sm;
+    @apply rounded-xl border border-border/30 bg-card text-card-foreground shadow-sm;
+  }
+  
+  .minimal-card {
+    @apply rounded-xl bg-white border border-border/20 p-6;
+  }
+  
+  .interactive-element {
+    @apply transition-all duration-200 hover:shadow-md active:shadow-sm active:translate-y-[1px];
+  }
+  
+  .calendar-button {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow p-3 relative
+    hover:border-primary/30 transition-all;
+  }
+  
+  .calendar-button.selected {
+    @apply bg-primary/10 border-primary/30 shadow-inner;
+  }
+  
+  .calendar-button.organizer {
+    @apply bg-primary/5 border-primary/30;
   }
 
-  .button-primary {
-    @apply bg-primary text-white hover:bg-primary/90 transition-colors;
+  .modern-input {
+    @apply bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-gray-800 focus:ring-2 focus:ring-primary/20 focus:border-primary/30 focus:outline-none;
   }
-
-  .time-slot-reddit {
-    @apply rounded-md border hover:border-primary/50 cursor-pointer transition-all;
-  }
-
-  .time-slot-reddit.selected {
-    @apply bg-primary/20 border-primary;
+  
+  .participant-avatar {
+    @apply rounded-full flex items-center justify-center text-white text-xs font-medium;
   }
 }
