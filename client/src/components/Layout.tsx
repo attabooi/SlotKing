@@ -1,8 +1,36 @@
-import { Calendar, HelpCircle } from 'lucide-react';
+import { Calendar, HelpCircle, Globe } from 'lucide-react';
 import { Link } from 'wouter';
-import React from 'react';
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+
+// Define language options
+interface LanguageOption {
+  name: string;
+  code: string;
+  flag: string;
+}
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Available languages
+  const languages: LanguageOption[] = [
+    { name: 'English', code: 'en', flag: '🇺🇸' },
+    { name: '한국어', code: 'ko', flag: '🇰🇷' },
+    { name: '日本語', code: 'ja', flag: '🇯🇵' },
+    { name: '中文', code: 'zh', flag: '🇨🇳' },
+    { name: 'Español', code: 'es', flag: '🇪🇸' },
+    { name: 'Français', code: 'fr', flag: '🇫🇷' },
+  ];
+  
+  // State for selected language
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
+  
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation bar */}
@@ -14,12 +42,39 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <div className="flex-shrink-0 flex items-center cursor-pointer interactive-element">
                   <Calendar className="h-5 w-5 text-primary" />
                   <span className="ml-2 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 text-transparent bg-clip-text">
-                    MeetTapSync
+                    TabScheduler
                   </span>
                 </div>
               </Link>
             </div>
             <div className="flex items-center space-x-3">
+              {/* Language Selector */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 px-2 gap-1">
+                    <Globe className="h-4 w-4 mr-1" />
+                    <span className="mr-1">
+                      {languages.find(lang => lang.code === selectedLanguage)?.flag}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[180px]">
+                  {languages.map(language => (
+                    <DropdownMenuItem 
+                      key={language.code}
+                      className={cn(
+                        "flex items-center gap-2 cursor-pointer",
+                        selectedLanguage === language.code && "bg-primary/10"
+                      )}
+                      onClick={() => setSelectedLanguage(language.code)}
+                    >
+                      <span className="text-base">{language.flag}</span>
+                      <span>{language.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
               <a 
                 href="https://github.com" 
                 target="_blank" 
@@ -48,7 +103,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-4">
             <div className="text-xs text-muted-foreground">
-              © 2025 MeetTapSync
+              © 2025 TabScheduler
             </div>
             <div className="flex space-x-6">
               <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Privacy</a>

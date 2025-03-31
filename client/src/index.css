@@ -156,4 +156,18 @@
       opacity: 0.9;
     }
   }
+  
+  /* Hidden borders for selected cells */
+  .cell-selected {
+    @apply border-r-transparent border-b-transparent;
+  }
+  
+  /* Border overrides for selected cells */
+  .cell-selected-right {
+    @apply border-r-transparent;
+  }
+  
+  .cell-selected-bottom {
+    @apply border-b-transparent;
+  }
 }

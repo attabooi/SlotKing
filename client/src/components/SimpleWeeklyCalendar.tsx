@@ -1,25 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { X, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
 
 interface Participant {
   name: string;
   color: string;
   isHost?: boolean;
-}
-
-interface LanguageOption {
-  name: string;
-  code: string;
-  flag: string;
 }
 
 interface SelectionGroup {
@@ -44,7 +32,6 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   participants = []
 }) => {
   // State variables first
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
   const [isDragging, setIsDragging] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
@@ -54,16 +41,6 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   const [dragStart, setDragStart] = useState<{ day: number; hour: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ day: number; hour: number } | null>(null);
   const [draggedSlots, setDraggedSlots] = useState<Array<{ day: number; hour: number }>>([]);
-  
-  // Available languages
-  const languages: LanguageOption[] = [
-    { name: 'English', code: 'en', flag: '🇺🇸' },
-    { name: '한국어', code: 'ko', flag: '🇰🇷' },
-    { name: '日本語', code: 'ja', flag: '🇯🇵' },
-    { name: '中文', code: 'zh', flag: '🇨🇳' },
-    { name: 'Español', code: 'es', flag: '🇪🇸' },
-    { name: 'Français', code: 'fr', flag: '🇫🇷' },
-  ];
   
   // Derived data
   const days = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
@@ -345,7 +322,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
         </div>
       </div>
       
-      {/* Week navigation and Language selection */}
+      {/* Week navigation */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Button 
@@ -374,36 +351,6 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          
-          {/* Language Selector */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 ml-2 pl-2 pr-3 gap-1">
-                <Globe className="h-3.5 w-3.5 mr-1" />
-                <span className="mr-1">
-                  {languages.find(lang => lang.code === selectedLanguage)?.flag}
-                </span>
-                <span className="text-xs">
-                  {languages.find(lang => lang.code === selectedLanguage)?.name}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[180px]">
-              {languages.map(language => (
-                <DropdownMenuItem 
-                  key={language.code}
-                  className={cn(
-                    "flex items-center gap-2 cursor-pointer",
-                    selectedLanguage === language.code && "bg-primary/10"
-                  )}
-                  onClick={() => setSelectedLanguage(language.code)}
-                >
-                  <span className="text-base">{language.flag}</span>
-                  <span>{language.name}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
         
         <div className="text-sm font-medium">{weekRangeText}</div>
@@ -461,6 +408,14 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
                   const isInSelection = isInDragSelection(dayIndex, hour);
                   const isSlotSelected = isSelected(dayIndex, hour);
                   
+                  // Determine if this cell has selected neighbors for border removal
+                  const hasRightSelectedNeighbor = isSlotSelected && selectedSlots.some(
+                    slot => slot.day === dayIndex + 1 && slot.hour === hour
+                  );
+                  const hasBottomSelectedNeighbor = isSlotSelected && selectedSlots.some(
+                    slot => slot.day === dayIndex && slot.hour === hour + 1
+                  );
+                  
                   return (
                     <div 
                       key={`cell-${dayIndex}-${hour}`} 
@@ -470,7 +425,11 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
                         isSlotSelected && isHost && "bg-primary/25 hover:bg-primary/30",
                         isSlotSelected && !isHost && "bg-secondary/25 hover:bg-secondary/30",
                         !isSlotSelected && !isInSelection && `hover:bg-muted/30 ${bgStyle}`,
-                        isDragging && "cursor-pointer"
+                        isDragging && "cursor-pointer",
+                        // Apply border removal classes for selected cells
+                        isSlotSelected && "cell-selected",
+                        hasRightSelectedNeighbor && "cell-selected-right",
+                        hasBottomSelectedNeighbor && "cell-selected-bottom"
                       )}
                       onMouseDown={() => handleMouseDown(dayIndex, hour)}
                       onMouseOver={() => handleMouseOver(dayIndex, hour)}
