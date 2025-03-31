@@ -178,12 +178,13 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
         // Combine the filtered selected slots with the new dragged slots
         const newSelectedSlots = [...filteredSelectedSlots, ...draggedSlots];
         
-        // Create a new selection group for this drag operation
+        // Create a new selection group for this drag operation with a unique ID
         const newGroup: SelectionGroup = {
-          id: uuidv4(),
+          id: uuidv4(), // Using UUID for globally unique IDs
           slots: draggedSlots,
           startTime: firstSlot,
-          endTime: lastSlot
+          endTime: lastSlot,
+          topSlot: firstSlot // Initialize topSlot with the first slot, will be recalculated in the calculatedGroups
         };
         
         // Update the state with the new selection group
@@ -220,6 +221,34 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     // Call the delete callback if provided
     if (onDeleteTimeSlot) {
       onDeleteTimeSlot(day, hour);
+    } else if (onSelectTimeSlots) {
+      onSelectTimeSlots(newSelectedSlots);
+    }
+  };
+  
+  // Handle delete group of slots
+  const handleDeleteGroup = (e: React.MouseEvent, groupId: string) => {
+    e.stopPropagation();
+    
+    // Find the group to delete (handles both UUID and string formats)
+    const groupToDelete = calculatedGroups.find(group => 
+      group.id === groupId
+    );
+    
+    if (!groupToDelete) return;
+    
+    // Remove all slots in the group from selected slots
+    const newSelectedSlots = selectedSlots.filter(existingSlot => 
+      !groupToDelete.slots.some(groupSlot => 
+        groupSlot.day === existingSlot.day && groupSlot.hour === existingSlot.hour
+      )
+    );
+    
+    setSelectedSlots(newSelectedSlots);
+    
+    // Call the onDeleteSelectionGroup callback if provided
+    if (onDeleteSelectionGroup) {
+      onDeleteSelectionGroup(groupId);
     } else if (onSelectTimeSlots) {
       onSelectTimeSlots(newSelectedSlots);
     }
@@ -277,9 +306,9 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     
     const getAdjacentSlots = (slot: { day: number; hour: number }, slots: Array<{ day: number; hour: number }>) => {
       const { day, hour } = slot;
+      // Only consider slots within the same day to be adjacent
       return slots.filter(s => 
-        (s.day === day && (s.hour === hour - 1 || s.hour === hour + 1)) || 
-        ((s.day === day - 1 || s.day === day + 1) && s.hour === hour)
+        s.day === day && (s.hour === hour - 1 || s.hour === hour + 1)
       );
     };
     
@@ -295,7 +324,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
       if (visited.has(key)) return;
       
       const group: SelectionGroup = {
-        id: `group-${groups.length}`,
+        id: uuidv4(), // Using UUIDs for consistent group identification
         slots: [],
         startTime: slot,
         endTime: slot,
@@ -356,7 +385,7 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
           <span className="text-primary font-medium">💡 Tip:</span> Click and drag to select multiple time slots.
         </div>
         <div>
-          <span className="text-primary font-medium">💡 Pro tip:</span> Selected slots will remain selected after dragging. Click (X) to remove a selection.
+          <span className="text-primary font-medium">💡 Pro tip:</span> Selected slots will remain selected after dragging. Click the trash icon to delete an entire time block.
         </div>
       </div>
       
@@ -475,13 +504,21 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
                       {/* Icons for selected slots */}
                       {isSlotSelected && (
                         <>
-                          {/* Close button */}
-                          <button 
-                            onClick={(e) => handleDeleteSlot(e, dayIndex, hour)}
-                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center z-10"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                          {/* Group delete button - only show on the top slot of each group */}
+                          {isTopSlotOfGroup(dayIndex, hour) && (
+                            <>
+                              <button 
+                                onClick={(e) => {
+                                  const group = getSlotGroup(dayIndex, hour);
+                                  if (group) handleDeleteGroup(e, group.id);
+                                }}
+                                className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-muted/90 hover:bg-muted text-muted-foreground hover:text-destructive flex items-center justify-center z-10 shadow-sm"
+                                title="Delete this time slot block"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </>
+                          )}
                           
                           {/* Get the current cell's selection group (if any) */}
                           {isTopSlotOfGroup(dayIndex, hour) && (
