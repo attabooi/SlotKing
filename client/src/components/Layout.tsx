@@ -1,6 +1,6 @@
 import { HelpCircle, Globe, Crown } from 'lucide-react';
 import { Link } from 'wouter';
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,27 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import SlotKingLogo from './SlotKingLogo';
-
-// Define language options
-interface LanguageOption {
-  name: string;
-  code: string;
-  flag: string;
-}
+import { useI18n, languages } from '@/lib/i18n';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Available languages
-  const languages: LanguageOption[] = [
-    { name: 'English', code: 'en', flag: '🇺🇸' },
-    { name: '한국어', code: 'ko', flag: '🇰🇷' },
-    { name: '日本語', code: 'ja', flag: '🇯🇵' },
-    { name: '中文', code: 'zh', flag: '🇨🇳' },
-    { name: 'Español', code: 'es', flag: '🇪🇸' },
-    { name: 'Français', code: 'fr', flag: '🇫🇷' },
-  ];
-  
-  // State for selected language
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
+  // Use our i18n context
+  const { language, setLanguage, t } = useI18n();
   
   return (
     <div className="min-h-screen bg-background">
@@ -55,22 +39,22 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <Button variant="ghost" size="sm" className="h-8 px-2 gap-1">
                     <Globe className="h-4 w-4 mr-1" />
                     <span className="mr-1">
-                      {languages.find(lang => lang.code === selectedLanguage)?.flag}
+                      {languages.find(lang => lang.code === language)?.flag}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-[180px]">
-                  {languages.map(language => (
+                  {languages.map(lang => (
                     <DropdownMenuItem 
-                      key={language.code}
+                      key={lang.code}
                       className={cn(
                         "flex items-center gap-2 cursor-pointer",
-                        selectedLanguage === language.code && "bg-primary/10"
+                        language === lang.code && "bg-primary/10"
                       )}
-                      onClick={() => setSelectedLanguage(language.code)}
+                      onClick={() => setLanguage(lang.code)}
                     >
-                      <span className="text-base">{language.flag}</span>
-                      <span>{language.name}</span>
+                      <span className="text-base">{lang.flag}</span>
+                      <span>{lang.name}</span>
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -104,12 +88,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-4">
             <div className="text-xs text-muted-foreground">
-              © 2025 SlotKing
+              © 2025 {t('slotKing')}
             </div>
             <div className="flex space-x-6">
-              <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Privacy</a>
-              <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Terms</a>
-              <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">Contact</a>
+              <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">{t('privacy')}</a>
+              <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">{t('terms')}</a>
+              <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">{t('contact')}</a>
             </div>
           </div>
         </div>

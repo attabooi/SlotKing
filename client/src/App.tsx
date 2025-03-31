@@ -9,6 +9,7 @@ import JoinMeeting from "@/pages/JoinMeeting";
 import ParticipantView from "@/pages/ParticipantView";
 import SimpleCalendarPage from "@/pages/SimpleCalendarPage";
 import Layout from "@/components/Layout";
+import I18nProvider from "@/components/I18nProvider";
 
 function Router() {
   return (
@@ -26,10 +27,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Layout>
-        <Router />
-      </Layout>
-      <Toaster />
+      <I18nProvider>
+        <Layout>
+          <Router />
+        </Layout>
+        <Toaster />
+      </I18nProvider>
     </QueryClientProvider>
   );
 }
