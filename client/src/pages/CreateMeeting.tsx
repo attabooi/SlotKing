@@ -44,7 +44,7 @@ const CreateMeeting = () => {
     },
   });
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: any) => {
     setIsLoading(true);
     try {
       const response = await apiRequest("POST", "/api/meetings", data);
@@ -70,7 +70,7 @@ const CreateMeeting = () => {
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardContent className="pt-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Create a Meeting</h1>
+        <h1 className="text-2xl font-bold text-primary mb-4">Create a New Tab</h1>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -234,7 +234,7 @@ const CreateMeeting = () => {
                 className="w-full py-6 text-base font-medium"
                 disabled={isLoading}
               >
-                {isLoading ? "Creating..." : "Create Meeting"}
+                {isLoading ? "Creating..." : "Create Tab"}
               </Button>
             </div>
           </form>

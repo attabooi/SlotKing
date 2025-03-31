@@ -1,6 +1,7 @@
 import { Meeting, TimeSlot } from "@shared/schema";
 import { format } from "date-fns";
 import { Check } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 type ParticipantCalendarGridProps = {
   meeting: Meeting;
@@ -14,8 +15,8 @@ const ParticipantCalendarGrid = ({
   onTimeSlotClick
 }: ParticipantCalendarGridProps) => {
   // Group time slots by date and time
-  const dates = [...new Set(timeSlots.map(slot => slot.date))];
-  const times = [...new Set(timeSlots.map(slot => slot.time))];
+  const dates = Array.from(new Set(timeSlots.map(slot => slot.date)));
+  const times = Array.from(new Set(timeSlots.map(slot => slot.time)));
   
   // Sort dates and times
   dates.sort();
@@ -71,8 +72,12 @@ const ParticipantCalendarGrid = ({
               return (
                 <div key={`slot-${dateIndex}-${timeIndex}`} className="p-1">
                   <div 
-                    className={`time-slot h-12 rounded-md border ${slot?.selected ? 'border-primary' : 'border-gray-200'} 
-                      flex items-center justify-center cursor-pointer hover:bg-gray-50`}
+                    className={cn(
+                      "time-slot-reddit h-12 flex items-center justify-center",
+                      slot?.selected 
+                        ? "bg-gradient-to-br from-primary/5 to-primary/20 border-primary" 
+                        : "border-gray-200 hover:bg-gray-50"
+                    )}
                     onClick={() => onTimeSlotClick(index)}
                   >
                     {slot?.selected && (

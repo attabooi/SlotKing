@@ -11,11 +11,16 @@ const ActivityFeed = ({ participants }: ActivityFeedProps) => {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
   
-  // Generate a random color based on participant name
-  const getInitialColor = (name: string) => {
+  // Generate avatar background based on participant name
+  const getAvatarStyle = (name: string) => {
+    // Reddit-like avatar colors
     const colors = [
-      "bg-primary", "bg-green-500", "bg-purple-500", 
-      "bg-orange-500", "bg-pink-500", "bg-blue-500"
+      "bg-gradient-to-br from-orange-400 to-red-500",
+      "bg-gradient-to-br from-blue-400 to-blue-600",
+      "bg-gradient-to-br from-green-400 to-green-600",
+      "bg-gradient-to-br from-yellow-400 to-yellow-600",
+      "bg-gradient-to-br from-purple-400 to-purple-600",
+      "bg-gradient-to-br from-pink-400 to-pink-600"
     ];
     
     // Simple hash function
@@ -49,40 +54,48 @@ const ActivityFeed = ({ participants }: ActivityFeedProps) => {
 
   if (participants.length === 0) {
     return (
-      <div className="text-center py-10 text-gray-500">
-        No participants have joined this meeting yet.
+      <div className="text-center py-10 text-gray-500 bg-white border rounded-md p-6">
+        <p className="text-gray-400 mb-2">No participants yet</p>
+        <p className="text-sm">Share the tab link with others to start collecting availability</p>
       </div>
     );
   }
 
   return (
     <div>
-      <h2 className="text-lg font-medium text-gray-800 mb-4">Recent Activity</h2>
-      <ul className="space-y-3">
-        {sortedParticipants.map((participant) => {
-          const color = getInitialColor(participant.name);
-          const initials = getInitials(participant.name);
-          const timestamp = formatTimestamp(participant.createdAt);
-          
-          return (
-            <li key={participant.id} className="bg-gray-50 p-3 rounded-md">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <div className={`h-8 w-8 rounded-full ${color} flex items-center justify-center`}>
-                    <span className="text-white text-sm font-medium">{initials}</span>
+      <h2 className="text-lg font-medium text-primary mb-4">Participant Activity</h2>
+      <div className="bg-white border rounded-md">
+        <ul className="divide-y divide-gray-100">
+          {sortedParticipants.map((participant) => {
+            const avatarStyle = getAvatarStyle(participant.name);
+            const initials = getInitials(participant.name);
+            const timestamp = formatTimestamp(participant.createdAt);
+            
+            return (
+              <li key={participant.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className={`h-10 w-10 rounded-full ${avatarStyle} shadow-sm flex items-center justify-center`}>
+                      <span className="text-white text-sm font-medium">{initials}</span>
+                    </div>
+                  </div>
+                  <div className="ml-4 flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {participant.name}
+                      </p>
+                      <p className="text-xs text-gray-500">{timestamp}</p>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      joined the tab
+                    </p>
                   </div>
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-800">
-                    {participant.name} joined the meeting
-                  </p>
-                  <p className="text-xs text-gray-500">{timestamp}</p>
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 };

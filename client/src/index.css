@@ -11,3 +11,21 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+@layer components {
+  .card {
+    @apply rounded-md border bg-card text-card-foreground shadow-sm;
+  }
+
+  .button-primary {
+    @apply bg-primary text-white hover:bg-primary/90 transition-colors;
+  }
+
+  .time-slot-reddit {
+    @apply rounded-md border hover:border-primary/50 cursor-pointer transition-all;
+  }
+
+  .time-slot-reddit.selected {
+    @apply bg-primary/20 border-primary;
+  }
+}

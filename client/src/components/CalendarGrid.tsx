@@ -1,5 +1,5 @@
 import { Meeting, TimeSlot } from "@shared/schema";
-import { format, addMinutes } from "date-fns";
+import { format } from "date-fns";
 import TimeSlotComponent from "./TimeSlot";
 
 type CalendarGridProps = {
@@ -9,8 +9,8 @@ type CalendarGridProps = {
 
 const CalendarGrid = ({ meeting, timeSlots }: CalendarGridProps) => {
   // Group time slots by date and time
-  const dates = [...new Set(timeSlots.map(slot => slot.date))];
-  const times = [...new Set(timeSlots.map(slot => slot.time))];
+  const dates = Array.from(new Set(timeSlots.map(slot => slot.date)));
+  const times = Array.from(new Set(timeSlots.map(slot => slot.time)));
   
   // Sort dates and times
   dates.sort();
@@ -33,16 +33,6 @@ const CalendarGrid = ({ meeting, timeSlots }: CalendarGridProps) => {
   // Get a time slot based on date and time
   const getTimeSlot = (date: string, time: string) => {
     return timeSlots.find(slot => slot.date === date && slot.time === time);
-  };
-  
-  // Determine class based on availability
-  const getAvailabilityClass = (available: number, total: number) => {
-    if (total === 0) return "";
-    if (available === total) return "available-all";
-    if (available >= (3/4) * total) return "available-3";
-    if (available >= (1/2) * total) return "available-2";
-    if (available > 0) return "available-1";
-    return "";
   };
 
   return (
@@ -71,16 +61,12 @@ const CalendarGrid = ({ meeting, timeSlots }: CalendarGridProps) => {
               
               {dates.map((date, dateIndex) => {
                 const slot = getTimeSlot(date, time);
-                const availabilityClass = slot 
-                  ? getAvailabilityClass(slot.available || 0, slot.total || 0) 
-                  : "";
                 
                 return (
                   <div key={`slot-${dateIndex}-${timeIndex}`} className="p-1">
                     <TimeSlotComponent 
                       available={slot?.available || 0}
                       total={slot?.total || 0}
-                      className={availabilityClass}
                     />
                   </div>
                 );
@@ -90,22 +76,23 @@ const CalendarGrid = ({ meeting, timeSlots }: CalendarGridProps) => {
         </div>
       </div>
       
-      <div className="mt-6 flex justify-center">
+      <div className="mt-6 p-4 bg-white rounded-md border shadow-sm">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">Availability Legend</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div className="flex items-center">
-            <span className="w-4 h-4 rounded-full bg-red-200 inline-block mr-2"></span>
-            <span className="text-gray-700">1 participant</span>
+            <span className="w-4 h-4 rounded bg-gradient-to-br from-red-50 to-red-100 border border-gray-200 inline-block mr-2"></span>
+            <span className="text-gray-700">Some available</span>
           </div>
           <div className="flex items-center">
-            <span className="w-4 h-4 rounded-full bg-amber-200 inline-block mr-2"></span>
-            <span className="text-gray-700">2 participants</span>
+            <span className="w-4 h-4 rounded bg-gradient-to-br from-amber-50 to-amber-100 border border-gray-200 inline-block mr-2"></span>
+            <span className="text-gray-700">Half available</span>
           </div>
           <div className="flex items-center">
-            <span className="w-4 h-4 rounded-full bg-green-200 inline-block mr-2"></span>
-            <span className="text-gray-700">3 participants</span>
+            <span className="w-4 h-4 rounded bg-gradient-to-br from-green-50 to-green-100 border border-gray-200 inline-block mr-2"></span>
+            <span className="text-gray-700">Most available</span>
           </div>
           <div className="flex items-center">
-            <span className="w-4 h-4 rounded-full bg-green-400 inline-block mr-2"></span>
+            <span className="w-4 h-4 rounded bg-gradient-to-br from-green-100 to-green-200 border border-gray-200 inline-block mr-2"></span>
             <span className="text-gray-700">All available</span>
           </div>
         </div>

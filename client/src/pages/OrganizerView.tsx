@@ -170,7 +170,7 @@ const OrganizerView = () => {
       <div className="p-6 border-b border-gray-200">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">{meeting.title}</h1>
+            <h1 className="text-2xl font-bold text-primary">{meeting.title}</h1>
             <p className="text-gray-600">{dateRange}</p>
           </div>
           <div className="mt-4 md:mt-0 space-y-2 md:space-y-0 md:space-x-2 flex flex-col md:flex-row">
@@ -194,29 +194,35 @@ const OrganizerView = () => {
       </div>
       
       <div className="p-6">
-        <div className="bg-indigo-50 p-4 rounded-md mb-6">
+        <div className="bg-white p-4 rounded-md mb-6 border border-gray-200 shadow-sm">
           <div className="flex">
             <div className="flex-shrink-0">
               <Info className="h-5 w-5 text-primary" />
             </div>
             <div className="ml-3 flex-1 md:flex md:justify-between">
-              <p className="text-sm text-indigo-700">
-                Shareable link: <span className="font-medium">{window.location.origin}/join/{params.id}</span>
+              <p className="text-sm text-gray-700">
+                Shareable link: <span className="font-medium text-primary">{window.location.origin}/join/{params.id}</span>
               </p>
+              <button 
+                onClick={handleCopyLink}
+                className="mt-2 md:mt-0 text-sm text-primary hover:text-primary/80 font-medium"
+              >
+                Copy
+              </button>
             </div>
           </div>
         </div>
         
         <div className="mb-6">
-          <h2 className="text-lg font-medium text-gray-800 mb-4">Availability Summary</h2>
-          <div className="bg-green-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 rounded-lg">
-            <div className="text-sm font-medium text-gray-500">Best time slot</div>
+          <h2 className="text-lg font-medium text-primary mb-4">Best Time</h2>
+          <div className="bg-white border border-gray-200 shadow-sm px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 rounded-md">
+            <div className="text-sm font-medium text-gray-500">Optimal time slot</div>
             <div className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 font-semibold">
               {bestTimeSlot ? (
-                `${bestTimeSlot} (${participants.length}/${participants.length} participants available)`
+                <span className="text-primary">{bestTimeSlot} <span className="text-gray-500 font-normal">(everyone available)</span></span>
               ) : (
                 participants.length === 0 ? 
-                  "No participants have joined yet" : 
+                  "No participants have joined this tab yet" : 
                   "No common availability found yet"
               )}
             </div>
