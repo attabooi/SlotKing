@@ -1,4 +1,4 @@
-import { Calendar, HelpCircle, Globe } from 'lucide-react';
+import { HelpCircle, Globe, Crown } from 'lucide-react';
 import { Link } from 'wouter';
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import SlotKingLogo from './SlotKingLogo';
 
 // Define language options
 interface LanguageOption {
@@ -40,7 +41,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <div className="flex items-center">
               <Link href="/">
                 <div className="flex-shrink-0 flex items-center cursor-pointer interactive-element">
-                  <Calendar className="h-5 w-5 text-primary" />
+                  <SlotKingLogo size={24} />
                   <span className="ml-2 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 text-transparent bg-clip-text">
                     SlotKing
                   </span>

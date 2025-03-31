@@ -3,16 +3,25 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --gold: #FFD700;
+    --silver: #C0C0C0;
+    --bronze: #CD7F32;
+  }
+  
   * {
     @apply border-border;
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply antialiased bg-background text-foreground;
+    font-family: 'Rubik', sans-serif;
+    background-color: #0d0d1d;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight;
+    @apply tracking-tight font-bold;
+    font-family: 'Rubik', sans-serif;
   }
 }
 
@@ -169,5 +178,116 @@
   
   .cell-selected-bottom {
     @apply border-b-transparent;
+  }
+  
+  /* SlotKing ranking styles */
+  .rank-gold {
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    border: 1px solid var(--gold) !important;
+    animation: goldPulse 3s infinite;
+  }
+  
+  .rank-silver {
+    box-shadow: 0 0 10px rgba(192, 192, 192, 0.4);
+    border: 1px solid var(--silver) !important;
+  }
+  
+  .rank-bronze {
+    box-shadow: 0 0 8px rgba(205, 127, 50, 0.3);
+    border: 1px solid var(--bronze) !important;
+  }
+  
+  .rank-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 10;
+    animation: badgePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  
+  .rank-badge-gold {
+    background-color: var(--gold);
+    color: #000;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.6);
+  }
+  
+  .rank-badge-silver {
+    background-color: var(--silver);
+    color: #000;
+    box-shadow: 0 2px 6px rgba(192, 192, 192, 0.5);
+  }
+  
+  .rank-badge-bronze {
+    background-color: var(--bronze);
+    color: #000;
+    box-shadow: 0 2px 4px rgba(205, 127, 50, 0.4);
+  }
+  
+  @keyframes goldPulse {
+    0%, 100% {
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.7);
+    }
+  }
+  
+  @keyframes badgePop {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  /* Crown animation */
+  .crown-float {
+    animation: crownFloat 2s ease-in-out infinite;
+  }
+  
+  @keyframes crownFloat {
+    0%, 100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    50% {
+      transform: translateY(-3px) rotate(5deg);
+    }
+  }
+  
+  /* Slot selection pulse */
+  .slot-pulse {
+    animation: slotPulse 0.5s cubic-bezier(0.4, 0, 0.6, 1);
+  }
+  
+  @keyframes slotPulse {
+    0%, 100% {
+      background-color: inherit;
+    }
+    50% {
+      background-color: rgba(255, 215, 0, 0.2);
+    }
+  }
+  
+  /* Styles for participant overflow */
+  .participant-overflow {
+    background-color: rgba(255, 255, 255, 0.2);
+    font-size: 8px;
+    padding: 2px 4px;
+    border-radius: 10px;
+    color: white;
   }
 }
