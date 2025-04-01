@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import CalendarGrid from "@/components/CalendarGrid";
 import WeeklyCalendarGrid from "@/components/WeeklyCalendarGrid";
+import SimpleWeeklyCalendar from "@/components/SimpleWeeklyCalendar";
 import ActivityFeed from "@/components/ActivityFeed";
 import { ArrowDown, Calendar, Grid, ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw, Crown, AlertTriangle, Clock, Users } from "lucide-react";
 import * as party from 'party-js';
@@ -213,8 +214,9 @@ const OrganizerView = () => {
     }
   });
 
-  // Ref for calendar component
+  // Refs for calendar components
   const calendarRef = useRef<any>(null);
+  const simpleCalendarRef = useRef<any>(null);
   const [selectedCalendarSlots, setSelectedCalendarSlots] = useState<Array<any>>([]);
   
   // Mutation to reset all selections
@@ -936,6 +938,10 @@ const OrganizerView = () => {
               <Calendar className="h-4 w-4 mr-2" />
               Weekly View
             </TabsTrigger>
+            <TabsTrigger value="simple" className="pb-4 font-medium text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary">
+              <ArrowDown className="h-4 w-4 mr-2" />
+              Simple View
+            </TabsTrigger>
             <TabsTrigger value="grid" className="pb-4 font-medium text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary">
               <Grid className="h-4 w-4 mr-2" />
               Grid View
@@ -988,6 +994,72 @@ const OrganizerView = () => {
                   '#F472B6', // pink-400
                 ][i % 7]
               }))}
+            />
+          </TabsContent>
+          
+          <TabsContent value="simple">
+            <SimpleWeeklyCalendar 
+              ref={simpleCalendarRef}
+              userName={meeting.organizer}
+              isHost={true}
+              participants={participants.map((p, i) => ({
+                name: p.name,
+                color: [
+                  '#F87171', // red-400
+                  '#FB923C', // orange-400
+                  '#FBBF24', // amber-400
+                  '#4ADE80', // green-400
+                  '#60A5FA', // blue-400
+                  '#A78BFA', // violet-400
+                  '#F472B6', // pink-400
+                ][i % 7],
+                isHost: p.name === meeting.organizer
+              }))}
+              onSelectTimeSlots={(selectedSlots) => {
+                // Convert day/hour format to date/time format
+                const timeZoneOffset = new Date().getTimezoneOffset() * 60000;
+                const baseDate = new Date(meeting.startDate);
+                
+                // Ensure we're working with the start of the week
+                const weekStart = new Date(baseDate);
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Set to start of week (Sunday)
+                
+                // Convert the selected slots to the format expected by our app
+                const convertedSlots = selectedSlots.map(slot => {
+                  // Calculate the date by adding days to week start
+                  const date = new Date(weekStart);
+                  date.setDate(date.getDate() + slot.day);
+                  
+                  // Format date as YYYY-MM-DD
+                  const dateStr = date.toISOString().split('T')[0];
+                  
+                  // Format time as HH:00
+                  const timeStr = `${slot.hour}:00`;
+                  
+                  return { date: dateStr, time: timeStr };
+                });
+                
+                // Update the time slots in the parent component
+                setSelectedTimeSlots(convertedSlots);
+              }}
+              onDeleteTimeSlot={(day, hour) => {
+                // Convert day/hour to date/time and remove from selectedTimeSlots
+                const weekStart = new Date(meeting.startDate);
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Set to start of week (Sunday)
+                
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + day);
+                const dateStr = date.toISOString().split('T')[0];
+                const timeStr = `${hour}:00`;
+                
+                // Filter out the slot to delete
+                const updatedSlots = selectedTimeSlots.filter(
+                  slot => !(slot.date === dateStr && slot.time === timeStr)
+                );
+                
+                // Update the state
+                setSelectedTimeSlots(updatedSlots);
+              }}
             />
           </TabsContent>
           
