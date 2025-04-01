@@ -201,9 +201,12 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
                 )
               );
               
-              // Create a new group for this day's slots
+              // Create a new group for this day's slots with a unique ID
+              const groupId = uuidv4(); // This ID will be shared with the parent component
+              console.log(`Created new group with ID: ${groupId}`);
+              
               const newDayGroup: SelectionGroup = {
-                id: uuidv4(), // Using UUID for globally unique IDs
+                id: groupId, // Using UUID for globally unique IDs 
                 slots: sortedDaySlots,
                 startTime: firstSlot,
                 endTime: lastSlot,
@@ -211,7 +214,14 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
               };
               
               newGroups.push(newDayGroup);
-              allNewSlots.push(...sortedDaySlots);
+              
+              // Tag these slots with their corresponding group ID for easier reference
+              const taggedSlots = sortedDaySlots.map(slot => ({
+                ...slot,
+                groupId // Add groupId to each slot for reference when passed to the parent
+              }));
+              
+              allNewSlots.push(...taggedSlots);
               
               // Update overall selected slots (filtering out overlaps will be done below)
               setSelectedSlots(prev => {
@@ -230,7 +240,14 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
           
           // Call the callback if provided, with all slots from all day groups
           if (onSelectTimeSlots) {
-            onSelectTimeSlots(allNewSlots);
+            console.log(`Sending ${allNewSlots.length} slots to parent with their group IDs`);
+            onSelectTimeSlots(allNewSlots, true); // true indicates this is an add operation
+          }
+          
+          // Also notify parent about group changes
+          if (onGroupsChanged) {
+            const updatedGroups = [...internalGroups, ...newGroups];
+            onGroupsChanged(updatedGroups);
           }
         }
       }
@@ -240,7 +257,7 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
       setDragStart(null);
       setDragEnd(null);
       setDraggedSlots([]);
-    }, [isDragging, draggedSlots, dragStart, dragEnd, selectedSlots, onSelectTimeSlots]);
+    }, [isDragging, draggedSlots, dragStart, dragEnd, selectedSlots, onSelectTimeSlots, onGroupsChanged, internalGroups]);
     
     // Handle delete slot - but we'll instead find which group this slot belongs to
     // and remove the entire group for consistency
@@ -300,21 +317,24 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
       setSelectedSlots(newSelectedSlots);
       setInternalGroups(newSelectionGroups);
       
-      // Notify parent of each deleted slot individually to ensure proper cleanup
-      if (onDeleteTimeSlot) {
-        deletedSlots.forEach(slot => {
-          onDeleteTimeSlot(slot.day, slot.hour);
-        });
-      }
+      console.log(`Deleting group with ID: ${groupId}`);
       
-      // Call the onDeleteSelectionGroup callback if provided
+      // Call the onDeleteSelectionGroup callback first (more comprehensive handling)
       if (onDeleteSelectionGroup) {
+        // This should handle centralized state update via useTimeSlots.deleteSlotGroup
         onDeleteSelectionGroup(groupId);
-      }
-      
-      // Always call onSelectTimeSlots to notify parent
-      if (onSelectTimeSlots) {
-        onSelectTimeSlots(newSelectedSlots);
+      } else {
+        // Fallback: Notify parent of each deleted slot individually 
+        if (onDeleteTimeSlot) {
+          deletedSlots.forEach(slot => {
+            onDeleteTimeSlot(slot.day, slot.hour);
+          });
+        }
+        
+        // Always call onSelectTimeSlots to notify parent
+        if (onSelectTimeSlots) {
+          onSelectTimeSlots(newSelectedSlots, false); // false indicates this is a deletion
+        }
       }
     };
     

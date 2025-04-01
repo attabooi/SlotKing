@@ -81,9 +81,6 @@ const SimpleCalendarPage: React.FC = () => {
   const handleSelectTimeSlots = (slots: Array<{ day: number; hour: number }>, isAddOperation = true) => {
     console.log(`handleSelectTimeSlots called with ${slots.length} slots, isAddOperation: ${isAddOperation}`);
     
-    // Create a common groupId to associate these slots together 
-    const currentGroupId = uuidv4();
-    
     // If it's an add operation, we should merge the new slots with existing ones
     // Otherwise, for example in a delete operation, we only update with the provided slots
     if (isAddOperation) {
@@ -99,22 +96,49 @@ const SimpleCalendarPage: React.FC = () => {
         console.log(`Adding ${newSlots.length} new slots to selection`);
         setSelectedSlots(prevSlots => [...prevSlots, ...newSlots]);
         
-        // Also add these slots to our new centralized time slots state
+        // Group slots by day to match SimpleWeeklyCalendar's grouping strategy
+        const slotsByDay: Record<number, Array<{ day: number; hour: number }>> = {};
         newSlots.forEach(slot => {
-          const currentDate = new Date();
-          const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-          const dayDate = addDays(weekStart, slot.day);
-          const slotDate = format(dayDate, 'yyyy-MM-dd');
-          const slotTime = format(new Date(0, 0, 0, slot.hour), 'HH:mm');
+          if (!slotsByDay[slot.day]) {
+            slotsByDay[slot.day] = [];
+          }
+          slotsByDay[slot.day].push(slot);
+        });
+        
+        // Process each day separately
+        Object.entries(slotsByDay).forEach(([day, daySlots]) => {
+          // Create a unique groupId for each day (this parallels what SimpleWeeklyCalendar does)
+          const dayGroupId = uuidv4();
           
-          addTimeSlot({
-            date: slotDate,
-            time: slotTime,
-            formattedDate: format(dayDate, 'EEE, MMM d'),
-            formattedTime: format(new Date(0, 0, 0, slot.hour), 'h a'),
-            selected: true,
-            participants: [{ name: userName || 'User', color: getUserColor(userName || 'User') }],
-            groupId: currentGroupId
+          // Find the matching group from selectionGroups that might have been just created
+          const matchingGroup = selectionGroups.find(group => 
+            group.slots.some(groupSlot => 
+              daySlots.some(slot => 
+                slot.day === groupSlot.day && slot.hour === groupSlot.hour
+              )
+            )
+          );
+          
+          // Use the existing group ID if found, otherwise use the new one
+          const effectiveGroupId = matchingGroup?.id || dayGroupId;
+          
+          // Add these slots to our new centralized time slots state
+          daySlots.forEach(slot => {
+            const currentDate = new Date();
+            const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+            const dayDate = addDays(weekStart, slot.day);
+            const slotDate = format(dayDate, 'yyyy-MM-dd');
+            const slotTime = format(new Date(0, 0, 0, slot.hour), 'HH:mm');
+            
+            addTimeSlot({
+              date: slotDate,
+              time: slotTime,
+              formattedDate: format(dayDate, 'EEE, MMM d'),
+              formattedTime: format(new Date(0, 0, 0, slot.hour), 'h a'),
+              selected: true,
+              participants: [{ name: userName || 'User', color: getUserColor(userName || 'User') }],
+              groupId: effectiveGroupId
+            });
           });
         });
       }
@@ -184,10 +208,17 @@ const SimpleCalendarPage: React.FC = () => {
   };
   
   const handleDeleteSelectionGroup = (groupId: string) => {
+    console.log(`handleDeleteSelectionGroup called with ID: ${groupId}`);
+    
     // Find the group to delete
     const groupToDelete = selectionGroups.find(group => group.id === groupId);
     
-    if (!groupToDelete) return;
+    if (!groupToDelete) {
+      console.warn(`No selection group found with ID: ${groupId}`);
+      // Still try to delete from centralized time slots management in case the groupId exists there
+      deleteSlotGroup(groupId);
+      return;
+    }
     
     // Remove all slots in the group from selected slots
     const newSelectedSlots = selectedSlots.filter(existingSlot => 
@@ -205,6 +236,7 @@ const SimpleCalendarPage: React.FC = () => {
     
     // Also remove from new centralized time slots management
     // This will work if the groupId in SimpleWeeklyCalendar matches the one in our time slots
+    console.log(`Deleting slot group with ID: ${groupId} from centralized state`);
     deleteSlotGroup(groupId);
     
     // Notify SimpleWeeklyCalendar of the updated slots (this will update the summary view)
