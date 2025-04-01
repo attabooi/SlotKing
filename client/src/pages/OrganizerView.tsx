@@ -339,35 +339,51 @@ const OrganizerView = () => {
     
     console.log(`Removed 1 time slot, remaining: ${updatedTimeSlots.length}`);
     
-    // Update state with filtered slots
+    // First update state with filtered slots to make sure UI reflects the change
     setSelectedTimeSlots(updatedTimeSlots);
     
-    // We want to make sure the slots in the Calendar components are up to date
-    // with our summary section slots, since they're using different structures internally
-    // This includes clearing the calendar state when slots are removed
-    if (calendarRef.current) {
-      console.log("Syncing calendar selections with updated time slots");
-      
-      // We need to inform the calendar component about the slot removal
-      // This will force the calendar to update its internal state to match the parent 
-      const calendar = calendarRef.current as any;
-      if (calendar && typeof calendar.forceSync === 'function') {
-        // Important: Call forceSync to ensure internal calendar state matches our state
-        calendar.forceSync(updatedTimeSlots);
+    // A complete and robust synchronization of all calendar components
+    const syncCalendars = () => {
+      try {
+        // Sync the weekly calendar if it's available
+        if (calendarRef.current) {
+          console.log("Syncing weekly calendar with updated time slots");
+          const weeklyCalendar = calendarRef.current as any;
+          if (weeklyCalendar && typeof weeklyCalendar.forceSync === 'function') {
+            weeklyCalendar.forceSync(updatedTimeSlots);
+          }
+        }
         
-        // Force a re-calculation of the groupedTimeSlots by setting a dummy state
-        // and then resetting it back to the actual value after a short delay
-        // This ensures the UI is always in sync
+        // Sync the simple weekly calendar if it's available
+        if (simpleCalendarRef.current) {
+          console.log("Syncing simple calendar with updated time slots");
+          const simpleCalendar = simpleCalendarRef.current as any;
+          if (simpleCalendar && typeof simpleCalendar.forceSync === 'function') {
+            simpleCalendar.forceSync(updatedTimeSlots);
+          }
+        }
+        
+        // Force a recalculation of the groupedTimeSlots
+        const updatedGroups = updateGroupedTimeSlots(updatedTimeSlots);
+        setGroupedTimeSlots(updatedGroups);
+        
+        // Double-ensure the selectedTimeSlots state is accurate
+        // This creates a new array reference which helps React detect the change
         setTimeout(() => {
-          // The timeout ensures React has time to process the state update
           setSelectedTimeSlots([...updatedTimeSlots]);
-          
-          // Force a recalculation of the groupedTimeSlots 
-          const updatedGroups = updateGroupedTimeSlots(updatedTimeSlots);
-          setGroupedTimeSlots(updatedGroups);
-        }, 50);
+        }, 0);
+      } catch (error) {
+        console.error("Error during calendar synchronization:", error);
+        // Recover from any errors by ensuring the state is correct
+        setSelectedTimeSlots(updatedTimeSlots);
       }
-    }
+    };
+    
+    // Run the sync immediately
+    syncCalendars();
+    
+    // And then run it again after a short delay to ensure full propagation
+    setTimeout(syncCalendars, 50);
     
     // Add enhanced visual effect for the Meeting Summary area update after deleting a time slot
     if (confettiRef.current) {

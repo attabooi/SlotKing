@@ -434,80 +434,131 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
       forceSync: (parentSlots: Array<{ date: string; time: string }>) => {
         console.log('Forcing sync with parent slots:', parentSlots);
         
-        // Convert day and hour from the parent format to our format
-        if (parentSlots.length === 0) {
-          // Clear all selections if parent has no slots
-          setSelectedSlots([]);
-          setSelectionGroups([]);
-          // Reset drag state to ensure no ghost tracks
-          setIsDragging(false);
-          setDragStart(null);
-          setDragEnd(null);
-          setDraggedSlots([]);
-          // Ensure we're not referencing stale state
-          calculatedGroups.length = 0;
-          return;
-        }
-        
-        // We'll keep our current selections that still exist in parent
-        // First create a lookup of parent slots for easy checking
-        const parentSlotLookup = new Set();
-        parentSlots.forEach(slot => {
-          const date = new Date(slot.date);
-          const day = (date.getDay() + 6) % 7; // Convert to our day format (0 = Monday)
-          const hour = parseInt(slot.time.split(':')[0]);
-          parentSlotLookup.add(`${day}-${hour}`);
-        });
-        
-        // Now filter our slots to keep only those in the parent
-        const newSelectedSlots = selectedSlots.filter(slot => {
-          return parentSlotLookup.has(`${slot.day}-${slot.hour}`);
-        });
-        
-        // First reset all state to ensure clean slate
+        // First, fully reset all state to ensure a clean slate
+        // This prevents any stale references or ghost selections
         setIsDragging(false);
         setDragStart(null);
         setDragEnd(null);
         setDraggedSlots([]);
         
-        // Then set the new filtered slots
-        setSelectedSlots(newSelectedSlots);
+        // If no parent slots, just clear everything
+        if (!parentSlots || parentSlots.length === 0) {
+          console.log('No parent slots, clearing all selections');
+          setSelectedSlots([]);
+          setSelectionGroups([]);
+          return;
+        }
         
-        // Update selection groups to remove any that now have no slots
-        const newSelectionGroups = selectionGroups
-          .map(group => {
-            const newSlots = group.slots.filter(slot => 
-              parentSlotLookup.has(`${slot.day}-${slot.hour}`)
-            );
-            if (newSlots.length === 0) return null;
+        try {
+          // Create a lookup of parent slots for efficient checking
+          const parentSlotLookup = new Map<string, { day: number, hour: number }>();
+          const convertedSlots: Array<{ day: number, hour: number }> = [];
+          
+          // Convert parent format (date/time strings) to our format (day/hour numbers)
+          parentSlots.forEach(slot => {
+            try {
+              const date = new Date(slot.date);
+              // Get day of week (0-6), adjust if needed for your week start day
+              const day = date.getDay(); // Sunday = 0, Saturday = 6
+              const hour = parseInt(slot.time.split(':')[0]);
+              
+              if (!isNaN(day) && !isNaN(hour)) {
+                const key = `${day}-${hour}`;
+                parentSlotLookup.set(key, { day, hour });
+                convertedSlots.push({ day, hour });
+              }
+            } catch (err) {
+              console.error('Error processing parent slot:', slot, err);
+            }
+          });
+          
+          console.log(`Converted ${convertedSlots.length} parent slots to internal format`);
+          
+          // Set the selected slots directly from the converted parent slots
+          // Don't filter existing slots - completely replace them
+          setSelectedSlots(convertedSlots);
+          
+          // Create entirely new selection groups based on contiguous slots
+          // Group slots by day first
+          const slotsByDay: Record<number, Array<{ day: number; hour: number }>> = {};
+          
+          convertedSlots.forEach(slot => {
+            if (!slotsByDay[slot.day]) {
+              slotsByDay[slot.day] = [];
+            }
+            slotsByDay[slot.day].push(slot);
+          });
+          
+          // Create new selection groups from the grouped slots
+          const newGroups: SelectionGroup[] = [];
+          
+          Object.entries(slotsByDay).forEach(([day, daySlots]) => {
+            // Sort slots by hour
+            const sortedSlots = [...daySlots].sort((a, b) => a.hour - b.hour);
             
-            // Also update each group's data
-            const sortedSlots = [...newSlots].sort((a, b) => {
-              if (a.day !== b.day) return a.day - b.day;
-              return a.hour - b.hour;
+            // Find contiguous ranges of hours
+            let currentGroup: { day: number, slots: Array<{ day: number, hour: number }> } | null = null;
+            
+            sortedSlots.forEach((slot, index) => {
+              // Start a new group if this is the first slot or if there's a gap
+              if (index === 0 || slot.hour > sortedSlots[index - 1].hour + 1) {
+                // If we have an existing group, finalize it
+                if (currentGroup && currentGroup.slots.length > 0) {
+                  const firstSlot = currentGroup.slots[0];
+                  const lastSlot = currentGroup.slots[currentGroup.slots.length - 1];
+                  
+                  newGroups.push({
+                    id: uuidv4(),
+                    slots: [...currentGroup.slots],
+                    startTime: firstSlot,
+                    endTime: lastSlot,
+                    topSlot: firstSlot
+                  });
+                }
+                
+                // Start a new group
+                currentGroup = {
+                  day: parseInt(day),
+                  slots: [slot]
+                };
+              } else {
+                // Add to the current group
+                currentGroup?.slots.push(slot);
+              }
+              
+              // If this is the last slot, finalize the current group
+              if (index === sortedSlots.length - 1 && currentGroup) {
+                const firstSlot = currentGroup.slots[0];
+                const lastSlot = currentGroup.slots[currentGroup.slots.length - 1];
+                
+                newGroups.push({
+                  id: uuidv4(),
+                  slots: [...currentGroup.slots],
+                  startTime: firstSlot,
+                  endTime: lastSlot,
+                  topSlot: firstSlot
+                });
+              }
             });
-            
-            const firstSlot = sortedSlots[0];
-            const lastSlot = sortedSlots[sortedSlots.length - 1];
-            
-            return { 
-              ...group, 
-              slots: newSlots,
-              startTime: firstSlot,
-              endTime: lastSlot,
-              topSlot: firstSlot
-            };
-          })
-          .filter(Boolean) as SelectionGroup[];
-        
-        setSelectionGroups(newSelectionGroups);
-        
-        // Give a little time for React to update the state before notifying parent
-        setTimeout(() => {
-          if (onGroupsChanged) {
-            onGroupsChanged(newSelectionGroups);
-          }
-        }, 0);
+          });
+          
+          // Update the selection groups with the new groups
+          setSelectionGroups(newGroups);
+          
+          console.log(`Created ${newGroups.length} selection groups from parent slots`);
+          
+          // Notify parent component about the changes
+          setTimeout(() => {
+            if (onGroupsChanged) {
+              onGroupsChanged(newGroups);
+            }
+          }, 0);
+        } catch (error) {
+          console.error('Error in forceSync:', error);
+          // Ensure we don't leave the component in a broken state
+          setSelectedSlots([]);
+          setSelectionGroups([]);
+        }
       }
     }));
     

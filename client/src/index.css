@@ -540,7 +540,7 @@
     color: white;
   }
   
-  /* Calendar cell connection styles */
+  /* Calendar cell connection styles - improved to eliminate white lines */
   .cell-selected {
     @apply relative z-10;
     position: relative;
@@ -558,43 +558,112 @@
     z-index: -1;
   }
   
+  /* Remove right border and extend overlay to cover */
   .cell-selected-right {
     @apply border-r-0;
   }
   
-  /* Create overlay that extends to cover border */
+  /* Create overlay that extends to cover border with 2px for safety */
   .cell-selected-right::after {
-    width: calc(100% + 1px);
+    width: calc(100% + 2px);
+    right: -2px;
+    left: auto;
   }
   
+  /* Remove bottom border and extend overlay to cover */
   .cell-selected-bottom {
     @apply border-b-0;
   }
   
-  /* Create overlay that extends to cover border */
+  /* Create overlay that extends to cover border with 2px for safety */
   .cell-selected-bottom::after {
-    height: calc(100% + 1px);
+    height: calc(100% + 2px);
+    bottom: -2px;
+    top: auto;
+  }
+  
+  /* Connection for cells in all directions */
+  .cell-selected-all-sides::after {
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    top: -1px;
+    left: -1px;
+  }
+  
+  /* Special case for connecting multiple cells in a grid */
+  .grid-cell-selected {
+    position: relative;
+    box-shadow: 0 0 0 1px rgba(126, 87, 194, 0.4) inset;
+    z-index: 2;
+  }
+
+  /* Connected cells in a matrix - hide inner borders */
+  .grid-cell-selected::before {
+    content: '';
+    position: absolute;
+    background-color: rgba(126, 87, 194, 0.15);
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    z-index: -1;
+  }
+  
+  /* Selection area highlight */
+  .selection-area {
+    background-color: rgba(126, 87, 194, 0.15);
+    border: 1px solid rgba(126, 87, 194, 0.4);
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
   }
   
   /* Connection indicators for slots in the same group */
   .slot-connected-top {
     @apply bg-gradient-to-b from-primary/30 to-transparent;
+    border-top: none !important;
   }
   
   .slot-connected-bottom {
     @apply bg-gradient-to-t from-primary/30 to-transparent;
+    border-bottom: none !important;
   }
   
   .slot-connected-left {
     @apply bg-gradient-to-r from-primary/30 to-transparent;
+    border-left: none !important;
   }
   
   .slot-connected-right {
     @apply bg-gradient-to-l from-primary/30 to-transparent;
+    border-right: none !important;
   }
   
   /* Group indicator */
   .group-indicator {
     @apply bg-primary/10 rounded border border-primary/20 absolute inset-0;
+  }
+  
+  /* Fix for the actual calendar grid cells */
+  .calendar-cell {
+    @apply relative border border-border/20 transition-colors;
+  }
+  
+  .calendar-cell.selected {
+    @apply bg-primary/15;
+    position: relative;
+    z-index: 2;
+  }
+  
+  /* This creates the seamless connection between selected cells */
+  .calendar-cell.selected::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    background-color: inherit;
+    z-index: -1;
   }
 }

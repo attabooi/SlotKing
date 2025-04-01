@@ -124,25 +124,40 @@ const WeeklyCalendarGrid = forwardRef<any, WeeklyCalendarGridProps>(({
       // Reset the internal selection state based on the parent's slots
       const newSelectionCells: { day: number; hour: number }[] = [];
       
-      parentSlots.forEach(slot => {
-        // Parse the date to determine the day of week
-        const date = new Date(slot.date);
-        // Convert to day index (0-6, Sunday to Saturday)
-        const day = date.getDay();
-        // Extract hour from time string (e.g., "14:00" -> 14)
-        const hour = parseInt(slot.time.split(':')[0]);
-        
-        // Add to selection cells
-        newSelectionCells.push({ day, hour });
-      });
-      
-      // Update the internal state
-      setSelectionCells(newSelectionCells);
-      
-      // Force re-render
+      // First, completely reset all state to prevent any ghost selections
+      setSelectionCells([]);
+      setTempSelectionCells([]);
       isDraggingRef.current = false;
       startCellRef.current = null;
-      setTempSelectionCells([]);
+      
+      // Process parent slots only if there are any
+      if (parentSlots.length > 0) {
+        parentSlots.forEach(slot => {
+          try {
+            // Parse the date to determine the day of week
+            const date = new Date(slot.date);
+            // Convert to day index (0-6, Sunday to Saturday)
+            const day = date.getDay();
+            // Extract hour from time string (e.g., "14:00" -> 14)
+            const hour = parseInt(slot.time.split(':')[0]);
+            
+            // Add to selection cells
+            newSelectionCells.push({ day, hour });
+          } catch (err) {
+            console.error("Error processing slot during forceSync:", slot, err);
+          }
+        });
+        
+        // Update the internal state with the filtered parent slots
+        setSelectionCells(newSelectionCells);
+      }
+      
+      // Force immediate update by using a key state for re-render trigger
+      // This is more reliable than relying on React's normal state updates
+      setTimeout(() => {
+        // This second update ensures the component fully refreshes
+        setSelectionCells([...newSelectionCells]);
+      }, 0);
     }
   }));
   
