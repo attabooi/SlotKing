@@ -286,6 +286,16 @@ const OrganizerView = () => {
     const updatedTimeSlots = selectedTimeSlots.filter(slot => slot.date !== date);
     setSelectedTimeSlots(updatedTimeSlots);
     
+    // 타임슬롯 삭제 후 Meeting Summary 영역 업데이트를 위한 효과 추가
+    if (confettiRef.current) {
+      confettiRef.current.classList.add('fade-reset');
+      setTimeout(() => {
+        if (confettiRef.current) {
+          confettiRef.current.classList.remove('fade-reset');
+        }
+      }, 500);
+    }
+    
     // Show a toast notification
     toast({
       title: "Time slot group deleted",
@@ -437,7 +447,7 @@ const OrganizerView = () => {
         <div ref={confettiRef} className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <h2 className="text-xl font-medium text-primary mb-2 md:mb-0">Meeting Summary</h2>
-            <div className="space-x-2">
+            <div className="space-x-2 flex">
               {!votingMode ? (
                 <Button 
                   onClick={handleConfirmSchedule}
@@ -457,6 +467,16 @@ const OrganizerView = () => {
                   Reset All
                 </Button>
               )}
+              
+              {/* 항상 표시되는 Reset 버튼 추가 */}
+              <Button
+                onClick={handleResetAll}
+                variant="destructive"
+                className="ml-2 bg-red-500 text-white hover:bg-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Reset
+              </Button>
             </div>
           </div>
           
@@ -498,11 +518,11 @@ const OrganizerView = () => {
                             </Button>
                           )}
                           
-                          {/* Show crown icon only for the top voted slot when there are actual votes */}
+                          {/* Show crown icon only for the top voted slot when there are actual votes - 크기 증가 */}
                           {votingMode && `${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && (
                             <div className="flex items-center justify-center animate-pulse-subtle">
-                              <div className="absolute -top-5 -right-5 crown-float z-20">
-                                <Crown className="h-14 w-14 text-yellow-500 drop-shadow-xl filter-drop-shadow" />
+                              <div className="absolute -top-10 -right-8 crown-float z-20">
+                                <Crown className="h-24 w-24 text-yellow-500 drop-shadow-xl filter-drop-shadow" />
                               </div>
                             </div>
                           )}

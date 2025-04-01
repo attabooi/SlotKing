@@ -319,10 +319,10 @@
     }
   }
   
-  /* Crown animation */
+  /* Crown animation - 개선된 버전 */
   .crown-float {
     animation: crownFloat 3s ease-in-out infinite;
-    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
+    filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.7));
   }
   
   @keyframes crownFloat {
@@ -330,7 +330,7 @@
       transform: translateY(0) rotate(0deg);
     }
     50% {
-      transform: translateY(-5px) rotate(5deg);
+      transform: translateY(-10px) rotate(8deg);
     }
   }
   
