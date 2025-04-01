@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import CalendarGrid from "@/components/CalendarGrid";
 import WeeklyCalendarGrid from "@/components/WeeklyCalendarGrid";
 import ActivityFeed from "@/components/ActivityFeed";
-import { ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw } from "lucide-react";
+import { ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw, Crown, AlertTriangle } from "lucide-react";
 import * as party from 'party-js';
 
 // Helper function to get color by day name
@@ -309,15 +309,25 @@ const OrganizerView = () => {
   );
   
   // Process availabilities into a format for the calendar grid
+  // Calculate availability counts and top voted slot
+  let maxAvailableCount = 0;
+  let topVotedSlot = '';
+  
   const processedTimeSlots = timeSlots.map(slot => {
     let availableCount = 0;
+    const slotKey = `${slot.date}-${slot.time}`;
     
     availabilities.forEach(availability => {
-      const slotKey = `${slot.date}-${slot.time}`;
       if ((availability.timeSlots as string[]).includes(slotKey)) {
         availableCount++;
       }
     });
+    
+    // Track the slot with the most availability
+    if (availableCount > maxAvailableCount) {
+      maxAvailableCount = availableCount;
+      topVotedSlot = slotKey;
+    }
     
     return {
       ...slot,
@@ -435,20 +445,44 @@ const OrganizerView = () => {
                             </Button>
                           )}
                           
-                          {votingMode && participants.length > 0 && (
+                          {/* Show crown icon only for the top voted slot */}
+                          {votingMode && `${date}-${time}` === topVotedSlot && (
+                            <div className="flex items-center justify-center animate-pulse-subtle">
+                              <Crown className="h-6 w-6 text-yellow-500 drop-shadow-sm" />
+                            </div>
+                          )}
+
+                          {/* Show participants only if they've selected this time slot */}
+                          {votingMode && (
                             <div className="flex -space-x-2">
-                              {participants.slice(0, 3).map((p, i) => (
-                                <div 
-                                  key={`participant-${p.id}-${i}`}
-                                  className="w-6 h-6 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-xs font-medium"
-                                  title={p.name}
-                                >
-                                  {p.name.charAt(0).toUpperCase()}
-                                </div>
-                              ))}
-                              {participants.length > 3 && (
+                              {availabilities
+                                .filter(availability => 
+                                  (availability.timeSlots as string[]).includes(`${date}-${time}`)
+                                )
+                                .slice(0, 3)
+                                .map((availability, i) => {
+                                  const participant = participants.find(p => p.id === availability.participantId);
+                                  if (!participant) return null;
+                                  
+                                  return (
+                                    <div 
+                                      key={`participant-${participant.id}-${i}`}
+                                      className="w-6 h-6 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-xs font-medium"
+                                      title={participant.name}
+                                    >
+                                      {participant.name.charAt(0).toUpperCase()}
+                                    </div>
+                                  );
+                                })}
+                              
+                              {/* Show the "+X" only if there are more than 3 participants for this time slot */}
+                              {availabilities.filter(a => 
+                                (a.timeSlots as string[]).includes(`${date}-${time}`)
+                              ).length > 3 && (
                                 <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium">
-                                  +{participants.length - 3}
+                                  +{availabilities.filter(a => 
+                                    (a.timeSlots as string[]).includes(`${date}-${time}`)
+                                  ).length - 3}
                                 </div>
                               )}
                             </div>
@@ -457,10 +491,27 @@ const OrganizerView = () => {
                         
                         {votingMode && (
                           <div className="mt-2 flex items-center">
-                            <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/10">
-                              {participants.length > 0 
-                                ? `${participants.length} participants` 
-                                : "Waiting for votes"}
+                            {/* Display badge with actual count of participants for this slot */}
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                `${date}-${time}` === topVotedSlot 
+                                  ? 'bg-yellow-50 text-yellow-600 border-yellow-200' 
+                                  : 'bg-primary/5 text-primary border-primary/10'
+                              }`}
+                            >
+                              {
+                                // Count of participants who selected this slot
+                                (() => {
+                                  const count = availabilities.filter(a => 
+                                    (a.timeSlots as string[]).includes(`${date}-${time}`)
+                                  ).length;
+                                  
+                                  if (count === 0) return "Waiting for votes";
+                                  return count === 1 ? "1 participant" : `${count} participants`;
+                                })()
+                              }
+                              {`${date}-${time}` === topVotedSlot && ' • Top Pick'}
                             </Badge>
                           </div>
                         )}
