@@ -333,6 +333,22 @@
     }
   }
   
+  /* Gentle pulse animation */
+  @keyframes pulse-gentle {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.05);
+    }
+  }
+  
+  .animate-pulse-gentle {
+    animation: pulse-gentle 2s infinite ease-in-out;
+  }
+  
   /* Slot selection pulse */
   .slot-pulse {
     animation: slotPulse 0.5s cubic-bezier(0.4, 0, 0.6, 1);

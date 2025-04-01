@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import CalendarGrid from "@/components/CalendarGrid";
 import WeeklyCalendarGrid from "@/components/WeeklyCalendarGrid";
 import ActivityFeed from "@/components/ActivityFeed";
-import { ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw, Crown, AlertTriangle } from "lucide-react";
+import { Calendar, CalendarDays, ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw, Crown, AlertTriangle } from "lucide-react";
 import * as party from 'party-js';
 
 // Helper function to get color by day name
@@ -402,36 +402,45 @@ const OrganizerView = () => {
           </div>
         </div>
         
-        {/* Meeting Summary Section */}
+        {/* Meeting Summary Section - Enhanced UI */}
         <div ref={confettiRef} className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-medium text-primary mb-2 md:mb-0">Meeting Summary</h2>
+            <h2 className="text-xl font-medium bg-gradient-to-r from-primary to-primary/80 text-transparent bg-clip-text mb-2 md:mb-0">Meeting Summary</h2>
             <div className="space-x-2">
               {!votingMode ? (
                 <Button 
                   onClick={handleConfirmSchedule}
                   disabled={selectedTimeSlots.length === 0 || confirmMutation.isPending}
-                  className="bg-gradient-to-r from-primary to-primary/90"
+                  className="bg-gradient-to-r from-primary to-primary/90 shadow-md hover:shadow-lg transition-all"
                 >
                   <Check className="h-4 w-4 mr-2" />
                   Confirm Schedule
                 </Button>
               ) : (
-                <Button
-                  onClick={handleResetAll}
-                  variant="outline"
-                  className="text-red-500 border-red-200 hover:bg-red-50"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Reset All
-                </Button>
+                <div className="flex space-x-2">
+                  <Button
+                    onClick={handleResetAll}
+                    variant="outline"
+                    className="text-red-500 border-red-200 hover:bg-red-50 transition-all"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Reset All
+                  </Button>
+                  <Button
+                    onClick={handleCopyLink}
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition-all"
+                  >
+                    <ClipboardCopy className="h-4 w-4 mr-2" />
+                    Share Link
+                  </Button>
+                </div>
               )}
             </div>
           </div>
           
           {selectedTimeSlots.length > 0 ? (
-            <div className="mt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="mt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {Object.entries(groupedTimeSlots).map(([date, times]) => {
                   const dayColor = getDayColor(date);
                   const weekday = formatDateToWeekday(date);
@@ -439,16 +448,22 @@ const OrganizerView = () => {
                   return times.map((time, timeIndex) => (
                     <div 
                       key={`${date}-${time}-${timeIndex}`}
-                      className={`relative group overflow-hidden rounded-lg border shadow-sm transition-all duration-200 ${
-                        votingMode ? 'animate-pulse-subtle border-primary/30' : 'border-gray-200 hover:border-primary/20'
+                      className={`relative group overflow-hidden rounded-xl border bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-300 ${
+                        votingMode ? 'animate-pulse-subtle border-primary/30' : 'border-gray-200 hover:border-primary/20 hover:-translate-y-1'
                       }`}
                     >
-                      <div className="absolute top-0 left-0 h-full w-1.5" style={{ backgroundColor: dayColor }}></div>
-                      <div className="p-3 pl-4">
+                      {/* Colored weekday indicator */}
+                      <div className="absolute top-0 left-0 h-full w-2" style={{ backgroundColor: dayColor }}></div>
+                      
+                      {/* Main content */}
+                      <div className="p-4 pl-5">
+                        {/* Weekday and time */}
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-semibold text-lg" style={{ color: dayColor }}>{weekday}</p>
-                            <p className="text-gray-700 text-lg">{formatTimeForDisplay(time)}</p>
+                            {/* Weekday with larger, colored font */}
+                            <p className="font-bold text-2xl" style={{ color: dayColor }}>{weekday}</p>
+                            {/* Time with large, clear display */}
+                            <p className="text-gray-800 dark:text-gray-200 text-xl font-medium">{formatTimeForDisplay(time)}</p>
                             <p className="text-xs text-gray-500 mt-1">{new Date(date).toLocaleDateString()}</p>
                           </div>
                           
@@ -456,29 +471,29 @@ const OrganizerView = () => {
                             <Button
                               variant="ghost" 
                               size="icon"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-all absolute top-2 right-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 handleRemoveTimeSlot(date, time, e);
                               }}
                             >
-                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                              <Trash2 className="h-4 w-4 text-gray-500 group-hover:text-red-500 transition-colors" />
                             </Button>
                           )}
                           
                           {/* Show crown icon only for the top voted slot when there are actual votes */}
                           {votingMode && `${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && (
-                            <div className="flex items-center justify-center animate-pulse-subtle">
-                              <div className="absolute -top-3 -right-3 crown-float z-10">
-                                <Crown className="h-10 w-10 text-yellow-500 drop-shadow-lg" />
+                            <div className="flex items-center justify-center">
+                              <div className="absolute -top-4 -right-3 crown-float z-10">
+                                <Crown className="h-12 w-12 text-yellow-500 drop-shadow-lg animate-pulse-gentle" />
                               </div>
                             </div>
                           )}
 
                           {/* Show participants only if they've selected this time slot AND there are actual participants */}
                           {votingMode && availabilities.some(a => (a.timeSlots as string[]).includes(`${date}-${time}`)) && (
-                            <div className="flex -space-x-2">
+                            <div className="flex -space-x-2 mt-3">
                               {(() => {
                                 // Get unique participant IDs for this time slot
                                 const uniqueParticipantMap: Record<number, boolean> = {};
@@ -500,11 +515,11 @@ const OrganizerView = () => {
                                     }
                                   });
                                 
-                                // Return the first 3 unique participants
+                                // Return the first 3 unique participants with enhanced styling
                                 return participantsForSlot.slice(0, 3).map((participant, i) => (
                                   <div 
                                     key={`participant-${participant.id}-${i}`}
-                                    className="w-6 h-6 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-xs font-medium"
+                                    className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-700 bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center text-xs font-bold shadow-md"
                                     title={participant.name}
                                   >
                                     {participant.name.charAt(0).toUpperCase()}
@@ -526,7 +541,7 @@ const OrganizerView = () => {
                                 
                                 // Only show "+X" if there are more than 3 unique participants
                                 return uniqueCount > 3 ? (
-                                  <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium">
+                                  <div className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-700 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center text-xs font-bold shadow-md">
                                     +{uniqueCount - 3}
                                   </div>
                                 ) : null;
@@ -536,14 +551,14 @@ const OrganizerView = () => {
                         </div>
                         
                         {votingMode && (
-                          <div className="mt-2 flex items-center">
+                          <div className="mt-3 flex items-center">
                             {/* Display badge with actual count of participants for this slot */}
                             <Badge 
                               variant="outline" 
-                              className={`text-xs ${
+                              className={`text-xs py-1 px-2 ${
                                 `${date}-${time}` === topVotedSlot && maxAvailableCount > 0
-                                  ? 'bg-yellow-50 text-yellow-600 border-yellow-200' 
-                                  : 'bg-primary/5 text-primary border-primary/10'
+                                  ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-700 border-yellow-200 shadow-inner' 
+                                  : 'bg-gradient-to-r from-primary/5 to-primary/10 text-primary border-primary/20'
                               }`}
                             >
                               {
@@ -563,7 +578,13 @@ const OrganizerView = () => {
                                   return count === 1 ? "1 participant" : `${count} participants`;
                                 })()
                               }
-                              {`${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && ' • Top Pick'}
+                              {`${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && (
+                                <span className="ml-1 inline-flex items-center">
+                                  <span className="mr-1">•</span> 
+                                  <span className="font-semibold">Top Pick</span>
+                                  <Crown className="h-3 w-3 ml-1 text-yellow-600" />
+                                </span>
+                              )}
                             </Badge>
                           </div>
                         )}
@@ -574,8 +595,17 @@ const OrganizerView = () => {
               </div>
             </div>
           ) : (
-            <div className="mt-4 p-6 border border-dashed border-gray-300 rounded-lg text-center">
-              <p className="text-gray-500">No time slots selected yet. Please select your preferred time slots from the calendar below.</p>
+            <div className="mt-6 p-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-center bg-gray-50 dark:bg-gray-900/50">
+              <CalendarDays className="h-12 w-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-medium text-gray-700 dark:text-gray-300 mb-2">No Time Slots Selected</h3>
+              <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">Please select your preferred time slots from the calendar below. Selected slots will appear here as meeting options.</p>
+              <Button 
+                onClick={() => setActiveTab('weekly')}
+                className="mt-4 bg-gradient-to-r from-primary to-primary/90 hover:shadow-md transition-all"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Go to Calendar
+              </Button>
             </div>
           )}
         </div>
