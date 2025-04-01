@@ -470,8 +470,8 @@ const OrganizerView = () => {
                           {/* Show crown icon only for the top voted slot when there are actual votes */}
                           {votingMode && `${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && (
                             <div className="flex items-center justify-center animate-pulse-subtle">
-                              <div className="absolute -top-3 -right-3 crown-float z-10">
-                                <Crown className="h-10 w-10 text-yellow-500 drop-shadow-lg" />
+                              <div className="absolute -top-5 -right-5 crown-float z-20">
+                                <Crown className="h-14 w-14 text-yellow-500 drop-shadow-xl filter-drop-shadow" />
                               </div>
                             </div>
                           )}
