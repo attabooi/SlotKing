@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background glow effect -->
+  <defs>
+    <radialGradient id="crown-glow" cx="50%" cy="30%" r="60%" fx="50%" fy="30%">
+      <stop offset="0%" stop-color="#FF8D00" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  
+  <!-- Dark background (transparent for favicon) -->
+  <rect width="512" height="512" fill="transparent" />
+  
+  <!-- Background glow -->
+  <rect width="512" height="512" fill="url(#crown-glow)" opacity="0.6" />
+  
+  <!-- Calendar grid base -->
+  <g filter="url(#shadow)">
+    <rect x="100" y="230" width="312" height="220" rx="20" ry="20" fill="#333333" stroke="#444444" stroke-width="4" />
+  </g>
+  
+  <!-- Calendar grid lines -->
+  <line x1="204" y1="230" x2="204" y2="450" stroke="#444444" stroke-width="2" />
+  <line x1="308" y1="230" x2="308" y2="450" stroke="#444444" stroke-width="2" />
+  <line x1="100" y1="303" x2="412" y2="303" stroke="#444444" stroke-width="2" />
+  <line x1="100" y1="376" x2="412" y2="376" stroke="#444444" stroke-width="2" />
+  
+  <!-- Highlighted cell -->
+  <rect x="308" y="303" width="104" height="73" fill="#7E57C2" opacity="0.9" rx="2" ry="2" />
+  
+  <!-- Crown base -->
+  <g filter="url(#shadow)">
+    <path d="M125,170 L387,170 L387,220 L125,220 Z" fill="#FFC107" stroke="#E65100" stroke-width="8" />
+    <path d="M125,170 L180,70 L256,130 L332,70 L387,170 Z" fill="#FFC107" stroke="#E65100" stroke-width="8" />
+  </g>
+  
+  <!-- Crown jewels -->
+  <circle cx="180" cy="120" r="20" fill="#3F51B5" stroke="#1A237E" stroke-width="3" />
+  <circle cx="256" cy="100" r="24" fill="#FF5722" stroke="#BF360C" stroke-width="3" />
+  <circle cx="332" cy="120" r="20" fill="#3F51B5" stroke="#1A237E" stroke-width="3" />
+  <circle cx="218" cy="140" r="16" fill="#4CAF50" stroke="#1B5E20" stroke-width="2" />
+  <circle cx="294" cy="140" r="16" fill="#4CAF50" stroke="#1B5E20" stroke-width="2" />
+  
+  <!-- Highlights on jewels -->
+  <circle cx="174" cy="114" r="7" fill="#C5CAE9" opacity="0.8" />
+  <circle cx="250" cy="94" r="10" fill="#FFCCBC" opacity="0.8" />
+  <circle cx="326" cy="114" r="7" fill="#C5CAE9" opacity="0.8" />
+  <circle cx="214" cy="136" r="6" fill="#C8E6C9" opacity="0.8" />
+  <circle cx="290" cy="136" r="6" fill="#C8E6C9" opacity="0.8" />
+</svg>
