@@ -348,7 +348,7 @@
     }
   }
   
-  /* Add fade-reset animation for visual feedback when resetting */
+  /* Enhanced animation for visual feedback when resetting */
   @keyframes fade-reset {
     0% {
       opacity: 1;
@@ -363,6 +363,172 @@
   
   .fade-reset {
     animation: fade-reset 0.5s ease-in-out;
+  }
+  
+  /* Pulse effect for dramatic visual feedback */
+  @keyframes pulse-effect {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(229, 57, 53, 0);
+    }
+    50% {
+      transform: scale(0.98);
+      box-shadow: 0 0 0 10px rgba(229, 57, 53, 0.1);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(229, 57, 53, 0);
+    }
+  }
+  
+  .pulse-effect {
+    animation: pulse-effect 0.8s ease-in-out;
+  }
+  
+  /* Reset ripple effect */
+  @keyframes ripple {
+    0% {
+      opacity: 0.5;
+      transform: scale(0);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(3);
+    }
+  }
+  
+  .reset-ripple {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: rgba(229, 57, 53, 0.5);
+    z-index: 5;
+    animation: ripple 0.8s ease-out forwards;
+  }
+  
+  /* Delete fade effect */
+  @keyframes delete-fade {
+    0% {
+      opacity: 0.2;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.1;
+      transform: scale(0.98);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1);
+    }
+  }
+  
+  .delete-fade-effect {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(229, 57, 53, 0.1);
+    z-index: 5;
+    animation: delete-fade 0.6s ease-out forwards;
+  }
+  
+  /* Slide animation for removing items */
+  @keyframes slide-effect {
+    0% {
+      transform: translateX(0);
+    }
+    30% {
+      transform: translateX(-5px);
+    }
+    100% {
+      transform: translateX(0);
+    }
+  }
+  
+  .slide-effect {
+    animation: slide-effect 0.6s ease-in-out;
+  }
+  
+  /* Crown special effects */
+  @keyframes bounce-slow {
+    0%, 100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    40% {
+      transform: translateY(-10px) rotate(5deg);
+    }
+    60% {
+      transform: translateY(-8px) rotate(3deg);
+    }
+    80% {
+      transform: translateY(-4px) rotate(1deg);
+    }
+  }
+  
+  .animate-bounce-slow {
+    animation: bounce-slow 3s ease-in-out infinite;
+  }
+  
+  /* Shimmer effect for crown */
+  @keyframes shimmer {
+    0% {
+      background-position: -100% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  .crown-shimmer {
+    background: linear-gradient(
+      90deg, 
+      rgba(255, 255, 255, 0) 0%, 
+      rgba(255, 255, 255, 0.2) 25%, 
+      rgba(255, 255, 255, 0.2) 50%, 
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 3s infinite linear;
+    pointer-events: none;
+  }
+  
+  /* Add a special glow effect to the crown */
+  .filter-crown-glow {
+    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5)) 
+            drop-shadow(0 0 10px rgba(255, 215, 0, 0.2));
+  }
+  
+  /* Ping animation for sparkles */
+  @keyframes ping-slow {
+    0% {
+      transform: scale(0.2);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1);
+      opacity: 0.5;
+    }
+    100% {
+      transform: scale(1.5);
+      opacity: 0;
+    }
+  }
+  
+  .animate-ping-slow {
+    animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  
+  .delay-300 {
+    animation-delay: 0.3s;
+  }
+  
+  .delay-700 {
+    animation-delay: 0.7s;
   }
   
   /* Styles for participant overflow */

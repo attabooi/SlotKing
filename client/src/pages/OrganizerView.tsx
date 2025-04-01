@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import CalendarGrid from "@/components/CalendarGrid";
 import WeeklyCalendarGrid from "@/components/WeeklyCalendarGrid";
 import ActivityFeed from "@/components/ActivityFeed";
-import { ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw, Crown, AlertTriangle } from "lucide-react";
+import { ArrowDown, Calendar, ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw, Crown, AlertTriangle, Clock, Users } from "lucide-react";
 import * as party from 'party-js';
 
 // Helper function to get color by day name
@@ -234,14 +234,31 @@ const OrganizerView = () => {
         duration: 5000,
       });
       
-      // Show visual confirmation with a clear fade effect
+      // Show visual confirmation with a clear fade effect and animation
       if (confettiRef.current) {
+        // Add dramatic animation for better UX feedback
         confettiRef.current.classList.add('fade-reset');
+        confettiRef.current.classList.add('pulse-effect');
+        
+        // Create a ripple effect from the center
+        const ripple = document.createElement('div');
+        ripple.className = 'reset-ripple';
+        if (confettiRef.current.firstChild) {
+          confettiRef.current.insertBefore(ripple, confettiRef.current.firstChild);
+        } else {
+          confettiRef.current.appendChild(ripple);
+        }
+        
+        // Clean up animations after they complete
         setTimeout(() => {
           if (confettiRef.current) {
             confettiRef.current.classList.remove('fade-reset');
+            confettiRef.current.classList.remove('pulse-effect');
+            if (ripple.parentNode === confettiRef.current) {
+              confettiRef.current.removeChild(ripple);
+            }
           }
-        }, 500);
+        }, 800);
       }
     },
     onError: (error) => {
@@ -288,25 +305,59 @@ const OrganizerView = () => {
       event.stopPropagation();
     }
     
+    console.log(`Removing time slot: ${date} at ${time}`);
+    
     // Get the group of slots with the same date (for this specific date)
     const targetKey = `${date}-${time}`;
     
     // Find all slots with the same date (they should be removed as a group)
-    const slotsWithSameDate = selectedTimeSlots.filter(slot => slot.date === date);
-    const slotKeysToRemove = new Set(slotsWithSameDate.map(slot => `${slot.date}-${slot.time}`));
+    // Convert date string to consistent format to ensure proper comparison
+    const normalizedDate = new Date(date).toISOString().split('T')[0];
+    
+    const slotsWithSameDate = selectedTimeSlots.filter(slot => {
+      const slotNormalizedDate = new Date(slot.date).toISOString().split('T')[0];
+      return slotNormalizedDate === normalizedDate;
+    });
+    
+    // Log for debugging
+    console.log(`Found ${slotsWithSameDate.length} slots with same date:`, slotsWithSameDate);
     
     // Remove all slots with the same date
-    const updatedTimeSlots = selectedTimeSlots.filter(slot => slot.date !== date);
+    const updatedTimeSlots = selectedTimeSlots.filter(slot => {
+      const slotNormalizedDate = new Date(slot.date).toISOString().split('T')[0];
+      return slotNormalizedDate !== normalizedDate;
+    });
+    
+    console.log(`Remaining slots after removal: ${updatedTimeSlots.length}`);
+    
+    // Update state with filtered slots
     setSelectedTimeSlots(updatedTimeSlots);
     
-    // 타임슬롯 삭제 후 Meeting Summary 영역 업데이트를 위한 효과 추가
+    // Add enhanced visual effect for the Meeting Summary area update after deleting a time slot
     if (confettiRef.current) {
+      // Add slide-out animation for removed items
       confettiRef.current.classList.add('fade-reset');
+      confettiRef.current.classList.add('slide-effect');
+      
+      // Create a subtle fade effect
+      const fadeEffect = document.createElement('div');
+      fadeEffect.className = 'delete-fade-effect';
+      if (confettiRef.current.firstChild) {
+        confettiRef.current.insertBefore(fadeEffect, confettiRef.current.firstChild);
+      } else {
+        confettiRef.current.appendChild(fadeEffect);
+      }
+      
+      // Clean up animations
       setTimeout(() => {
         if (confettiRef.current) {
           confettiRef.current.classList.remove('fade-reset');
+          confettiRef.current.classList.remove('slide-effect');
+          if (fadeEffect.parentNode === confettiRef.current) {
+            confettiRef.current.removeChild(fadeEffect);
+          }
         }
-      }, 500);
+      }, 600);
     }
     
     // Show a toast notification
@@ -503,16 +554,40 @@ const OrganizerView = () => {
                   return times.map((time, timeIndex) => (
                     <div 
                       key={`${date}-${time}-${timeIndex}`}
-                      className={`relative group overflow-hidden rounded-lg border shadow-sm transition-all duration-200 ${
-                        votingMode ? 'animate-pulse-subtle border-primary/30' : 'border-gray-200 hover:border-primary/20'
+                      className={`relative group overflow-hidden rounded-lg border shadow-sm transition-all duration-300 ${
+                        votingMode 
+                          ? (`${date}-${time}` === topVotedSlot && maxAvailableCount > 0
+                              ? 'animate-pulse-subtle border-yellow-300 bg-gradient-to-br from-card to-yellow-50/5' 
+                              : 'border-primary/30 bg-gradient-to-br from-card to-primary/5')
+                          : 'border-gray-200 hover:border-primary/20 hover:shadow-md bg-card'
                       }`}
                     >
-                      <div className="absolute top-0 left-0 h-full w-1.5" style={{ backgroundColor: dayColor }}></div>
-                      <div className="p-3 pl-4">
+                      {/* Colored bar with gradient overlay */}
+                      <div className="absolute top-0 left-0 h-full w-1.5 opacity-90" 
+                        style={{ 
+                          background: `linear-gradient(to bottom, ${dayColor}, ${dayColor}80)`
+                        }}
+                      ></div>
+                      
+                      {/* Subtle day indicator pattern */}
+                      <div className="absolute top-0 right-0 h-full w-full opacity-5 pointer-events-none"
+                        style={{
+                          backgroundImage: `radial-gradient(circle at 80% 20%, ${dayColor}, transparent 60%)`
+                        }}
+                      ></div>
+                      
+                      <div className="p-3 pl-4 relative z-10">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-semibold text-lg" style={{ color: dayColor }}>{weekday}</p>
-                            <p className="text-gray-700 text-lg">{formatTimeForDisplay(time)}</p>
+                            <p className="font-semibold text-lg bg-gradient-to-r from-[#555] to-[#333] bg-clip-text text-transparent dark:from-white dark:to-gray-200" 
+                              style={{ 
+                                WebkitTextFillColor: 'transparent',
+                                backgroundImage: `linear-gradient(to right, ${dayColor}, ${dayColor}99)` 
+                              }}
+                            >
+                              {weekday}
+                            </p>
+                            <p className="text-gray-700 text-lg font-medium">{formatTimeForDisplay(time)}</p>
                             <p className="text-xs text-gray-500 mt-1">{new Date(date).toLocaleDateString()}</p>
                           </div>
                           
@@ -531,11 +606,23 @@ const OrganizerView = () => {
                             </Button>
                           )}
                           
-                          {/* Show crown icon only for the top voted slot when there are actual votes - 크기 증가 */}
+                          {/* Enhanced crown icon with improved animation for the top voted slot */}
                           {votingMode && `${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && (
-                            <div className="flex items-center justify-center animate-pulse-subtle">
-                              <div className="absolute -top-10 -right-8 crown-float z-20">
-                                <Crown className="h-24 w-24 text-yellow-500 drop-shadow-xl filter-drop-shadow" />
+                            <div className="flex items-center justify-center">
+                              <div className="absolute -top-12 -right-6 crown-float z-20 animate-bounce-slow">
+                                {/* Add shimmer effect to the crown */}
+                                <div className="absolute inset-0 crown-shimmer"></div>
+                                <Crown className="h-24 w-24 text-yellow-500 drop-shadow-xl filter-crown-glow" />
+                                {/* Add small sparkles around the crown */}
+                                <div className="absolute top-1/4 right-1/4 animate-ping-slow">
+                                  <span className="block h-1.5 w-1.5 rounded-full bg-yellow-300"></span>
+                                </div>
+                                <div className="absolute bottom-1/3 left-1/3 animate-ping-slow delay-300">
+                                  <span className="block h-2 w-2 rounded-full bg-yellow-200"></span>
+                                </div>
+                                <div className="absolute top-1/2 left-1/4 animate-ping-slow delay-700">
+                                  <span className="block h-1 w-1 rounded-full bg-yellow-100"></span>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -564,16 +651,35 @@ const OrganizerView = () => {
                                     }
                                   });
                                 
-                                // Return the first 3 unique participants
-                                return participantsForSlot.slice(0, 3).map((participant, i) => (
-                                  <div 
-                                    key={`participant-${participant.id}-${i}`}
-                                    className="w-6 h-6 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-xs font-medium"
-                                    title={participant.name}
-                                  >
-                                    {participant.name.charAt(0).toUpperCase()}
-                                  </div>
-                                ));
+                                // Return the first 3 unique participants with enhanced styling
+                                return participantsForSlot.slice(0, 3).map((participant, i) => {
+                                  // Get a color for this participant (cyclic)
+                                  const participantColor = [
+                                    '#F87171', // red-400
+                                    '#FB923C', // orange-400
+                                    '#FBBF24', // amber-400
+                                    '#4ADE80', // green-400
+                                    '#60A5FA', // blue-400
+                                    '#A78BFA', // violet-400
+                                    '#F472B6', // pink-400
+                                  ][participants.findIndex(p => p.id === participant.id) % 7];
+                                  
+                                  return (
+                                    <div 
+                                      key={`participant-${participant.id}-${i}`}
+                                      className="w-7 h-7 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs font-medium transform transition-transform duration-300 hover:scale-110 participant-icon"
+                                      title={participant.name}
+                                      style={{ 
+                                        backgroundColor: `${participantColor}20`, 
+                                        borderColor: `${participantColor}40` 
+                                      }}
+                                    >
+                                      <span style={{ color: participantColor }}>
+                                        {participant.name.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  );
+                                });
                               })()}
                               
                               {/* Show the "+X" only if there are more than 3 UNIQUE participants for this time slot */}
@@ -590,7 +696,7 @@ const OrganizerView = () => {
                                 
                                 // Only show "+X" if there are more than 3 unique participants
                                 return uniqueCount > 3 ? (
-                                  <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium">
+                                  <div className="w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center text-xs font-semibold bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">
                                     +{uniqueCount - 3}
                                   </div>
                                 ) : null;
@@ -601,33 +707,52 @@ const OrganizerView = () => {
                         
                         {votingMode && (
                           <div className="mt-2 flex items-center">
-                            {/* Display badge with actual count of participants for this slot */}
+                            {/* Enhanced badge with participant count and visual indicators */}
                             <Badge 
                               variant="outline" 
-                              className={`text-xs ${
+                              className={`text-xs py-1 px-2.5 ${
                                 `${date}-${time}` === topVotedSlot && maxAvailableCount > 0
-                                  ? 'bg-yellow-50 text-yellow-600 border-yellow-200' 
-                                  : 'bg-primary/5 text-primary border-primary/10'
+                                  ? 'bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700 border-yellow-200 shadow-sm' 
+                                  : 'bg-gradient-to-r from-primary/5 to-primary/10 text-primary border-primary/20 shadow-sm'
                               }`}
                             >
-                              {
-                                // Count UNIQUE participants who selected this slot
-                                (() => {
-                                  // Get unique participant IDs for this time slot using object mapping
-                                  const participantMap: Record<number, boolean> = {};
-                                  availabilities
-                                    .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
-                                    .forEach(a => {
-                                      participantMap[a.participantId] = true;
-                                    });
-                                  
-                                  const count = Object.keys(participantMap).length;
-                                  
-                                  if (count === 0) return "Waiting for votes";
-                                  return count === 1 ? "1 participant" : `${count} participants`;
-                                })()
+                              {/* Add icon based on status */}
+                              {(() => {
+                                // Get unique participant IDs for this time slot
+                                const participantMap: Record<number, boolean> = {};
+                                availabilities
+                                  .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
+                                  .forEach(a => {
+                                    participantMap[a.participantId] = true;
+                                  });
+                                
+                                const count = Object.keys(participantMap).length;
+                                
+                                if (`${date}-${time}` === topVotedSlot && maxAvailableCount > 0) {
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      <Crown className="h-3 w-3 text-yellow-600 mr-0.5" />
+                                      <span>{count === 1 ? "1 participant" : `${count} participants`}</span>
+                                      <span className="inline-flex items-center ml-1 text-yellow-600 font-semibold">• Top Pick</span>
+                                    </div>
+                                  );
+                                } else if (count > 0) {
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      <Users className="h-3 w-3 text-primary mr-0.5" />
+                                      <span>{count === 1 ? "1 participant" : `${count} participants`}</span>
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3 text-gray-400 mr-0.5" />
+                                      <span className="text-gray-500">Waiting for votes</span>
+                                    </div>
+                                  );
+                                }
+                              })()
                               }
-                              {`${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && ' • Top Pick'}
                             </Badge>
                           </div>
                         )}
@@ -638,38 +763,64 @@ const OrganizerView = () => {
               </div>
             </div>
           ) : (
-            <div className="mt-4 p-6 border border-dashed border-gray-300 rounded-lg text-center">
-              <p className="text-gray-500">No time slots selected yet. Please select your preferred time slots from the calendar below.</p>
+            <div className="mt-4 p-8 border border-dashed border-gray-300 rounded-lg text-center bg-background/50 transition-all duration-300 hover:bg-background hover:border-primary/30 group">
+              <div className="flex flex-col items-center justify-center space-y-3">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                  <Calendar className="h-8 w-8 text-primary/70" />
+                </div>
+                <p className="text-gray-500 text-base">No time slots selected yet.</p>
+                <p className="text-gray-400 text-sm max-w-md mx-auto">Please select your preferred time slots from the calendar below. You can drag to select multiple slots at once.</p>
+                <div className="mt-2 flex items-center justify-center">
+                  <ArrowDown className="h-5 w-5 text-primary/50 animate-bounce" />
+                </div>
+              </div>
             </div>
           )}
         </div>
         
         {/* Alert Dialog for Reset Confirmation */}
         <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-md">
             <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center">
-                <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+              <AlertDialogTitle className="flex items-center text-red-600">
+                <AlertTriangle className="h-6 w-6 mr-2 text-red-500 animate-pulse" />
                 Reset Meeting Completely?
               </AlertDialogTitle>
+              <div className="w-full h-0.5 bg-gradient-to-r from-red-200 to-red-400 my-3"></div>
               <AlertDialogDescription className="mt-4">
-                <p className="mb-2">This will <span className="font-bold text-red-500">permanently delete</span>:</p>
-                <ul className="list-disc pl-5 space-y-1 mb-4">
-                  <li>All participant data (except you as the host)</li>
-                  <li>All submitted availability responses</li>
-                  <li>All votes and time slot selections</li>
-                  <li>All suggestions and scheduling progress</li>
+                <p className="mb-3">This will <span className="font-bold text-red-600 underline decoration-red-300">permanently delete</span>:</p>
+                <ul className="space-y-2 mb-4">
+                  {[
+                    "All participant data (except you as the host)",
+                    "All submitted availability responses",
+                    "All votes and time slot selections",
+                    "All suggestions and scheduling progress"
+                  ].map((item, index) => (
+                    <li key={index} className="flex items-start">
+                      <div className="mr-2 mt-1 text-red-500">
+                        <Trash2 className="h-4 w-4" />
+                      </div>
+                      <span className="text-gray-700">{item}</span>
+                    </li>
+                  ))}
                 </ul>
-                <p className="font-medium">You'll need to share the link again for participants to rejoin. This action cannot be undone.</p>
+                <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded text-amber-800 text-sm">
+                  <p className="font-medium flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    You'll need to share the link again for participants to rejoin.
+                  </p>
+                  <p className="mt-1 text-xs">This action cannot be undone.</p>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="mt-4">
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogFooter className="mt-5 space-x-3">
+              <AlertDialogCancel className="border-gray-300 hover:bg-gray-100">Cancel</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={() => resetMutation.mutate()}
-                className="bg-red-500 hover:bg-red-600 text-white"
+                className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md transition-all duration-200"
               >
-                Reset Meeting
+                <Trash2 className="h-4 w-4 mr-2" />
+                Reset Everything
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
