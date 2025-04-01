@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { Meeting, Participant, Availability } from "@shared/schema";
 import { generateTimeSlots, formatDateRange } from "@/lib/date-utils";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -201,23 +201,43 @@ const OrganizerView = () => {
     }
   });
 
+  // Ref for calendar component
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [selectedCalendarSlots, setSelectedCalendarSlots] = useState<Array<any>>([]);
+  
   // Mutation to reset all selections
   const resetMutation = useMutation({
     mutationFn: async () => {
-      // Clear all selections and reset UI state
-      // This is a soft reset - it only clears the UI state, not the database
+      // Clear all selections and reset UI state completely
       setSelectedTimeSlots([]);
       setVotingMode(false);
       setShowResetConfirm(false);
       
-      // In a real app, we would also clear the database
+      // Reset all calendar-related state
+      setActiveTab("weekly");
+      
+      // Force a fresh fetch of meeting data to ensure we have the latest state
+      queryClient.invalidateQueries({ queryKey: [`/api/meetings/${params.id}`] });
+      
+      // In a real app with a database backend, we would make an API call to clear stored slots
       return Promise.resolve();
     },
     onSuccess: () => {
       toast({
         title: "Reset successful",
         description: "All time slots have been cleared. Create new time slots to continue.",
+        duration: 5000,
       });
+      
+      // Show visual confirmation with a clear fade effect
+      if (confettiRef.current) {
+        confettiRef.current.classList.add('fade-reset');
+        setTimeout(() => {
+          if (confettiRef.current) {
+            confettiRef.current.classList.remove('fade-reset');
+          }
+        }, 500);
+      }
     }
   });
 
@@ -255,13 +275,22 @@ const OrganizerView = () => {
       event.stopPropagation();
     }
     
-    setSelectedTimeSlots(
-      selectedTimeSlots.filter(
-        slot => !(slot.date === date && slot.time === time)
-      )
-    );
+    // Get the group of slots with the same date (for this specific date)
+    const targetKey = `${date}-${time}`;
     
-    console.log(`Removed time slot: ${date} at ${time}`);
+    // Find all slots with the same date (they should be removed as a group)
+    const slotsWithSameDate = selectedTimeSlots.filter(slot => slot.date === date);
+    const slotKeysToRemove = new Set(slotsWithSameDate.map(slot => `${slot.date}-${slot.time}`));
+    
+    // Remove all slots with the same date
+    const updatedTimeSlots = selectedTimeSlots.filter(slot => slot.date !== date);
+    setSelectedTimeSlots(updatedTimeSlots);
+    
+    // Show a toast notification
+    toast({
+      title: "Time slot group deleted",
+      description: `Removed ${slotsWithSameDate.length} time slots for ${new Date(date).toLocaleDateString()}`,
+    });
   };
 
   if (isLoading) {
@@ -588,16 +617,16 @@ const OrganizerView = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Reset all selections?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will clear all selected time slots and participant data. This action cannot be undone.
+                This will clear all selected time slots and reset the scheduling process. Participant data will be preserved, but you'll start with a clean slate for scheduling. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={() => resetMutation.mutate()}
-                className="bg-red-500 hover:bg-red-600"
+                className="bg-red-500 hover:bg-red-600 text-white"
               >
-                Reset
+                Reset All
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

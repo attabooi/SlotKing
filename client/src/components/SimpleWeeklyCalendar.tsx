@@ -152,52 +152,76 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
     if (isDragging && draggedSlots.length > 0) {
       // Create a new selection group based on the current drag
       if (dragStart && dragEnd) {
-        // Sort the dragged slots by day and hour
-        const sortedSlots = [...draggedSlots].sort((a, b) => {
-          if (a.day !== b.day) return a.day - b.day;
-          return a.hour - b.hour;
+        // Group slots by day first - this is the key change to fix issue #1
+        const slotsByDay: Record<number, Array<{ day: number; hour: number }>> = {};
+        
+        // First, group all dragged slots by day
+        draggedSlots.forEach(slot => {
+          if (!slotsByDay[slot.day]) {
+            slotsByDay[slot.day] = [];
+          }
+          slotsByDay[slot.day].push(slot);
         });
         
-        // Get the first and last slots to determine the range
-        const firstSlot = sortedSlots[0];
-        const lastSlot = sortedSlots[sortedSlots.length - 1];
+        // Process each day's slots as a separate group
+        const newGroups: SelectionGroup[] = [];
+        const allNewSlots: Array<{ day: number; hour: number }> = [];
         
-        // Check if this selection overlaps with existing selections
-        // If it does, remove those slots as we'll replace them with a single group
-        const overlappingSlots = selectedSlots.filter(existingSlot => 
-          draggedSlots.some(draggedSlot => 
-            existingSlot.day === draggedSlot.day && existingSlot.hour === draggedSlot.hour
-          )
-        );
+        Object.entries(slotsByDay).forEach(([day, daySlots]) => {
+          const dayNumber = parseInt(day);
+          
+          // Sort the current day's slots by hour
+          const sortedDaySlots = [...daySlots].sort((a, b) => a.hour - b.hour);
+          
+          if (sortedDaySlots.length > 0) {
+            // Get the first and last slots for this day to determine the range
+            const firstSlot = sortedDaySlots[0];
+            const lastSlot = sortedDaySlots[sortedDaySlots.length - 1];
+            
+            // Check if this selection overlaps with existing selections for this day
+            const overlappingSlots = selectedSlots.filter(existingSlot => 
+              daySlots.some(daySlot => 
+                existingSlot.day === daySlot.day && existingSlot.hour === daySlot.hour
+              )
+            );
+            
+            // Remove any overlapping slots from the current selection
+            const filteredSelectedSlots = selectedSlots.filter(existingSlot => 
+              !overlappingSlots.some(overlap => 
+                existingSlot.day === overlap.day && existingSlot.hour === overlap.hour
+              )
+            );
+            
+            // Create a new group for this day's slots
+            const newDayGroup: SelectionGroup = {
+              id: uuidv4(), // Using UUID for globally unique IDs
+              slots: sortedDaySlots,
+              startTime: firstSlot,
+              endTime: lastSlot,
+              topSlot: firstSlot // Initialize topSlot with the first slot
+            };
+            
+            newGroups.push(newDayGroup);
+            allNewSlots.push(...sortedDaySlots);
+            
+            // Update overall selected slots (filtering out overlaps will be done below)
+            setSelectedSlots(prev => {
+              const filtered = prev.filter(slot => 
+                !overlappingSlots.some(overlap => 
+                  slot.day === overlap.day && slot.hour === overlap.hour
+                )
+              );
+              return [...filtered, ...sortedDaySlots];
+            });
+          }
+        });
         
-        // Remove any overlapping slots from the current selection
-        const filteredSelectedSlots = selectedSlots.filter(existingSlot => 
-          !overlappingSlots.some(overlap => 
-            existingSlot.day === overlap.day && existingSlot.hour === overlap.hour
-          )
-        );
+        // Update the state with all the new day-based groups
+        setSelectionGroups(prevGroups => [...prevGroups, ...newGroups]);
         
-        // Combine the filtered selected slots with the new dragged slots
-        const newSelectedSlots = [...filteredSelectedSlots, ...draggedSlots];
-        
-        // Create a new selection group for this drag operation with a unique ID
-        const newGroup: SelectionGroup = {
-          id: uuidv4(), // Using UUID for globally unique IDs
-          slots: draggedSlots,
-          startTime: firstSlot,
-          endTime: lastSlot,
-          topSlot: firstSlot // Initialize topSlot with the first slot, will be recalculated in the calculatedGroups
-        };
-        
-        // Update the state with the new selection group
-        setSelectionGroups(prevGroups => [...prevGroups, newGroup]);
-        
-        // Update selected slots
-        setSelectedSlots(newSelectedSlots);
-        
-        // Call the callback if provided
+        // Call the callback if provided, with all slots from all day groups
         if (onSelectTimeSlots) {
-          onSelectTimeSlots(newSelectedSlots);
+          onSelectTimeSlots(allNewSlots);
         }
       }
     }
@@ -317,12 +341,17 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   const weekRangeText = `${format(days[0], 'MMM d')} - ${format(days[6], 'MMM d, yyyy')}`;
   
   // Only use real participants data, or just the host if it's the first group
+  // Fix phantom participant issue by ensuring we have a single instance of each participant name
   const realParticipants: Participant[] = participants.length > 0 ? 
     // Filter out any duplicate participants with the same name (prevent ghost participants)
-    participants.filter((p, index, self) => 
-      index === self.findIndex(t => t.name === p.name)
-    ) : 
-    [{ name: userName, color: userColor, isHost }];
+    // And ensure we don't have empty names
+    participants
+      .filter(p => p.name.trim() !== '')
+      .filter((p, index, self) => 
+        index === self.findIndex(t => t.name === p.name)
+      )
+    : 
+    [{ name: userName || 'Host', color: userColor, isHost: true }];
   
   // Instead of calculating groups from selectedSlots, we'll use the selectionGroups state
   // which is updated every time a new drag operation is completed
