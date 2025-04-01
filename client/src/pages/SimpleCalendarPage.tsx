@@ -63,25 +63,44 @@ const SimpleCalendarPage: React.FC = () => {
     }
   }, [confirmedGroups]);
 
-  const handleSelectTimeSlots = (slots: Array<{ day: number; hour: number }>) => {
-    setSelectedSlots(slots);
+  const handleSelectTimeSlots = (slots: Array<{ day: number; hour: number }>, isAddOperation = true) => {
+    // If it's an add operation, we should merge the new slots with existing ones
+    // Otherwise, for example in a delete operation, we only update with the provided slots
+    if (isAddOperation) {
+      // Identify new slots that don't exist in the current selection
+      const newSlots = slots.filter(newSlot => 
+        !selectedSlots.some(existingSlot => 
+          existingSlot.day === newSlot.day && existingSlot.hour === newSlot.hour
+        )
+      );
+      
+      // If we have new slots, add them to the existing selection
+      if (newSlots.length > 0) {
+        setSelectedSlots(prevSlots => [...prevSlots, ...newSlots]);
+      }
+    } else {
+      // In case of deletion or initial load, directly set the slots
+      setSelectedSlots(slots);
+    }
     
-    // For demo purposes, add mock participants for some slots
-    if (slots.length > 0 && userName) {
+    // Only update participants if we have slots and a username
+    if (selectedSlots.length > 0 && userName) {
       // This is only for demonstration - in real app you'd get this from server
       const demoParticipants: Participant[] = [
         { name: userName, color: getUserColor(userName), isHost: isHost }
       ];
       
-      // Add some mock participants
-      if (slots.length > 3) {
+      // Add some mock participants based on total selected slots count
+      const totalSlotCount = isAddOperation ? selectedSlots.length + slots.length : slots.length;
+      
+      if (totalSlotCount > 3) {
         demoParticipants.push(
           { name: 'John', color: getUserColor('John') },
           { name: 'Sarah', color: getUserColor('Sarah') }
         );
       }
       
-      if (slots.length > 5) {
+      if (totalSlotCount > 5) {
         demoParticipants.push(
           { name: 'Michael', color: getUserColor('Michael') },
           { name: 'Emma', color: getUserColor('Emma') },
@@ -89,7 +108,7 @@ const SimpleCalendarPage: React.FC = () => {
         );
       }
       
-      if (slots.length > 8) {
+      if (totalSlotCount > 8) {
         demoParticipants.push(
           { name: 'Rachel', color: getUserColor('Rachel') },
           { name: 'David', color: getUserColor('David') },
@@ -131,10 +150,9 @@ const SimpleCalendarPage: React.FC = () => {
     setSelectedSlots(newSelectedSlots);
     setSelectionGroups(newSelectionGroups);
     
-    // Notify parent of the updated slots (this will update the summary view)
-    if (onSelectTimeSlots) {
-      onSelectTimeSlots(newSelectedSlots);
-    }
+    // Notify SimpleWeeklyCalendar of the updated slots (this will update the summary view)
+    // Pass false to indicate this is not an add operation but a deletion
+    handleSelectTimeSlots(newSelectedSlots, false);
   };
   
   const handleGroupsChanged = (groups: SelectionGroup[]) => {
