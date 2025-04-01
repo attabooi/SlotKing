@@ -112,8 +112,29 @@ const SimpleCalendarPage: React.FC = () => {
   };
   
   const handleDeleteSelectionGroup = (groupId: string) => {
-    // This will be automatically handled by SimpleWeeklyCalendar
-    // as it updates the selected slots which triggers our handleSelectTimeSlots
+    // Find the group to delete
+    const groupToDelete = selectionGroups.find(group => group.id === groupId);
+    
+    if (!groupToDelete) return;
+    
+    // Remove all slots in the group from selected slots
+    const newSelectedSlots = selectedSlots.filter(existingSlot => 
+      !groupToDelete.slots.some(groupSlot => 
+        groupSlot.day === existingSlot.day && groupSlot.hour === existingSlot.hour
+      )
+    );
+    
+    // Remove the group from the selectionGroups state
+    const newSelectionGroups = selectionGroups.filter(group => group.id !== groupId);
+    
+    // Update states
+    setSelectedSlots(newSelectedSlots);
+    setSelectionGroups(newSelectionGroups);
+    
+    // Notify parent of the updated slots (this will update the summary view)
+    if (onSelectTimeSlots) {
+      onSelectTimeSlots(newSelectedSlots);
+    }
   };
   
   const handleGroupsChanged = (groups: SelectionGroup[]) => {
