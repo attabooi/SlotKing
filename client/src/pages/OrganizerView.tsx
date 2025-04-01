@@ -246,12 +246,20 @@ const OrganizerView = () => {
     setShowResetConfirm(true);
   };
   
-  const handleRemoveTimeSlot = (date: string, time: string) => {
+  const handleRemoveTimeSlot = (date: string, time: string, event?: React.MouseEvent) => {
+    // Prevent event propagation to avoid triggering other handlers
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
     setSelectedTimeSlots(
       selectedTimeSlots.filter(
         slot => !(slot.date === date && slot.time === time)
       )
     );
+    
+    console.log(`Removed time slot: ${date} at ${time}`);
   };
 
   if (isLoading) {
@@ -313,15 +321,25 @@ const OrganizerView = () => {
   let maxAvailableCount = 0;
   let topVotedSlot = '';
   
+  // Get unique participant IDs who have submitted availabilities using object mapping
+  const activeParticipantMap: Record<number, boolean> = {};
+  availabilities.forEach(a => {
+    activeParticipantMap[a.participantId] = true;
+  });
+  const activeParticipantCount = Object.keys(activeParticipantMap).length;
+  
   const processedTimeSlots = timeSlots.map(slot => {
-    let availableCount = 0;
     const slotKey = `${slot.date}-${slot.time}`;
     
-    availabilities.forEach(availability => {
-      if ((availability.timeSlots as string[]).includes(slotKey)) {
-        availableCount++;
-      }
-    });
+    // Count unique participants who selected this slot using object mapping
+    const participantMap: Record<number, boolean> = {};
+    availabilities
+      .filter(availability => (availability.timeSlots as string[]).includes(slotKey))
+      .forEach(availability => {
+        participantMap[availability.participantId] = true;
+      });
+    
+    const availableCount = Object.keys(participantMap).length;
     
     // Track the slot with the most availability
     if (availableCount > maxAvailableCount) {
@@ -332,7 +350,7 @@ const OrganizerView = () => {
     return {
       ...slot,
       available: availableCount,
-      total: participants.length
+      total: activeParticipantCount || 1 // Use actual active participant count, or 1 if none
     };
   });
 
@@ -439,52 +457,76 @@ const OrganizerView = () => {
                               variant="ghost" 
                               size="icon"
                               className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                              onClick={() => handleRemoveTimeSlot(date, time)}
+                              onClick={(e) => handleRemoveTimeSlot(date, time, e)}
                             >
                               <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
                             </Button>
                           )}
                           
-                          {/* Show crown icon only for the top voted slot */}
+                          {/* Show crown icon only for the top voted slot - with increased size and animation */}
                           {votingMode && `${date}-${time}` === topVotedSlot && (
                             <div className="flex items-center justify-center animate-pulse-subtle">
-                              <Crown className="h-6 w-6 text-yellow-500 drop-shadow-sm" />
+                              <div className="absolute -top-2 -right-2 crown-float z-10">
+                                <Crown className="h-8 w-8 text-yellow-500 drop-shadow-md" />
+                              </div>
                             </div>
                           )}
 
                           {/* Show participants only if they've selected this time slot */}
                           {votingMode && (
                             <div className="flex -space-x-2">
-                              {availabilities
-                                .filter(availability => 
-                                  (availability.timeSlots as string[]).includes(`${date}-${time}`)
-                                )
-                                .slice(0, 3)
-                                .map((availability, i) => {
-                                  const participant = participants.find(p => p.id === availability.participantId);
-                                  if (!participant) return null;
-                                  
-                                  return (
-                                    <div 
-                                      key={`participant-${participant.id}-${i}`}
-                                      className="w-6 h-6 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-xs font-medium"
-                                      title={participant.name}
-                                    >
-                                      {participant.name.charAt(0).toUpperCase()}
-                                    </div>
-                                  );
-                                })}
+                              {(() => {
+                                // Get unique participant IDs for this time slot
+                                const uniqueParticipantMap: Record<number, boolean> = {};
+                                const participantsForSlot: Participant[] = [];
+                                
+                                // Filter availabilities for this time slot
+                                availabilities
+                                  .filter(availability => 
+                                    (availability.timeSlots as string[]).includes(`${date}-${time}`)
+                                  )
+                                  .forEach(availability => {
+                                    // Only add if we haven't already added this participant
+                                    if (!uniqueParticipantMap[availability.participantId]) {
+                                      uniqueParticipantMap[availability.participantId] = true;
+                                      const participant = participants.find(p => p.id === availability.participantId);
+                                      if (participant) {
+                                        participantsForSlot.push(participant);
+                                      }
+                                    }
+                                  });
+                                
+                                // Return the first 3 unique participants
+                                return participantsForSlot.slice(0, 3).map((participant, i) => (
+                                  <div 
+                                    key={`participant-${participant.id}-${i}`}
+                                    className="w-6 h-6 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-xs font-medium"
+                                    title={participant.name}
+                                  >
+                                    {participant.name.charAt(0).toUpperCase()}
+                                  </div>
+                                ));
+                              })()}
                               
-                              {/* Show the "+X" only if there are more than 3 participants for this time slot */}
-                              {availabilities.filter(a => 
-                                (a.timeSlots as string[]).includes(`${date}-${time}`)
-                              ).length > 3 && (
-                                <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium">
-                                  +{availabilities.filter(a => 
-                                    (a.timeSlots as string[]).includes(`${date}-${time}`)
-                                  ).length - 3}
-                                </div>
-                              )}
+                              {/* Show the "+X" only if there are more than 3 UNIQUE participants for this time slot */}
+                              {(() => {
+                                // Get unique participant IDs for this time slot
+                                const uniqueParticipantMap: Record<number, boolean> = {};
+                                availabilities
+                                  .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
+                                  .forEach(a => {
+                                    uniqueParticipantMap[a.participantId] = true;
+                                  });
+                                
+                                const uniqueCount = Object.keys(uniqueParticipantMap).length;
+                                
+                                // Only show "+X" if there are more than 3 unique participants
+                                return uniqueCount > 3 ? (
+                                  <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium">
+                                    +{uniqueCount - 3}
+                                  </div>
+                                ) : null;
+                              })()}
                             </div>
                           )}
                         </div>
@@ -501,11 +543,17 @@ const OrganizerView = () => {
                               }`}
                             >
                               {
-                                // Count of participants who selected this slot
+                                // Count UNIQUE participants who selected this slot
                                 (() => {
-                                  const count = availabilities.filter(a => 
-                                    (a.timeSlots as string[]).includes(`${date}-${time}`)
-                                  ).length;
+                                  // Get unique participant IDs for this time slot using object mapping
+                                  const participantMap: Record<number, boolean> = {};
+                                  availabilities
+                                    .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
+                                    .forEach(a => {
+                                      participantMap[a.participantId] = true;
+                                    });
+                                  
+                                  const count = Object.keys(participantMap).length;
                                   
                                   if (count === 0) return "Waiting for votes";
                                   return count === 1 ? "1 participant" : `${count} participants`;
