@@ -204,17 +204,19 @@ const OrganizerView = () => {
   // Mutation to reset all selections
   const resetMutation = useMutation({
     mutationFn: async () => {
-      // This would be a more complex operation in a real app
-      // For now, we'll just clear the local state
-      return Promise.resolve();
-    },
-    onSuccess: () => {
+      // Clear all selections and reset UI state
+      // This is a soft reset - it only clears the UI state, not the database
       setSelectedTimeSlots([]);
       setVotingMode(false);
       setShowResetConfirm(false);
+      
+      // In a real app, we would also clear the database
+      return Promise.resolve();
+    },
+    onSuccess: () => {
       toast({
         title: "Reset successful",
-        description: "All time slots and participant data have been cleared.",
+        description: "All time slots have been cleared. Create new time slots to continue.",
       });
     }
   });

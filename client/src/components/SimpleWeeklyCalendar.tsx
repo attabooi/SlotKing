@@ -316,10 +316,13 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
   // Format the week range for display
   const weekRangeText = `${format(days[0], 'MMM d')} - ${format(days[6], 'MMM d, yyyy')}`;
   
-  // Mock participants data for demonstration
-  const mockParticipants: Participant[] = participants.length > 0 ? participants : [
-    { name: userName, color: userColor, isHost }
-  ];
+  // Only use real participants data, or just the host if it's the first group
+  const realParticipants: Participant[] = participants.length > 0 ? 
+    // Filter out any duplicate participants with the same name (prevent ghost participants)
+    participants.filter((p, index, self) => 
+      index === self.findIndex(t => t.name === p.name)
+    ) : 
+    [{ name: userName, color: userColor, isHost }];
   
   // Instead of calculating groups from selectedSlots, we'll use the selectionGroups state
   // which is updated every time a new drag operation is completed
@@ -524,13 +527,13 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
                           {/* Get the current cell's selection group (if any) */}
                           {isTopSlotOfGroup(dayIndex, hour) && (
                             <div className="absolute top-1 left-1 flex -space-x-1">
-                              {mockParticipants.slice(0, 5).map((participant, index) => (
+                              {realParticipants.slice(0, 5).map((participant, index) => (
                                 <div
                                   key={`p-${index}`}
                                   className="participant-icon w-5 h-5 flex items-center justify-center rounded-full border border-background/50 animate-in fade-in zoom-in duration-300"
                                   style={{
                                     backgroundColor: participant.color,
-                                    zIndex: mockParticipants.length - index,
+                                    zIndex: realParticipants.length - index,
                                     animationDelay: `${index * 0.05}s`
                                   }}
                                   title={`${participant.name}${participant.isHost ? ' (Host)' : ''}`}
@@ -546,12 +549,12 @@ const SimpleWeeklyCalendar: React.FC<SimpleWeeklyCalendarProps> = ({
                                 </div>
                               ))}
                               
-                              {mockParticipants.length > 5 && (
+                              {realParticipants.length > 5 && (
                                 <div 
                                   className="w-5 h-5 flex items-center justify-center rounded-full bg-muted text-[8px] border border-background/50"
-                                  title={`${mockParticipants.length - 5} more participants`}
+                                  title={`${realParticipants.length - 5} more participants`}
                                 >
-                                  +{mockParticipants.length - 5}
+                                  +{realParticipants.length - 5}
                                 </div>
                               )}
                             </div>

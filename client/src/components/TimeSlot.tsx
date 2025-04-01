@@ -43,10 +43,10 @@ const TimeSlot = ({
       )}
       onClick={onClick}
     >
-      {/* Crown icon for organizer */}
+      {/* Crown icon for top voted slot - larger and more prominent */}
       {isOrganizer && (
-        <div className="crown-icon">
-          <Crown className="h-3.5 w-3.5 text-primary" />
+        <div className="absolute -top-5 -right-5 z-20">
+          <Crown className="h-14 w-14 text-amber-400 crown-float" />
         </div>
       )}
 
