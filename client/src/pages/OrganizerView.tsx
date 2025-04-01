@@ -208,24 +208,29 @@ const OrganizerView = () => {
   // Mutation to reset all selections
   const resetMutation = useMutation({
     mutationFn: async () => {
-      // Clear all selections and reset UI state completely
+      // Call the server reset endpoint
+      const response = await apiRequest(`/api/meetings/${params.id}/reset`, 'POST');
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to reset meeting');
+      }
+      
+      // Clear UI state completely
       setSelectedTimeSlots([]);
       setVotingMode(false);
       setShowResetConfirm(false);
-      
-      // Reset all calendar-related state
       setActiveTab("weekly");
       
       // Force a fresh fetch of meeting data to ensure we have the latest state
       queryClient.invalidateQueries({ queryKey: [`/api/meetings/${params.id}`] });
       
-      // In a real app with a database backend, we would make an API call to clear stored slots
-      return Promise.resolve();
+      return response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Reset successful",
-        description: "All time slots have been cleared. Create new time slots to continue.",
+        title: "Meeting reset successful",
+        description: "All participants, time slots, and votes have been cleared. Only you (the host) remain.",
         duration: 5000,
       });
       
@@ -238,6 +243,14 @@ const OrganizerView = () => {
           }
         }, 500);
       }
+    },
+    onError: (error) => {
+      toast({
+        title: "Reset failed",
+        description: error.message || "There was an error resetting the meeting. Please try again.",
+        variant: "destructive",
+        duration: 5000,
+      });
     }
   });
 
@@ -635,18 +648,28 @@ const OrganizerView = () => {
         <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Reset all selections?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will clear all selected time slots and reset the scheduling process. Participant data will be preserved, but you'll start with a clean slate for scheduling. This action cannot be undone.
+              <AlertDialogTitle className="flex items-center">
+                <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+                Reset Meeting Completely?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-4">
+                <p className="mb-2">This will <span className="font-bold text-red-500">permanently delete</span>:</p>
+                <ul className="list-disc pl-5 space-y-1 mb-4">
+                  <li>All participant data (except you as the host)</li>
+                  <li>All submitted availability responses</li>
+                  <li>All votes and time slot selections</li>
+                  <li>All suggestions and scheduling progress</li>
+                </ul>
+                <p className="font-medium">You'll need to share the link again for participants to rejoin. This action cannot be undone.</p>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="mt-4">
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={() => resetMutation.mutate()}
                 className="bg-red-500 hover:bg-red-600 text-white"
               >
-                Reset All
+                Reset Meeting
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -41,6 +41,9 @@ export interface IStorage {
   getSuggestionsByMeetingId(meetingId: number): Promise<Suggestion[]>;
   getBestSuggestionsForMeeting(meetingId: number, limit?: number): Promise<Suggestion[]>;
   
+  // Reset functionality
+  resetMeeting(uniqueId: string): Promise<boolean>;
+  
   // Time slot options
   getTimeSlotOptions(meetingId: number): Promise<TimeSlot[]>;
   calculateOptimalTimeSlots(meetingId: number, minRequired?: number): Promise<TimeSlot[]>;
@@ -144,6 +147,7 @@ export class MemStorage implements IStorage {
     const participant: Participant = {
       ...insertParticipant,
       id,
+      isHost: insertParticipant.isHost === true ? true : false,
       createdAt: now
     };
     
@@ -381,6 +385,54 @@ export class MemStorage implements IStorage {
       votes,
       suggestions
     };
+  }
+
+  // Reset functionality
+  async resetMeeting(uniqueId: string): Promise<boolean> {
+    const meeting = await this.getMeetingByUniqueId(uniqueId);
+    
+    if (!meeting) return false;
+    
+    // Get all participants for this meeting
+    const participants = await this.getParticipantsByMeetingId(meeting.id);
+    
+    // Remove all availabilities for these participants
+    for (const participant of participants) {
+      const availabilities = Array.from(this.availabilities.values()).filter(
+        a => a.participantId === participant.id
+      );
+      
+      for (const availability of availabilities) {
+        this.availabilities.delete(availability.id);
+      }
+    }
+    
+    // Remove all votes for this meeting
+    const votes = await this.getVotesByMeetingId(meeting.id);
+    for (const vote of votes) {
+      this.votes.delete(vote.id);
+    }
+    
+    // Remove all suggestions for this meeting
+    const suggestions = await this.getSuggestionsByMeetingId(meeting.id);
+    for (const suggestion of suggestions) {
+      this.suggestions.delete(suggestion.id);
+    }
+    
+    // Find the host participant or the first one created
+    const hostParticipant = participants.find(p => p.isHost === true) || 
+                          (participants.length > 0 ? participants[0] : null);
+    
+    // Remove all participants except the host
+    if (hostParticipant) {
+      for (const participant of participants) {
+        if (participant.id !== hostParticipant.id) {
+          this.participants.delete(participant.id);
+        }
+      }
+    }
+    
+    return true;
   }
 }
 

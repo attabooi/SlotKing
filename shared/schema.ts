@@ -49,12 +49,14 @@ export const participants = pgTable("participants", {
   id: serial("id").primaryKey(),
   meetingId: integer("meeting_id").notNull(), // References meetings.id
   name: text("name").notNull(),
+  isHost: boolean("is_host").default(false), // Flag to identify the host participant
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const insertParticipantSchema = createInsertSchema(participants).pick({
   meetingId: true,
   name: true,
+  isHost: true,
 });
 
 export type InsertParticipant = z.infer<typeof insertParticipantSchema>;
@@ -158,6 +160,6 @@ export type Vote = typeof votes.$inferSelect;
 
 // Extended type for WebSocket messages
 export type WebSocketMessage = {
-  type: 'participant_joined' | 'availability_updated' | 'vote_submitted' | 'suggestion_added';
+  type: 'participant_joined' | 'availability_updated' | 'vote_submitted' | 'suggestion_added' | 'meeting_reset';
   data: any;
 };

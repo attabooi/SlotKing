@@ -220,7 +220,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.organizer) {
         const organizerParticipant = await storage.createParticipant({
           meetingId: meeting.id,
-          name: req.body.organizer
+          name: req.body.organizer,
+          isHost: true
         });
         
         res.status(201).json({
@@ -361,6 +362,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(400).json({ message: 'Error generating suggestions', error });
+    }
+  });
+  
+  // 5. POST /api/meetings/:uniqueId/reset - Reset a meeting (host only)
+  app.post('/api/meetings/:uniqueId/reset', async (req: Request, res: Response) => {
+    try {
+      const { uniqueId } = req.params;
+      
+      // Check if the meeting exists
+      const meeting = await storage.getMeetingByUniqueId(uniqueId);
+      if (!meeting) {
+        return res.status(404).json({ error: 'Meeting not found' });
+      }
+      
+      const success = await storage.resetMeeting(uniqueId);
+      
+      if (!success) {
+        return res.status(500).json({ error: 'Failed to reset meeting' });
+      }
+      
+      // Broadcast the reset to all clients
+      broadcastUpdate('meeting_reset', {
+        uniqueId,
+        meetingId: meeting.id,
+        timestamp: new Date().toISOString()
+      });
+      
+      res.status(200).json({ 
+        success: true, 
+        message: 'Meeting has been reset successfully',
+        meeting
+      });
+    } catch (error) {
+      console.error('Error resetting meeting:', error);
+      res.status(500).json({ error: 'Failed to reset meeting' });
     }
   });
   
