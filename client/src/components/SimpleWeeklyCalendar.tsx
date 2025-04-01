@@ -277,6 +277,9 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
       
       if (!groupToDelete) return;
       
+      // Store the slots that will be deleted for notification to parent
+      const deletedSlots = [...groupToDelete.slots];
+      
       // Remove all slots in the group from selected slots
       const newSelectedSlots = selectedSlots.filter(existingSlot => 
         !groupToDelete.slots.some(groupSlot => 
@@ -290,6 +293,13 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
       // Update states
       setSelectedSlots(newSelectedSlots);
       setSelectionGroups(newSelectionGroups);
+      
+      // Notify parent of each deleted slot individually to ensure proper cleanup
+      if (onDeleteTimeSlot) {
+        deletedSlots.forEach(slot => {
+          onDeleteTimeSlot(slot.day, slot.hour);
+        });
+      }
       
       // Call the onDeleteSelectionGroup callback if provided
       if (onDeleteSelectionGroup) {

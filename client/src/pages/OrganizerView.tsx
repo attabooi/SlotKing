@@ -312,6 +312,40 @@ const OrganizerView = () => {
     setShowResetConfirm(true);
   };
   
+  // Shared handler for adding time slots consistently across all calendar views
+  const handleAddTimeSlot = (date: string, time: string) => {
+    console.log(`Adding time slot: ${date} at ${time}`);
+    
+    // Create new array with the added slot
+    const updatedTimeSlots = [...selectedTimeSlots, { date, time }];
+    
+    // Update state
+    setSelectedTimeSlots(updatedTimeSlots);
+    
+    // Synchronize all calendars
+    setTimeout(() => {
+      try {
+        // Sync weekly calendar if available
+        if (calendarRef.current && typeof calendarRef.current.forceSync === 'function') {
+          calendarRef.current.forceSync(updatedTimeSlots);
+        }
+        
+        // Sync simple calendar if available
+        if (simpleCalendarRef.current && typeof simpleCalendarRef.current.forceSync === 'function') {
+          simpleCalendarRef.current.forceSync(updatedTimeSlots);
+        }
+        
+        // Force a recalculation of grouped time slots
+        const updatedGroups = updateGroupedTimeSlots(updatedTimeSlots);
+        setGroupedTimeSlots(updatedGroups);
+      } catch (error) {
+        console.error("Error synchronizing calendars after adding time slot:", error);
+      }
+    }, 0);
+    
+    return updatedTimeSlots;
+  };
+
   const handleRemoveTimeSlot = (date: string, time: string, event?: React.MouseEvent) => {
     // Prevent event propagation to avoid triggering other handlers
     if (event) {
@@ -988,23 +1022,17 @@ const OrganizerView = () => {
               isOrganizer={true}
               selectedSlots={selectedTimeSlots}
               onTimeSlotSelect={(date, time) => {
-                const slotKey = `${date}-${time}`;
-                
                 // Check if the slot is already selected
                 const isAlreadySelected = selectedTimeSlots.some(
                   slot => slot.date === date && slot.time === time
                 );
                 
                 if (isAlreadySelected) {
-                  // Remove the slot if already selected
-                  setSelectedTimeSlots(
-                    selectedTimeSlots.filter(
-                      slot => !(slot.date === date && slot.time === time)
-                    )
-                  );
+                  // Use the shared handler for removal
+                  handleRemoveTimeSlot(date, time);
                 } else {
-                  // Add the slot if not selected
-                  setSelectedTimeSlots([...selectedTimeSlots, { date, time }]);
+                  // Use the shared handler for adding
+                  handleAddTimeSlot(date, time);
                 }
               }}
               participants={participants.map((p, i) => ({
@@ -1077,13 +1105,10 @@ const OrganizerView = () => {
                 const dateStr = date.toISOString().split('T')[0];
                 const timeStr = `${hour}:00`;
                 
-                // Filter out the slot to delete
-                const updatedSlots = selectedTimeSlots.filter(
-                  slot => !(slot.date === dateStr && slot.time === timeStr)
-                );
+                console.log(`Deleting slot: day=${day}, hour=${hour}, date=${dateStr}, time=${timeStr}`);
                 
-                // Update the state
-                setSelectedTimeSlots(updatedSlots);
+                // Use the common handleRemoveTimeSlot function for consistent cleanup
+                handleRemoveTimeSlot(dateStr, timeStr);
               }}
             />
           </TabsContent>
@@ -1095,23 +1120,17 @@ const OrganizerView = () => {
               isOrganizer={true}
               selectedSlots={selectedTimeSlots}
               onTimeSlotSelect={(date, time) => {
-                const slotKey = `${date}-${time}`;
-                
                 // Check if the slot is already selected
                 const isAlreadySelected = selectedTimeSlots.some(
                   slot => slot.date === date && slot.time === time
                 );
                 
                 if (isAlreadySelected) {
-                  // Remove the slot if already selected
-                  setSelectedTimeSlots(
-                    selectedTimeSlots.filter(
-                      slot => !(slot.date === date && slot.time === time)
-                    )
-                  );
+                  // Use the shared handler for removal
+                  handleRemoveTimeSlot(date, time);
                 } else {
-                  // Add the slot if not selected
-                  setSelectedTimeSlots([...selectedTimeSlots, { date, time }]);
+                  // Use the shared handler for adding
+                  handleAddTimeSlot(date, time);
                 }
               }}
               participants={participants.map((p, i) => ({
