@@ -64,6 +64,8 @@ const SimpleCalendarPage: React.FC = () => {
   }, [confirmedGroups]);
 
   const handleSelectTimeSlots = (slots: Array<{ day: number; hour: number }>, isAddOperation = true) => {
+    console.log(`handleSelectTimeSlots called with ${slots.length} slots, isAddOperation: ${isAddOperation}`);
+    
     // If it's an add operation, we should merge the new slots with existing ones
     // Otherwise, for example in a delete operation, we only update with the provided slots
     if (isAddOperation) {
@@ -76,31 +78,42 @@ const SimpleCalendarPage: React.FC = () => {
       
       // If we have new slots, add them to the existing selection
       if (newSlots.length > 0) {
+        console.log(`Adding ${newSlots.length} new slots to selection`);
         setSelectedSlots(prevSlots => [...prevSlots, ...newSlots]);
       }
     } else {
       // In case of deletion or initial load, directly set the slots
+      console.log(`Replacing all slots with ${slots.length} provided slots (delete operation or initial load)`);
       setSelectedSlots(slots);
     }
     
     // Only update participants if we have slots and a username
-    if (selectedSlots.length > 0 && userName) {
+    // We need to calculate this based on the expected result after the update
+    const expectedSlotCount = isAddOperation ? 
+      // For add operations: current slots plus any new ones that will be added
+      selectedSlots.length + slots.filter(newSlot => 
+        !selectedSlots.some(existingSlot => 
+          existingSlot.day === newSlot.day && existingSlot.hour === newSlot.hour
+        )
+      ).length :
+      // For replace/delete operations: just the count of slots provided
+      slots.length;
+    
+    if (expectedSlotCount > 0 && userName) {
       // This is only for demonstration - in real app you'd get this from server
       const demoParticipants: Participant[] = [
         { name: userName, color: getUserColor(userName), isHost: isHost }
       ];
       
       // Add some mock participants based on total selected slots count
-      const totalSlotCount = isAddOperation ? selectedSlots.length + slots.length : slots.length;
-      
-      if (totalSlotCount > 3) {
+      if (expectedSlotCount > 3) {
         demoParticipants.push(
           { name: 'John', color: getUserColor('John') },
           { name: 'Sarah', color: getUserColor('Sarah') }
         );
       }
       
-      if (totalSlotCount > 5) {
+      if (expectedSlotCount > 5) {
         demoParticipants.push(
           { name: 'Michael', color: getUserColor('Michael') },
           { name: 'Emma', color: getUserColor('Emma') },
@@ -108,7 +121,7 @@ const SimpleCalendarPage: React.FC = () => {
         );
       }
       
-      if (totalSlotCount > 8) {
+      if (expectedSlotCount > 8) {
         demoParticipants.push(
           { name: 'Rachel', color: getUserColor('Rachel') },
           { name: 'David', color: getUserColor('David') },
@@ -379,6 +392,9 @@ const SimpleCalendarPage: React.FC = () => {
             userName={userName || 'User'}
             isHost={isHost}
             participants={mockParticipants}
+            // Pass the controlled props
+            selectedTimeSlots={selectedSlots}
+            selectionGroups={selectionGroups}
           />
           
           {(selectedSlots.length > 0 || isVotingMode) && (

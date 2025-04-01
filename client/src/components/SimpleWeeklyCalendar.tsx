@@ -21,13 +21,16 @@ interface SelectionGroup {
 }
 
 interface SimpleWeeklyCalendarProps {
-  onSelectTimeSlots?: (selectedSlots: Array<{ day: number; hour: number }>) => void;
+  onSelectTimeSlots?: (selectedSlots: Array<{ day: number; hour: number }>, isAddOperation?: boolean) => void;
   onDeleteTimeSlot?: (day: number, hour: number) => void;
   onDeleteSelectionGroup?: (groupId: string) => void;
   onGroupsChanged?: (groups: SelectionGroup[]) => void;
   userName?: string;
   isHost?: boolean;
   participants?: Participant[];
+  // Add controlled props
+  selectedTimeSlots?: Array<{ day: number; hour: number }>;
+  selectionGroups?: SelectionGroup[];
 }
 
 const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
@@ -39,7 +42,10 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
       onGroupsChanged,
       userName = 'User',
       isHost = false,
-      participants = []
+      participants = [],
+      // Controlled props with defaults
+      selectedTimeSlots = [],
+      selectionGroups = []
     } = props;
     
     // State variables first
@@ -52,7 +58,7 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
     const [dragStart, setDragStart] = useState<{ day: number; hour: number } | null>(null);
     const [dragEnd, setDragEnd] = useState<{ day: number; hour: number } | null>(null);
     const [draggedSlots, setDraggedSlots] = useState<Array<{ day: number; hour: number }>>([]);
-    const [selectionGroups, setSelectionGroups] = useState<SelectionGroup[]>([]);
+    const [internalGroups, setInternalGroups] = useState<SelectionGroup[]>([]);
     
     // Derived data
     const days = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
@@ -220,7 +226,7 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
           });
           
           // Update the state with all the new day-based groups
-          setSelectionGroups(prevGroups => [...prevGroups, ...newGroups]);
+          setInternalGroups(prevGroups => [...prevGroups, ...newGroups]);
           
           // Call the callback if provided, with all slots from all day groups
           if (onSelectTimeSlots) {
@@ -292,7 +298,7 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
       
       // Update states
       setSelectedSlots(newSelectedSlots);
-      setSelectionGroups(newSelectionGroups);
+      setInternalGroups(newSelectionGroups);
       
       // Notify parent of each deleted slot individually to ensure proper cleanup
       if (onDeleteTimeSlot) {
@@ -350,6 +356,23 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
       };
     }, [isDragging, processMouseUp]);
     
+    // Synchronize with parent-provided props
+    useEffect(() => {
+      // Only update the internal state if we got valid props and they are different from current state
+      if (selectedTimeSlots && selectedTimeSlots.length > 0 && 
+          JSON.stringify(selectedTimeSlots) !== JSON.stringify(selectedSlots)) {
+        setSelectedSlots([...selectedTimeSlots]);
+      }
+    }, [selectedTimeSlots]);
+    
+    // Synchronize groups with parent-provided props
+    useEffect(() => {
+      if (selectionGroups && selectionGroups.length > 0 &&
+          JSON.stringify(selectionGroups) !== JSON.stringify(internalGroups)) {
+        setInternalGroups([...selectionGroups]);
+      }
+    }, [selectionGroups, internalGroups]);
+    
     // Format the week range for display
     const weekRangeText = `${format(days[0], 'MMM d')} - ${format(days[6], 'MMM d, yyyy')}`;
     
@@ -366,13 +389,16 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
       : 
       [{ name: userName || 'Host', color: userColor, isHost: true }];
     
-    // Instead of calculating groups from selectedSlots, we'll use the selectionGroups state
+    // Instead of calculating groups from selectedSlots, we'll use the internal groups state
     // which is updated every time a new drag operation is completed
     const calculatedGroups = useMemo(() => {
-      if (selectionGroups.length === 0) return [];
+      // In controlled mode, prioritize the props from parent
+      const groupsToUse = selectionGroups && selectionGroups.length > 0 ? selectionGroups : internalGroups;
+      
+      if (groupsToUse.length === 0) return [];
       
       // Process each group to ensure it has the right metadata
-      return selectionGroups.map(group => {
+      return groupsToUse.map(group => {
         if (group.slots.length === 0) return group;
         
         // Sort the slots by day and hour
@@ -401,7 +427,7 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
           topSlot: topSlot
         };
       }).filter(group => group.slots.length > 0); // Filter out any empty groups
-    }, [selectionGroups]);
+    }, [selectionGroups, internalGroups]);
     
     // Function to check if a slot is the top slot of its group
     const isTopSlotOfGroup = (day: number, hour: number) => {
@@ -429,15 +455,15 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
         setSelectedSlots(newSelectedSlots);
         
         // Update selection groups to remove any that now have empty slots
-        const updatedGroups = selectionGroups.filter(group => {
+        const updatedGroups = internalGroups.filter(group => {
           const updatedSlots = group.slots.filter(
             slot => !(slot.day === day && slot.hour === hour)
           );
           return updatedSlots.length > 0;
         });
-        setSelectionGroups(updatedGroups);
+        setInternalGroups(updatedGroups);
       }
-    }, [onDeleteTimeSlot, selectedSlots, selectionGroups]);
+    }, [onDeleteTimeSlot, selectedSlots, internalGroups]);
     
     // Expose methods to parent via ref
     React.useImperativeHandle(ref, () => ({
@@ -455,7 +481,7 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
         if (!parentSlots || parentSlots.length === 0) {
           console.log('No parent slots, clearing all selections');
           setSelectedSlots([]);
-          setSelectionGroups([]);
+          setInternalGroups([]);
           return;
         }
         
@@ -553,7 +579,7 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
           });
           
           // Update the selection groups with the new groups
-          setSelectionGroups(newGroups);
+          setInternalGroups(newGroups);
           
           console.log(`Created ${newGroups.length} selection groups from parent slots`);
           
@@ -567,7 +593,7 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
           console.error('Error in forceSync:', error);
           // Ensure we don't leave the component in a broken state
           setSelectedSlots([]);
-          setSelectionGroups([]);
+          setInternalGroups([]);
         }
       }
     }));
