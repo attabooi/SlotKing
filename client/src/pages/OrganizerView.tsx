@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import CalendarGrid from "@/components/CalendarGrid";
 import WeeklyCalendarGrid from "@/components/WeeklyCalendarGrid";
 import ActivityFeed from "@/components/ActivityFeed";
-import { ArrowDown, Calendar, ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw, Crown, AlertTriangle, Clock, Users } from "lucide-react";
+import { ArrowDown, Calendar, Grid, ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw, Crown, AlertTriangle, Clock, Users } from "lucide-react";
 import * as party from 'party-js';
 
 // Helper function to get color by day name
@@ -330,6 +330,20 @@ const OrganizerView = () => {
     // Update state with filtered slots
     setSelectedTimeSlots(updatedTimeSlots);
     
+    // We want to make sure the slots in the Calendar components are up to date
+  // with our summary section slots, since they're using different structures internally
+  // This includes clearing the calendar state when slots are removed
+    if (calendarRef.current) {
+      console.log("Syncing calendar selections with updated time slots");
+      
+      // We need to inform the calendar component about the slot removal
+      // This will force the calendar to update its internal state to match the parent 
+      const calendar = calendarRef.current as any;
+      if (calendar && typeof calendar.forceSync === 'function') {
+        calendar.forceSync(updatedTimeSlots);
+      }
+    }
+    
     // Add enhanced visual effect for the Meeting Summary area update after deleting a time slot
     if (confettiRef.current) {
       // Add slide-out animation for removed items
@@ -504,16 +518,25 @@ const OrganizerView = () => {
           </div>
         </div>
         
-        {/* Meeting Summary Section */}
-        <div ref={confettiRef} className="mb-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-medium text-primary mb-2 md:mb-0">Meeting Summary</h2>
-            <div className="space-x-2 flex">
+        {/* Meeting Summary Section - Enhanced styling */}
+        <div ref={confettiRef} className="mb-8 transition-all duration-500">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+            <div className="flex items-center">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-primary/90 to-primary/70 bg-clip-text text-transparent">
+                Meeting Summary
+              </h2>
+              <Badge variant="outline" className="ml-3 px-2 py-0 text-xs text-muted-foreground font-normal">
+                <Clock className="h-3 w-3 inline-block mr-1" />
+                {selectedTimeSlots.length} {selectedTimeSlots.length === 1 ? 'slot' : 'slots'} selected
+              </Badge>
+            </div>
+            
+            <div className="space-x-2 flex mt-3 md:mt-0">
               {!votingMode ? (
                 <Button 
                   onClick={handleConfirmSchedule}
                   disabled={selectedTimeSlots.length === 0 || confirmMutation.isPending}
-                  className="bg-gradient-to-r from-primary to-primary/90"
+                  className="bg-gradient-to-r from-primary to-primary/80 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-[1px]"
                 >
                   <Check className="h-4 w-4 mr-2" />
                   Confirm Schedule
@@ -522,22 +545,39 @@ const OrganizerView = () => {
                 <Button
                   onClick={handleResetAll}
                   variant="outline"
-                  className="text-red-500 border-red-200 hover:bg-red-50"
+                  className="text-red-500 border-red-200 hover:bg-red-50 transition-all duration-200"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Reset All
                 </Button>
               )}
               
-              {/* 항상 표시되는 Reset 버튼 추가 */}
+              {/* Reset button with improved destructive styling */}
               <Button
                 onClick={handleResetAll}
                 variant="destructive"
-                className="ml-2 bg-red-500 text-white hover:bg-red-600"
+                className="ml-2 bg-gradient-to-r from-red-500 to-red-600 text-white hover:shadow-md transition-all duration-300"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Reset
               </Button>
+            </div>
+          </div>
+          
+          {/* New stats banner */}
+          <div className="bg-primary/5 rounded-lg p-3 mb-4 flex flex-wrap gap-3 items-center justify-between">
+            <div className="flex items-center">
+              <Users className="h-4 w-4 text-primary mr-2" />
+              <span className="text-sm">
+                <span className="font-semibold">{participants.length}</span> {participants.length === 1 ? 'participant' : 'participants'} in this meeting
+              </span>
+            </div>
+            
+            <div className="flex items-center">
+              <Calendar className="h-4 w-4 text-primary mr-2" />
+              <span className="text-sm">
+                <span className="font-semibold">{dateRange}</span>
+              </span>
             </div>
           </div>
           
@@ -576,16 +616,18 @@ const OrganizerView = () => {
                       <div className="p-3 pl-4 relative z-10">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-semibold text-lg bg-gradient-to-r from-[#555] to-[#333] bg-clip-text text-transparent dark:from-white dark:to-gray-200" 
+                            <p className="font-bold text-lg bg-gradient-to-r from-[#555] to-[#333] bg-clip-text text-transparent dark:from-white dark:to-gray-200" 
                               style={{ 
                                 WebkitTextFillColor: 'transparent',
-                                backgroundImage: `linear-gradient(to right, ${dayColor}, ${dayColor}99)` 
+                                backgroundImage: `linear-gradient(to right, ${dayColor}, ${dayColor}99)`,
+                                letterSpacing: '-0.01em',
+                                textShadow: '0 1px 1px rgba(255,255,255,0.1)'
                               }}
                             >
                               {weekday}
                             </p>
-                            <p className="text-gray-700 text-lg font-medium">{formatTimeForDisplay(time)}</p>
-                            <p className="text-xs text-gray-500 mt-1">{new Date(date).toLocaleDateString()}</p>
+                            <p className="text-gray-700 text-lg font-semibold">{formatTimeForDisplay(time)}</p>
+                            <p className="text-xs text-gray-500 mt-1 font-medium">{new Date(date).toLocaleDateString()}</p>
                           </div>
                           
                           {!votingMode && (
@@ -664,14 +706,17 @@ const OrganizerView = () => {
                                   return (
                                     <div 
                                       key={`participant-${participant.id}-${i}`}
-                                      className="w-7 h-7 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs font-medium transform transition-transform duration-300 hover:scale-110 participant-icon"
+                                      className="w-7 h-7 rounded-full border-2 shadow-sm flex items-center justify-center text-xs font-medium transform transition-all duration-300 hover:scale-110 hover:rotate-3 participant-icon"
                                       title={participant.name}
                                       style={{ 
-                                        backgroundColor: `${participantColor}20`, 
-                                        borderColor: `${participantColor}40` 
+                                        backgroundColor: participantColor,
+                                        borderColor: 'white',
+                                        boxShadow: `0 0 8px ${participantColor}50`
                                       }}
                                     >
-                                      <span style={{ color: participantColor }}>
+                                      <span className="text-white font-semibold" style={{
+                                        textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                      }}>
                                         {participant.name.charAt(0).toUpperCase()}
                                       </span>
                                     </div>
@@ -693,7 +738,10 @@ const OrganizerView = () => {
                                 
                                 // Only show "+X" if there are more than 3 unique participants
                                 return uniqueCount > 3 ? (
-                                  <div className="w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center text-xs font-semibold bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700">
+                                  <div className="w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center text-xs font-semibold bg-gradient-to-br from-primary/20 to-primary/40 text-primary hover:scale-110 transition-transform duration-300"
+                                    style={{
+                                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                    }}>
                                     +{uniqueCount - 3}
                                   </div>
                                 ) : null;
@@ -824,24 +872,45 @@ const OrganizerView = () => {
         </AlertDialog>
         
         <div className="mb-6">
-          <h2 className="text-xl font-medium text-primary mb-4">Schedule Meeting</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-primary/90 to-primary/70 bg-clip-text text-transparent mb-4">
+              Schedule Meeting
+            </h2>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="px-2.5 py-1 text-xs font-medium flex items-center gap-1 bg-primary/5">
+                <Calendar className="h-3.5 w-3.5 text-primary/80" />
+                <span>{formatDateRange(meeting.startDate, meeting.endDate)}</span>
+              </Badge>
+              <Badge variant="outline" className="px-2.5 py-1 text-xs font-medium flex items-center gap-1 bg-primary/5">
+                <Clock className="h-3.5 w-3.5 text-primary/80" />
+                <span>{meeting.startTime} - {meeting.endTime}</span>
+              </Badge>
+            </div>
+          </div>
         </div>
         
-        <Tabs defaultValue="weekly" onValueChange={setActiveTab}>
-          <TabsList className="mb-6 border-b border-border/10 w-full justify-start">
-            <TabsTrigger value="weekly" className="pb-4">
+        <Tabs defaultValue="weekly" onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="mb-6 border-b border-border/10 w-full justify-start bg-gradient-to-r from-background to-primary/5 rounded-t-lg">
+            <TabsTrigger value="weekly" className="pb-4 font-medium text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary">
+              <Calendar className="h-4 w-4 mr-2" />
               Weekly View
             </TabsTrigger>
-            <TabsTrigger value="grid" className="pb-4">
+            <TabsTrigger value="grid" className="pb-4 font-medium text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary">
+              <Grid className="h-4 w-4 mr-2" />
               Grid View
             </TabsTrigger>
-            <TabsTrigger value="participants" className="pb-4">
-              Participants ({participants.length})
+            <TabsTrigger value="participants" className="pb-4 font-medium text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary">
+              <Users className="h-4 w-4 mr-2" />
+              Participants 
+              <Badge variant="outline" className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {participants.length}
+              </Badge>
             </TabsTrigger>
           </TabsList>
           
           <TabsContent value="weekly">
             <WeeklyCalendarGrid 
+              ref={calendarRef}
               meeting={meeting} 
               timeSlots={processedTimeSlots}
               isOrganizer={true}

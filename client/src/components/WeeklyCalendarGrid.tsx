@@ -1,6 +1,6 @@
 import { Meeting, TimeSlot } from "@shared/schema";
 import { format, addDays, parseISO, startOfWeek, isSameDay } from "date-fns";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -17,14 +17,14 @@ type WeeklyCalendarGridProps = {
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAYS_OF_WEEK = [0, 1, 2, 3, 4, 5, 6]; // Sunday to Saturday
 
-const WeeklyCalendarGrid = ({
+const WeeklyCalendarGrid = forwardRef<any, WeeklyCalendarGridProps>(({
   meeting,
   timeSlots,
   isOrganizer = false,
   onTimeSlotSelect,
   selectedSlots = [],
   participants = []
-}: WeeklyCalendarGridProps) => {
+}, ref) => {
   // Refs for tracking drag behavior
   const isDraggingRef = useRef(false);
   const startCellRef = useRef<{day: number, hour: number} | null>(null);
@@ -113,6 +113,38 @@ const WeeklyCalendarGrid = ({
       document.removeEventListener('touchend', handleDocumentMouseUp);
     };
   }, []);
+  
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    // This function will be called by the parent to force synchronization
+    // of the parent's selected time slots with the calendar's internal state
+    forceSync: (parentSlots: Array<{ date: string; time: string }>) => {
+      console.log('WeeklyCalendarGrid - Syncing with parent slots:', parentSlots.length);
+      
+      // Reset the internal selection state based on the parent's slots
+      const newSelectionCells: { day: number; hour: number }[] = [];
+      
+      parentSlots.forEach(slot => {
+        // Parse the date to determine the day of week
+        const date = new Date(slot.date);
+        // Convert to day index (0-6, Sunday to Saturday)
+        const day = date.getDay();
+        // Extract hour from time string (e.g., "14:00" -> 14)
+        const hour = parseInt(slot.time.split(':')[0]);
+        
+        // Add to selection cells
+        newSelectionCells.push({ day, hour });
+      });
+      
+      // Update the internal state
+      setSelectionCells(newSelectionCells);
+      
+      // Force re-render
+      isDraggingRef.current = false;
+      startCellRef.current = null;
+      setTempSelectionCells([]);
+    }
+  }));
   
   return (
     <div className="overflow-auto">
@@ -238,6 +270,6 @@ const WeeklyCalendarGrid = ({
       </div>
     </div>
   );
-};
+});
 
 export default WeeklyCalendarGrid;

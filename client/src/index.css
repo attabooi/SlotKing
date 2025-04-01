@@ -539,4 +539,39 @@
     border-radius: 10px;
     color: white;
   }
+  
+  /* Calendar cell connection styles */
+  .cell-selected {
+    @apply relative z-10;
+  }
+  
+  .cell-selected-right {
+    @apply border-r-0;
+  }
+  
+  .cell-selected-bottom {
+    @apply border-b-0;
+  }
+  
+  /* Connection indicators for slots in the same group */
+  .slot-connected-top {
+    @apply bg-gradient-to-b from-primary/30 to-transparent;
+  }
+  
+  .slot-connected-bottom {
+    @apply bg-gradient-to-t from-primary/30 to-transparent;
+  }
+  
+  .slot-connected-left {
+    @apply bg-gradient-to-r from-primary/30 to-transparent;
+  }
+  
+  .slot-connected-right {
+    @apply bg-gradient-to-l from-primary/30 to-transparent;
+  }
+  
+  /* Group indicator */
+  .group-indicator {
+    @apply bg-primary/10 rounded border border-primary/20 absolute inset-0;
+  }
 }
