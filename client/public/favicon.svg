@@ -1,40 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Modern Dark Background -->
-  <rect width="100" height="100" rx="12" fill="#111827" />
+  <!-- Black Background -->
+  <rect width="100" height="100" rx="10" fill="#000000" />
   
-  <!-- Calendar Base with Modern Design -->
-  <g transform="translate(10, 25)">
-    <!-- Calendar Outline -->
-    <rect x="0" y="0" width="80" height="65" rx="8" fill="#1F2937" stroke="#374151" strokeWidth="2" />
-    
-    <!-- Calendar Header -->
-    <rect x="0" y="0" width="80" height="15" rx="4" fill="#374151" />
-    
-    <!-- Selected Event Slot -->
-    <rect x="15" y="25" width="50" height="30" rx="4" fill="#7E57C2" fillOpacity="0.7" stroke="#7E57C2" strokeWidth="1" />
+  <!-- Crown Icon -->
+  <g transform="translate(25, 25) scale(0.5)">
+    <path 
+      d="M12 2L19 9L26 2V8L40 12L47 36H5L12 12L26 8V2L33 9L40 2" 
+      fill="url(#crown-gradient)" 
+      stroke="#FFD700" 
+      strokeWidth="3"
+    />
   </g>
   
-  <!-- Crown - Larger and More Visible -->
-  <g transform="translate(50, 18) scale(1.4)">
-    <path 
-      d="M0 -15L10 0H20L15 15H-15L-20 0H-10L0 -15Z" 
-      fill="url(#crown-gradient)" 
-      stroke="#FFC107" 
-      strokeWidth="1.5" 
-    />
-    
-    <!-- Crown Jewels -->
-    <circle cx="-10" cy="0" r="3" fill="#FF5252" /> <!-- Red -->
-    <circle cx="0" cy="-8" r="3" fill="#7C4DFF" /> <!-- Purple -->
-    <circle cx="10" cy="0" r="3" fill="#64DD17" /> <!-- Green -->
+  <!-- SlotKing Text -->
+  <g transform="translate(32, 65)">
+    <text 
+      font-family="Arial, sans-serif" 
+      font-size="14" 
+      font-weight="bold" 
+      fill="url(#text-gradient)"
+    >
+      SlotKing
+    </text>
   </g>
   
   <!-- Gradient Definitions -->
   <defs>
-    <linearGradient id="crown-gradient" x1="0" y1="-15" x2="0" y2="15" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stopColor="#FFC107" /> <!-- Gold at top -->
-      <stop offset="1" stopColor="#FF9800" /> <!-- Orange at bottom -->
+    <linearGradient id="crown-gradient" x1="0%" y1="0%" x2="100%" y2="100%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#FFD700" /> <!-- Gold -->
+      <stop offset="100%" stopColor="#FFA500" /> <!-- Orange -->
+    </linearGradient>
+    
+    <linearGradient id="text-gradient" x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#9370DB" /> <!-- Medium Purple -->
+      <stop offset="100%" stopColor="#7B68EE" /> <!-- Medium Slate Blue -->
     </linearGradient>
   </defs>
 </svg>
