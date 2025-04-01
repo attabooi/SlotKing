@@ -364,21 +364,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // 5. GET /api/dashboard - Get meetings for the dashboard view
-  app.get('/api/dashboard', async (req: Request, res: Response) => {
-    try {
-      // In a real app, get userId from session - using a placeholder for now
-      const userId = 1; // This would normally come from auth
-      
-      // Get all meetings where user is either organizer or participant
-      const meetings = await storage.getMeetingsForDashboard(userId);
-      
-      res.status(200).json(meetings);
-    } catch (error) {
-      console.error('Error getting dashboard data:', error);
-      res.status(500).json({ message: 'Failed to get dashboard data', error });
-    }
-  });
-  
   return httpServer;
 }

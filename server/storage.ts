@@ -45,9 +45,6 @@ export interface IStorage {
   getTimeSlotOptions(meetingId: number): Promise<TimeSlot[]>;
   calculateOptimalTimeSlots(meetingId: number, minRequired?: number): Promise<TimeSlot[]>;
   
-  // Dashboard operations
-  getMeetingsForDashboard(userId: number): Promise<any[]>;
-  
   // Combined operations
   getMeetingWithParticipantsAndAvailabilities(uniqueId: string): Promise<{
     meeting: Meeting;
@@ -122,7 +119,6 @@ export class MemStorage implements IStorage {
       ...insertMeeting, 
       id, 
       uniqueId, 
-      organizerId: insertMeeting.organizerId || 1, // Set default organizerId if not provided
       createdAt: now 
     };
     
@@ -147,7 +143,6 @@ export class MemStorage implements IStorage {
     
     const participant: Participant = {
       ...insertParticipant,
-      userId: insertParticipant.userId || 1, // Set default userId if not provided
       id,
       createdAt: now
     };
@@ -386,80 +381,6 @@ export class MemStorage implements IStorage {
       votes,
       suggestions
     };
-  }
-  
-  // Dashboard operations
-  async getMeetingsForDashboard(userId: number): Promise<any[]> {
-    // Get all meetings where the user is either an organizer or a participant
-    const allMeetings = Array.from(this.meetings.values());
-    
-    // Filter meetings where user is an organizer
-    const organizerMeetings = allMeetings.filter(meeting => 
-      meeting.organizerId === userId
-    );
-    
-    // Filter meetings where user is a participant (but not organizer)
-    const participantMeetings = [];
-    for (const meeting of allMeetings) {
-      if (meeting.organizerId === userId) continue; // Skip if already counted as organizer
-      
-      const participants = await this.getParticipantsByMeetingId(meeting.id);
-      const isParticipant = participants.some(p => p.userId === userId);
-      
-      if (isParticipant) {
-        participantMeetings.push(meeting);
-      }
-    }
-    
-    // Combine both sets of meetings
-    const userMeetings = [...organizerMeetings, ...participantMeetings];
-    
-    // Enhance meetings with additional dashboard data
-    const dashboardMeetings = await Promise.all(userMeetings.map(async meeting => {
-      // Get participants count
-      const participants = await this.getParticipantsByMeetingId(meeting.id);
-      
-      // Get votes to check if user has voted
-      const votes = await this.getVotesByMeetingId(meeting.id);
-      const userVotes = votes.filter(vote => {
-        const participant = participants.find(p => p.id === vote.participantId);
-        return participant?.userId === userId;
-      });
-      
-      // Get best time slot (if any)
-      const suggestions = await this.getBestSuggestionsForMeeting(meeting.id, 1);
-      let topSlot = null;
-      
-      if (suggestions.length > 0) {
-        const timeSlots = suggestions[0].suggestedTimeSlots as any[];
-        if (timeSlots && timeSlots.length > 0) {
-          const slot = timeSlots[0];
-          if (slot.formattedDate && slot.formattedTime) {
-            topSlot = `${slot.formattedDate} at ${slot.formattedTime}`;
-          }
-        }
-      }
-      
-      // Calculate days left for voting
-      const today = new Date();
-      const endDate = new Date(meeting.endDate);
-      const diffTime = endDate.getTime() - today.getTime();
-      const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      // Return enhanced meeting data
-      return {
-        ...meeting,
-        participants: participants.length,
-        topSlot,
-        hasVoted: userVotes.length > 0,
-        daysLeft: daysLeft > 0 ? daysLeft : 0
-      };
-    }));
-    
-    // Sort by date (most recent first)
-    return dashboardMeetings.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
   }
 }
 

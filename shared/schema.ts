@@ -23,7 +23,6 @@ export const meetings = pgTable("meetings", {
   uniqueId: text("unique_id").notNull().unique(), // For shareable URLs
   title: text("title").notNull(),
   organizer: text("organizer").notNull(),
-  organizerId: integer("organizer_id").default(1), // References users.id
   startDate: text("start_date").notNull(), // Store as ISO string
   endDate: text("end_date").notNull(), // Store as ISO string
   startTime: integer("start_time").notNull(), // Store as hour (24h format)
@@ -35,7 +34,6 @@ export const meetings = pgTable("meetings", {
 export const insertMeetingSchema = createInsertSchema(meetings).pick({
   title: true,
   organizer: true,
-  organizerId: true,
   startDate: true,
   endDate: true,
   startTime: true,
@@ -51,14 +49,12 @@ export const participants = pgTable("participants", {
   id: serial("id").primaryKey(),
   meetingId: integer("meeting_id").notNull(), // References meetings.id
   name: text("name").notNull(),
-  userId: integer("user_id").default(1), // References users.id, default for now
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const insertParticipantSchema = createInsertSchema(participants).pick({
   meetingId: true,
   name: true,
-  userId: true,
 });
 
 export type InsertParticipant = z.infer<typeof insertParticipantSchema>;
