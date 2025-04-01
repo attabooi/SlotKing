@@ -717,21 +717,28 @@ const OrganizerView = () => {
                                 const uniqueParticipantMap: Record<number, boolean> = {};
                                 const participantsForSlot: Participant[] = [];
                                 
-                                // Filter availabilities for this time slot
-                                availabilities
-                                  .filter(availability => 
-                                    (availability.timeSlots as string[]).includes(`${date}-${time}`)
-                                  )
-                                  .forEach(availability => {
-                                    // Only add if we haven't already added this participant
-                                    if (!uniqueParticipantMap[availability.participantId]) {
-                                      uniqueParticipantMap[availability.participantId] = true;
-                                      const participant = participants.find(p => p.id === availability.participantId);
-                                      if (participant) {
-                                        participantsForSlot.push(participant);
+                                // Only consider slots that are still in selectedTimeSlots to prevent ghost participants
+                                const isSlotStillSelected = selectedTimeSlots.some(
+                                  slot => slot.date === date && slot.time === time
+                                );
+                                
+                                if (isSlotStillSelected) {
+                                  // Filter availabilities for this time slot
+                                  availabilities
+                                    .filter(availability => 
+                                      (availability.timeSlots as string[]).includes(`${date}-${time}`)
+                                    )
+                                    .forEach(availability => {
+                                      // Only add if we haven't already added this participant
+                                      if (!uniqueParticipantMap[availability.participantId]) {
+                                        uniqueParticipantMap[availability.participantId] = true;
+                                        const participant = participants.find(p => p.id === availability.participantId);
+                                        if (participant) {
+                                          participantsForSlot.push(participant);
+                                        }
                                       }
-                                    }
-                                  });
+                                    });
+                                }
                                 
                                 // Return the first 3 unique participants with enhanced styling
                                 return participantsForSlot.slice(0, 3).map((participant, i) => {
@@ -771,13 +778,22 @@ const OrganizerView = () => {
                               {(() => {
                                 // Get unique participant IDs for this time slot
                                 const uniqueParticipantMap: Record<number, boolean> = {};
-                                availabilities
-                                  .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
-                                  .forEach(a => {
-                                    uniqueParticipantMap[a.participantId] = true;
-                                  });
                                 
-                                const uniqueCount = Object.keys(uniqueParticipantMap).length;
+                                // Only consider slots that are still in selectedTimeSlots
+                                const isSlotStillSelected = selectedTimeSlots.some(
+                                  slot => slot.date === date && slot.time === time
+                                );
+                                
+                                let uniqueCount = 0;
+                                if (isSlotStillSelected) {
+                                  availabilities
+                                    .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
+                                    .forEach(a => {
+                                      uniqueParticipantMap[a.participantId] = true;
+                                    });
+                                  
+                                  uniqueCount = Object.keys(uniqueParticipantMap).length;
+                                }
                                 
                                 // Only show "+X" if there are more than 3 unique participants
                                 return uniqueCount > 3 ? (
@@ -808,13 +824,22 @@ const OrganizerView = () => {
                               {(() => {
                                 // Get unique participant IDs for this time slot
                                 const participantMap: Record<number, boolean> = {};
-                                availabilities
-                                  .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
-                                  .forEach(a => {
-                                    participantMap[a.participantId] = true;
-                                  });
                                 
-                                const count = Object.keys(participantMap).length;
+                                // Only consider slots that are still in selectedTimeSlots to prevent ghost participants
+                                const isSlotStillSelected = selectedTimeSlots.some(
+                                  slot => slot.date === date && slot.time === time
+                                );
+                                
+                                let count = 0;
+                                if (isSlotStillSelected) {
+                                  availabilities
+                                    .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
+                                    .forEach(a => {
+                                      participantMap[a.participantId] = true;
+                                    });
+                                  
+                                  count = Object.keys(participantMap).length;
+                                }
                                 
                                 if (`${date}-${time}` === topVotedSlot && maxAvailableCount > 0) {
                                   return (

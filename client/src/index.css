@@ -180,6 +180,8 @@
   .slot-group-inner {
     border-top: none !important;
     border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
     background-color: transparent !important;
     box-shadow: none !important;
     position: relative;
@@ -544,14 +546,15 @@
   .cell-selected {
     @apply relative z-10;
     position: relative;
+    border: none !important;
   }
   
   /* Horizontal connecting element to merge adjacent cells */
   .cell-selected::after {
     content: '';
     position: absolute;
-    width: 100%;
-    height: 100%;
+    width: calc(100% + 1px);
+    height: calc(100% + 1px);
     top: 0;
     left: 0;
     background-color: inherit;
