@@ -457,23 +457,27 @@ const OrganizerView = () => {
                               variant="ghost" 
                               size="icon"
                               className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                              onClick={(e) => handleRemoveTimeSlot(date, time, e)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRemoveTimeSlot(date, time, e);
+                              }}
                             >
                               <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
                             </Button>
                           )}
                           
-                          {/* Show crown icon only for the top voted slot - with increased size and animation */}
-                          {votingMode && `${date}-${time}` === topVotedSlot && (
+                          {/* Show crown icon only for the top voted slot when there are actual votes */}
+                          {votingMode && `${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && (
                             <div className="flex items-center justify-center animate-pulse-subtle">
-                              <div className="absolute -top-2 -right-2 crown-float z-10">
-                                <Crown className="h-8 w-8 text-yellow-500 drop-shadow-md" />
+                              <div className="absolute -top-3 -right-3 crown-float z-10">
+                                <Crown className="h-10 w-10 text-yellow-500 drop-shadow-lg" />
                               </div>
                             </div>
                           )}
 
-                          {/* Show participants only if they've selected this time slot */}
-                          {votingMode && (
+                          {/* Show participants only if they've selected this time slot AND there are actual participants */}
+                          {votingMode && availabilities.some(a => (a.timeSlots as string[]).includes(`${date}-${time}`)) && (
                             <div className="flex -space-x-2">
                               {(() => {
                                 // Get unique participant IDs for this time slot
@@ -537,7 +541,7 @@ const OrganizerView = () => {
                             <Badge 
                               variant="outline" 
                               className={`text-xs ${
-                                `${date}-${time}` === topVotedSlot 
+                                `${date}-${time}` === topVotedSlot && maxAvailableCount > 0
                                   ? 'bg-yellow-50 text-yellow-600 border-yellow-200' 
                                   : 'bg-primary/5 text-primary border-primary/10'
                               }`}
@@ -559,7 +563,7 @@ const OrganizerView = () => {
                                   return count === 1 ? "1 participant" : `${count} participants`;
                                 })()
                               }
-                              {`${date}-${time}` === topVotedSlot && ' • Top Pick'}
+                              {`${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && ' • Top Pick'}
                             </Badge>
                           </div>
                         )}
