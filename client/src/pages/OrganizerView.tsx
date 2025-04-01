@@ -307,28 +307,25 @@ const OrganizerView = () => {
     
     console.log(`Removing time slot: ${date} at ${time}`);
     
-    // Get the group of slots with the same date (for this specific date)
+    // Get the specific time slot to remove
     const targetKey = `${date}-${time}`;
     
-    // Find all slots with the same date (they should be removed as a group)
-    // Convert date string to consistent format to ensure proper comparison
-    const normalizedDate = new Date(date).toISOString().split('T')[0];
+    // Find the exact slot to remove by matching both date and time
+    const slotToRemove = selectedTimeSlots.find(slot => 
+      slot.date === date && slot.time === time
+    );
     
-    const slotsWithSameDate = selectedTimeSlots.filter(slot => {
-      const slotNormalizedDate = new Date(slot.date).toISOString().split('T')[0];
-      return slotNormalizedDate === normalizedDate;
-    });
+    if (!slotToRemove) {
+      console.error("Could not find the time slot to remove");
+      return;
+    }
     
-    // Log for debugging
-    console.log(`Found ${slotsWithSameDate.length} slots with same date:`, slotsWithSameDate);
+    // Create a new array without the specific slot
+    const updatedTimeSlots = selectedTimeSlots.filter(slot => 
+      !(slot.date === date && slot.time === time)
+    );
     
-    // Remove all slots with the same date
-    const updatedTimeSlots = selectedTimeSlots.filter(slot => {
-      const slotNormalizedDate = new Date(slot.date).toISOString().split('T')[0];
-      return slotNormalizedDate !== normalizedDate;
-    });
-    
-    console.log(`Remaining slots after removal: ${updatedTimeSlots.length}`);
+    console.log(`Removed 1 time slot, remaining: ${updatedTimeSlots.length}`);
     
     // Update state with filtered slots
     setSelectedTimeSlots(updatedTimeSlots);
@@ -362,8 +359,8 @@ const OrganizerView = () => {
     
     // Show a toast notification
     toast({
-      title: "Time slot group deleted",
-      description: `Removed ${slotsWithSameDate.length} time slots for ${new Date(date).toLocaleDateString()}`,
+      title: "Time slot deleted",
+      description: `Removed ${new Date(date).toLocaleDateString()} at ${formatTimeForDisplay(time)}`,
     });
   };
 
