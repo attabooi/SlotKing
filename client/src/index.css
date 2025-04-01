@@ -543,14 +543,37 @@
   /* Calendar cell connection styles */
   .cell-selected {
     @apply relative z-10;
+    position: relative;
+  }
+  
+  /* Horizontal connecting element to merge adjacent cells */
+  .cell-selected::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background-color: inherit;
+    z-index: -1;
   }
   
   .cell-selected-right {
     @apply border-r-0;
   }
   
+  /* Create overlay that extends to cover border */
+  .cell-selected-right::after {
+    width: calc(100% + 1px);
+  }
+  
   .cell-selected-bottom {
     @apply border-b-0;
+  }
+  
+  /* Create overlay that extends to cover border */
+  .cell-selected-bottom::after {
+    height: calc(100% + 1px);
   }
   
   /* Connection indicators for slots in the same group */

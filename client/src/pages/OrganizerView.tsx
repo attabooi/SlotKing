@@ -141,15 +141,27 @@ const OrganizerView = () => {
     }
   }, [data]);
 
-  // Group selected time slots by date
-  const groupedTimeSlots = selectedTimeSlots.reduce((acc, slot) => {
-    const date = slot.date;
-    if (!acc[date]) {
-      acc[date] = [];
-    }
-    acc[date].push(slot.time);
-    return acc;
-  }, {} as Record<string, string[]>);
+  // Group selected time slots by date - now managed via state for better control
+  const [groupedTimeSlots, setGroupedTimeSlots] = useState<Record<string, string[]>>({});
+  
+  // Helper function to update the groupedTimeSlots based on the latest selectedTimeSlots
+  const updateGroupedTimeSlots = (slots: Array<{ date: string; time: string }>) => {
+    const newGrouped = slots.reduce((acc, slot) => {
+      const date = slot.date;
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(slot.time);
+      return acc;
+    }, {} as Record<string, string[]>);
+    
+    return newGrouped;
+  };
+  
+  // Keep groupedTimeSlots in sync with selectedTimeSlots
+  useEffect(() => {
+    setGroupedTimeSlots(updateGroupedTimeSlots(selectedTimeSlots));
+  }, [selectedTimeSlots]);
 
   // Function to trigger confetti effect
   const triggerConfetti = (element: HTMLElement) => {
@@ -331,8 +343,8 @@ const OrganizerView = () => {
     setSelectedTimeSlots(updatedTimeSlots);
     
     // We want to make sure the slots in the Calendar components are up to date
-  // with our summary section slots, since they're using different structures internally
-  // This includes clearing the calendar state when slots are removed
+    // with our summary section slots, since they're using different structures internally
+    // This includes clearing the calendar state when slots are removed
     if (calendarRef.current) {
       console.log("Syncing calendar selections with updated time slots");
       
@@ -340,7 +352,20 @@ const OrganizerView = () => {
       // This will force the calendar to update its internal state to match the parent 
       const calendar = calendarRef.current as any;
       if (calendar && typeof calendar.forceSync === 'function') {
+        // Important: Call forceSync to ensure internal calendar state matches our state
         calendar.forceSync(updatedTimeSlots);
+        
+        // Force a re-calculation of the groupedTimeSlots by setting a dummy state
+        // and then resetting it back to the actual value after a short delay
+        // This ensures the UI is always in sync
+        setTimeout(() => {
+          // The timeout ensures React has time to process the state update
+          setSelectedTimeSlots([...updatedTimeSlots]);
+          
+          // Force a recalculation of the groupedTimeSlots 
+          const updatedGroups = updateGroupedTimeSlots(updatedTimeSlots);
+          setGroupedTimeSlots(updatedGroups);
+        }, 50);
       }
     }
     

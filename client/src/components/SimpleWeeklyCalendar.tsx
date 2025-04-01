@@ -439,6 +439,13 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
           // Clear all selections if parent has no slots
           setSelectedSlots([]);
           setSelectionGroups([]);
+          // Reset drag state to ensure no ghost tracks
+          setIsDragging(false);
+          setDragStart(null);
+          setDragEnd(null);
+          setDraggedSlots([]);
+          // Ensure we're not referencing stale state
+          calculatedGroups.length = 0;
           return;
         }
         
@@ -457,6 +464,13 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
           return parentSlotLookup.has(`${slot.day}-${slot.hour}`);
         });
         
+        // First reset all state to ensure clean slate
+        setIsDragging(false);
+        setDragStart(null);
+        setDragEnd(null);
+        setDraggedSlots([]);
+        
+        // Then set the new filtered slots
         setSelectedSlots(newSelectedSlots);
         
         // Update selection groups to remove any that now have no slots
@@ -466,11 +480,34 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
               parentSlotLookup.has(`${slot.day}-${slot.hour}`)
             );
             if (newSlots.length === 0) return null;
-            return { ...group, slots: newSlots };
+            
+            // Also update each group's data
+            const sortedSlots = [...newSlots].sort((a, b) => {
+              if (a.day !== b.day) return a.day - b.day;
+              return a.hour - b.hour;
+            });
+            
+            const firstSlot = sortedSlots[0];
+            const lastSlot = sortedSlots[sortedSlots.length - 1];
+            
+            return { 
+              ...group, 
+              slots: newSlots,
+              startTime: firstSlot,
+              endTime: lastSlot,
+              topSlot: firstSlot
+            };
           })
           .filter(Boolean) as SelectionGroup[];
         
         setSelectionGroups(newSelectionGroups);
+        
+        // Give a little time for React to update the state before notifying parent
+        setTimeout(() => {
+          if (onGroupsChanged) {
+            onGroupsChanged(newSelectionGroups);
+          }
+        }, 0);
       }
     }));
     
