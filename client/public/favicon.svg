@@ -1,40 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Black Background -->
-  <rect width="100" height="100" rx="10" fill="#000000" />
-  
-  <!-- Crown Icon -->
-  <g transform="translate(25, 25) scale(0.5)">
-    <path 
-      d="M12 2L19 9L26 2V8L40 12L47 36H5L12 12L26 8V2L33 9L40 2" 
-      fill="url(#crown-gradient)" 
-      stroke="#FFD700" 
-      strokeWidth="3"
-    />
-  </g>
-  
-  <!-- SlotKing Text -->
-  <g transform="translate(32, 65)">
-    <text 
-      font-family="Arial, sans-serif" 
-      font-size="14" 
-      font-weight="bold" 
-      fill="url(#text-gradient)"
-    >
-      SlotKing
-    </text>
-  </g>
-  
-  <!-- Gradient Definitions -->
-  <defs>
-    <linearGradient id="crown-gradient" x1="0%" y1="0%" x2="100%" y2="100%" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stopColor="#FFD700" /> <!-- Gold -->
-      <stop offset="100%" stopColor="#FFA500" /> <!-- Orange -->
-    </linearGradient>
-    
-    <linearGradient id="text-gradient" x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stopColor="#9370DB" /> <!-- Medium Purple -->
-      <stop offset="100%" stopColor="#7B68EE" /> <!-- Medium Slate Blue -->
-    </linearGradient>
-  </defs>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="4" fill="#18181b" />
+  <path d="M23.6,14.8l-3.2,1.6l-3.2-4.8l-3.2,4.8l-3.2-1.6l-1.6,6.4h16L23.6,14.8z" fill="#FFD700" />
+  <path d="M16,11.6l-3.2,4.8l-3.2-1.6l-1.6,6.4h16l-1.6-6.4l-3.2,1.6L16,11.6z" fill="#FFD700" />
+  <circle cx="8.8" cy="13.2" r="1.6" fill="#FFD700" />
+  <circle cx="16" cy="9.6" r="1.6" fill="#FFD700" />
+  <circle cx="23.2" cy="13.2" r="1.6" fill="#FFD700" />
 </svg>
