@@ -1,0 +1,50 @@
+Hi! I need help fixing some serious state sync issues in my SlotKing project. Please read carefully.
+
+---
+
+🧩 What's Wrong (Step-by-Step Reproduction):
+
+1. I enter a meeting title and user name.
+2. I create 1-hour slots on:
+   - Monday
+   - Tuesday
+   - Wednesday
+3. Then, I delete the Tuesday and Wednesday slots by clicking the trash icon.
+   - ✅ The time blocks disappear from the calendar view.
+   - ❌ But they are still shown in the "Available Time Slots" section under the meeting summary.
+4. After this, ghost participants suddenly appear (even though I'm the only user).
+   - These participants were never created or added.
+   - This seems to happen especially after adding/deleting slots multiple times.
+
+---
+
+💡 Observations:
+
+- It looks like the frontend and state store (maybe global state or backend data) are **not synced properly** after deletion.
+- The “Available Time Slots” UI might be reading from outdated data or not responding to deletion actions correctly.
+- This might also be tied to a localStorage/session or stale memory state.
+
+---
+
+⚠️ Additional UI Issue:
+
+- When I drag to create a time slot, the visual block now has a **visible line between hours**, making it look like multiple blocks.
+- Please make sure the dragged block appears as **one seamless square** (no horizontal dividers inside the grid).
+
+---
+
+📁 Files to Check (Assuming folder structure):
+- `client/components/TimeGrid.tsx` — handles calendar drag/select
+- `client/components/Summary.tsx` — displays Available Time Slots
+- Any global state logic (Zustand, Redux, context, etc.)
+- Ensure state updates and deletions are properly reflected across both calendar + summary UI.
+
+---
+
+✅ What I Need Fixed:
+1. Ensure when a time slot is deleted from the calendar, it also disappears from the Available Time Slots section.
+2. Fix the ghost participants bug — only actual user interactions (votes/selections) should appear.
+3. Remove the visual border lines in dragged time slot blocks (should look like one box).
+4. Do a quick audit on the state sync flow between calendar and summary section.
+
+Thanks!

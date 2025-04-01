@@ -202,7 +202,7 @@ const OrganizerView = () => {
   });
 
   // Ref for calendar component
-  const calendarRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<any>(null);
   const [selectedCalendarSlots, setSelectedCalendarSlots] = useState<Array<any>>([]);
   
   // Mutation to reset all selections
