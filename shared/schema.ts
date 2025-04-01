@@ -97,6 +97,7 @@ export const participantFormSchema = z.object({
 
 // Types for frontend
 export type TimeSlot = {
+  id: string; // Unique identifier
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
   formattedDate?: string; // For display
@@ -104,6 +105,8 @@ export type TimeSlot = {
   selected?: boolean; // For participant selection
   available?: number; // Count of participants available
   total?: number; // Total participants
+  participants?: { name: string; color: string }[]; // Participants who selected this slot
+  groupId?: string; // ID to group related time slots together
 };
 
 export type MeetingWithTimeSlots = Meeting & {

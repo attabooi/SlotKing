@@ -20,6 +20,9 @@ import {
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { useTimeSlots } from '@/hooks/useTimeSlots';
+import { TimeSlot } from '@shared/schema';
+import { v4 as uuidv4 } from 'uuid';
 import party from 'party-js';
 
 interface Participant {
@@ -37,14 +40,26 @@ interface SelectionGroup {
 }
 
 const SimpleCalendarPage: React.FC = () => {
+  // Base state
   const [meetingTitle, setMeetingTitle] = useState('');
   const [userName, setUserName] = useState('');
-  const [selectedSlots, setSelectedSlots] = useState<Array<{ day: number; hour: number }>>([]);
   const [isHost, setIsHost] = useState(true);
+  
+  // New centralized state management for time slots
+  const { 
+    timeSlots, 
+    addTimeSlot, 
+    deleteSlotGroup, 
+    resetAll: resetAllSlots,
+    updateParticipants 
+  } = useTimeSlots();
+  
+  // Legacy state - needed until full refactoring
+  const [selectedSlots, setSelectedSlots] = useState<Array<{ day: number; hour: number }>>([]);
   const [mockParticipants, setMockParticipants] = useState<Participant[]>([]);
   const [selectionGroups, setSelectionGroups] = useState<SelectionGroup[]>([]);
   
-  // New state variables for voting mode
+  // Voting mode state
   const [isVotingMode, setIsVotingMode] = useState(false);
   const [confirmedGroups, setConfirmedGroups] = useState<SelectionGroup[]>([]);
   const [shareUrl, setShareUrl] = useState('');
@@ -66,6 +81,9 @@ const SimpleCalendarPage: React.FC = () => {
   const handleSelectTimeSlots = (slots: Array<{ day: number; hour: number }>, isAddOperation = true) => {
     console.log(`handleSelectTimeSlots called with ${slots.length} slots, isAddOperation: ${isAddOperation}`);
     
+    // Create a common groupId to associate these slots together 
+    const currentGroupId = uuidv4();
+    
     // If it's an add operation, we should merge the new slots with existing ones
     // Otherwise, for example in a delete operation, we only update with the provided slots
     if (isAddOperation) {
@@ -76,15 +94,37 @@ const SimpleCalendarPage: React.FC = () => {
         )
       );
       
-      // If we have new slots, add them to the existing selection
+      // If we have new slots, add them to the existing selection and to new time slots system
       if (newSlots.length > 0) {
         console.log(`Adding ${newSlots.length} new slots to selection`);
         setSelectedSlots(prevSlots => [...prevSlots, ...newSlots]);
+        
+        // Also add these slots to our new centralized time slots state
+        newSlots.forEach(slot => {
+          const currentDate = new Date();
+          const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+          const dayDate = addDays(weekStart, slot.day);
+          const slotDate = format(dayDate, 'yyyy-MM-dd');
+          const slotTime = format(new Date(0, 0, 0, slot.hour), 'HH:mm');
+          
+          addTimeSlot({
+            date: slotDate,
+            time: slotTime,
+            formattedDate: format(dayDate, 'EEE, MMM d'),
+            formattedTime: format(new Date(0, 0, 0, slot.hour), 'h a'),
+            selected: true,
+            participants: [{ name: userName || 'User', color: getUserColor(userName || 'User') }],
+            groupId: currentGroupId
+          });
+        });
       }
     } else {
       // In case of deletion or initial load, directly set the slots
       console.log(`Replacing all slots with ${slots.length} provided slots (delete operation or initial load)`);
       setSelectedSlots(slots);
+      
+      // For our centralized state, we would need to handle this differently
+      // But for now, we'll continue supporting the legacy system
     }
     
     // Only update participants if we have slots and a username
@@ -159,9 +199,13 @@ const SimpleCalendarPage: React.FC = () => {
     // Remove the group from the selectionGroups state
     const newSelectionGroups = selectionGroups.filter(group => group.id !== groupId);
     
-    // Update states
+    // Update legacy states
     setSelectedSlots(newSelectedSlots);
     setSelectionGroups(newSelectionGroups);
+    
+    // Also remove from new centralized time slots management
+    // This will work if the groupId in SimpleWeeklyCalendar matches the one in our time slots
+    deleteSlotGroup(groupId);
     
     // Notify SimpleWeeklyCalendar of the updated slots (this will update the summary view)
     // Pass false to indicate this is not an add operation but a deletion
@@ -206,12 +250,18 @@ const SimpleCalendarPage: React.FC = () => {
   
   // Handler for resetting all selections and returning to host mode
   const handleResetAll = () => {
+    // Reset app state
     setIsVotingMode(false);
     setConfirmedGroups([]);
-    setSelectedSlots([]);
-    setSelectionGroups([]);
     setShareUrl('');
     setMockParticipants([]);
+    
+    // Reset legacy state
+    setSelectedSlots([]);
+    setSelectionGroups([]);
+    
+    // Use the new centralized time slots state management
+    resetAllSlots();
     
     toast({
       title: "Reset Complete",
