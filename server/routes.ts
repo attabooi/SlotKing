@@ -1,7 +1,13 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMeetingSchema, insertParticipantSchema, insertAvailabilitySchema } from "@shared/schema";
+import { 
+  insertMeetingSchema, 
+  insertParticipantSchema, 
+  insertAvailabilitySchema, 
+  insertVoteSchema, 
+  insertSuggestionSchema 
+} from "@shared/schema";
 import { nanoid } from "nanoid";
 import { WebSocketServer } from "ws";
 import WebSocket from "ws";
@@ -190,6 +196,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json(availabilities);
     } catch (error) {
       res.status(500).json({ message: 'Error retrieving availabilities', error });
+    }
+  });
+  
+  // === NEW API ENDPOINTS FOR SLOTKING ===
+  
+  // 1. POST /api/createMeeting - Create a new meeting
+  app.post('/api/createMeeting', async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertMeetingSchema.parse({
+        title: req.body.title,
+        organizer: req.body.organizer,
+        startDate: req.body.startDate,
+        endDate: req.body.endDate,
+        startTime: req.body.startTime,
+        endTime: req.body.endTime,
+        timeSlotDuration: req.body.timeSlotDuration,
+      });
+      
+      const meeting = await storage.createMeeting(validatedData);
+      
+      // If organizer info is included, also create them as the first participant
+      if (req.body.organizer) {
+        const organizerParticipant = await storage.createParticipant({
+          meetingId: meeting.id,
+          name: req.body.organizer
+        });
+        
+        res.status(201).json({
+          meeting,
+          organizer: organizerParticipant
+        });
+      } else {
+        res.status(201).json({ meeting });
+      }
+    } catch (error) {
+      res.status(400).json({ message: 'Invalid meeting data', error });
+    }
+  });
+  
+  // 2. GET /api/getOptions - Get time slot options for a meeting
+  app.get('/api/getOptions', async (req: Request, res: Response) => {
+    try {
+      const meetingId = req.query.meetingId as string;
+      
+      if (!meetingId) {
+        return res.status(400).json({ message: 'Meeting ID is required' });
+      }
+      
+      let meeting;
+      
+      // Check if the ID is a numeric ID or a unique ID string
+      if (/^\d+$/.test(meetingId)) {
+        meeting = await storage.getMeeting(parseInt(meetingId));
+      } else {
+        meeting = await storage.getMeetingByUniqueId(meetingId);
+      }
+      
+      if (!meeting) {
+        return res.status(404).json({ message: 'Meeting not found' });
+      }
+      
+      // Get time slot options with availability counts
+      const timeSlotOptions = await storage.calculateOptimalTimeSlots(meeting.id);
+      
+      res.status(200).json({
+        meeting,
+        timeSlots: timeSlotOptions
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Error retrieving time slots', error });
+    }
+  });
+  
+  // 3. POST /api/vote - Submit votes for time slots
+  app.post('/api/vote', async (req: Request, res: Response) => {
+    try {
+      const { meetingId, participantId, timeSlots, weight, metadata } = req.body;
+      
+      // Check if meeting exists
+      let meeting;
+      if (typeof meetingId === 'string' && !(/^\d+$/.test(meetingId))) {
+        meeting = await storage.getMeetingByUniqueId(meetingId);
+      } else {
+        meeting = await storage.getMeeting(parseInt(meetingId));
+      }
+      
+      if (!meeting) {
+        return res.status(404).json({ message: 'Meeting not found' });
+      }
+      
+      // Check if participant exists
+      const participants = await storage.getParticipantsByMeetingId(meeting.id);
+      const participant = participants.find(p => p.id === parseInt(participantId));
+      
+      if (!participant) {
+        return res.status(404).json({ message: 'Participant not found' });
+      }
+      
+      // Validate and create the vote
+      const validatedData = insertVoteSchema.parse({
+        meetingId: meeting.id,
+        participantId: participant.id,
+        timeSlots,
+        weight: weight || 1,
+        metadata: metadata || null
+      });
+      
+      const vote = await storage.createVote(validatedData);
+      
+      // Broadcast the vote to connected clients
+      broadcastUpdate('vote_submitted', {
+        meetingId: meeting.id,
+        participantId: participant.id,
+        vote
+      });
+      
+      res.status(201).json(vote);
+    } catch (error) {
+      res.status(400).json({ message: 'Invalid vote data', error });
+    }
+  });
+  
+  // 4. POST /api/suggest - Get AI suggestions (for future use)
+  app.post('/api/suggest', async (req: Request, res: Response) => {
+    try {
+      const { meetingId, suggestedBy, constraints } = req.body;
+      
+      // Check if meeting exists
+      let meeting;
+      if (typeof meetingId === 'string' && !(/^\d+$/.test(meetingId))) {
+        meeting = await storage.getMeetingByUniqueId(meetingId);
+      } else {
+        meeting = await storage.getMeeting(parseInt(meetingId));
+      }
+      
+      if (!meeting) {
+        return res.status(404).json({ message: 'Meeting not found' });
+      }
+      
+      // This is a placeholder for future AI functionality
+      // In the MVP, we'll return the best time slots based on current availabilities
+      const timeSlots = await storage.calculateOptimalTimeSlots(meeting.id);
+      
+      // Create a suggestion record for tracking purposes
+      const suggestion = await storage.createSuggestion({
+        meetingId: meeting.id,
+        suggestedBy: suggestedBy || 'system',
+        suggestedTimeSlots: timeSlots,
+        reasoning: 'Based on current participant availability',
+        score: 100, // Placeholder score
+        metadata: constraints || null
+      });
+      
+      // Broadcast the suggestion to connected clients
+      broadcastUpdate('suggestion_added', {
+        meetingId: meeting.id,
+        suggestion
+      });
+      
+      res.status(200).json({
+        suggestion,
+        timeSlots
+      });
+    } catch (error) {
+      res.status(400).json({ message: 'Error generating suggestions', error });
     }
   });
   

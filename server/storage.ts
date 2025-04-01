@@ -3,6 +3,8 @@ import {
   meetings, type Meeting, type InsertMeeting, 
   participants, type Participant, type InsertParticipant,
   availabilities, type Availability, type InsertAvailability,
+  votes, type Vote, type InsertVote,
+  suggestions, type Suggestion, type InsertSuggestion,
   type TimeSlot 
 } from "@shared/schema";
 import { nanoid } from "nanoid";
@@ -28,11 +30,33 @@ export interface IStorage {
   getAvailabilityByParticipantId(participantId: number): Promise<Availability | undefined>;
   updateAvailability(participantId: number, timeSlots: any): Promise<Availability | undefined>;
   
+  // Votes (for future use with AI/MCP)
+  createVote(vote: InsertVote): Promise<Vote>;
+  getVotesByMeetingId(meetingId: number): Promise<Vote[]>;
+  getVotesByParticipantId(participantId: number): Promise<Vote[]>;
+  updateVote(voteId: number, timeSlots: any): Promise<Vote | undefined>;
+  
+  // Suggestions (for future use with AI/MCP)
+  createSuggestion(suggestion: InsertSuggestion): Promise<Suggestion>;
+  getSuggestionsByMeetingId(meetingId: number): Promise<Suggestion[]>;
+  getBestSuggestionsForMeeting(meetingId: number, limit?: number): Promise<Suggestion[]>;
+  
+  // Time slot options
+  getTimeSlotOptions(meetingId: number): Promise<TimeSlot[]>;
+  calculateOptimalTimeSlots(meetingId: number, minRequired?: number): Promise<TimeSlot[]>;
+  
   // Combined operations
   getMeetingWithParticipantsAndAvailabilities(uniqueId: string): Promise<{
     meeting: Meeting;
     participants: Participant[];
     availabilities: Availability[];
+  } | undefined>;
+  
+  getMeetingWithVotesAndSuggestions(uniqueId: string): Promise<{
+    meeting: Meeting;
+    participants: Participant[];
+    votes: Vote[];
+    suggestions: Suggestion[];
   } | undefined>;
 }
 
@@ -41,22 +65,30 @@ export class MemStorage implements IStorage {
   private meetings: Map<number, Meeting>;
   private participants: Map<number, Participant>;
   private availabilities: Map<number, Availability>;
+  private votes: Map<number, Vote>;
+  private suggestions: Map<number, Suggestion>;
   
   private userId: number;
   private meetingId: number;
   private participantId: number;
   private availabilityId: number;
+  private voteId: number;
+  private suggestionId: number;
 
   constructor() {
     this.users = new Map();
     this.meetings = new Map();
     this.participants = new Map();
     this.availabilities = new Map();
+    this.votes = new Map();
+    this.suggestions = new Map();
     
     this.userId = 1;
     this.meetingId = 1;
     this.participantId = 1;
     this.availabilityId = 1;
+    this.voteId = 1;
+    this.suggestionId = 1;
   }
 
   // User methods
@@ -166,6 +198,149 @@ export class MemStorage implements IStorage {
     return updatedAvailability;
   }
 
+  // Votes methods (for future AI/MCP functionality)
+  async createVote(insertVote: InsertVote): Promise<Vote> {
+    const id = this.voteId++;
+    const now = new Date();
+    
+    // Ensure required fields have default values
+    const vote: Vote = {
+      ...insertVote,
+      id,
+      createdAt: now,
+      metadata: insertVote.metadata || {}, // Ensure metadata is set
+      weight: insertVote.weight || 1 // Ensure weight is set
+    };
+    
+    this.votes.set(id, vote);
+    return vote;
+  }
+
+  async getVotesByMeetingId(meetingId: number): Promise<Vote[]> {
+    return Array.from(this.votes.values()).filter(
+      (vote) => vote.meetingId === meetingId
+    );
+  }
+
+  async getVotesByParticipantId(participantId: number): Promise<Vote[]> {
+    return Array.from(this.votes.values()).filter(
+      (vote) => vote.participantId === participantId
+    );
+  }
+
+  async updateVote(voteId: number, timeSlots: any): Promise<Vote | undefined> {
+    const vote = this.votes.get(voteId);
+    
+    if (!vote) return undefined;
+    
+    const updatedVote: Vote = {
+      ...vote,
+      timeSlots
+    };
+    
+    this.votes.set(voteId, updatedVote);
+    return updatedVote;
+  }
+  
+  // Suggestions methods (for future AI/MCP functionality)
+  async createSuggestion(insertSuggestion: InsertSuggestion): Promise<Suggestion> {
+    const id = this.suggestionId++;
+    const now = new Date();
+    
+    // Ensure required fields have default values
+    const suggestion: Suggestion = {
+      ...insertSuggestion,
+      id,
+      createdAt: now,
+      reasoning: insertSuggestion.reasoning || '', // Ensure reasoning is set
+      score: insertSuggestion.score || 0, // Ensure score is set
+      metadata: insertSuggestion.metadata || {} // Ensure metadata is set
+    };
+    
+    this.suggestions.set(id, suggestion);
+    return suggestion;
+  }
+  
+  async getSuggestionsByMeetingId(meetingId: number): Promise<Suggestion[]> {
+    return Array.from(this.suggestions.values()).filter(
+      (suggestion) => suggestion.meetingId === meetingId
+    );
+  }
+  
+  async getBestSuggestionsForMeeting(meetingId: number, limit: number = 3): Promise<Suggestion[]> {
+    const suggestions = await this.getSuggestionsByMeetingId(meetingId);
+    // Sort by score (highest first) and take top N
+    return suggestions
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, limit);
+  }
+  
+  // Time slot options methods
+  async getTimeSlotOptions(meetingId: number): Promise<TimeSlot[]> {
+    const meeting = await this.getMeeting(meetingId);
+    if (!meeting) return [];
+    
+    // This would generate time slots based on meeting parameters
+    // For now, we'll create placeholder slots with dummy data
+    const startDate = new Date(meeting.startDate);
+    const endDate = new Date(meeting.endDate);
+    const timeSlots: TimeSlot[] = [];
+    
+    // Create some default time slots for placeholder purposes
+    // In the real implementation, this would calculate based on meeting parameters
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    
+    // Generate a few example slots
+    timeSlots.push({
+      date: today.toISOString().split('T')[0],
+      time: '09:00',
+      formattedDate: today.toLocaleDateString(),
+      formattedTime: '9:00 AM'
+    });
+    
+    timeSlots.push({
+      date: today.toISOString().split('T')[0],
+      time: '14:00',
+      formattedDate: today.toLocaleDateString(),
+      formattedTime: '2:00 PM'
+    });
+    
+    timeSlots.push({
+      date: tomorrow.toISOString().split('T')[0],
+      time: '10:00',
+      formattedDate: tomorrow.toLocaleDateString(),
+      formattedTime: '10:00 AM'
+    });
+    
+    timeSlots.push({
+      date: tomorrow.toISOString().split('T')[0],
+      time: '15:00',
+      formattedDate: tomorrow.toLocaleDateString(),
+      formattedTime: '3:00 PM'
+    });
+    
+    return timeSlots;
+  }
+  
+  async calculateOptimalTimeSlots(meetingId: number, minRequired: number = 1): Promise<TimeSlot[]> {
+    // Real implementation would analyze availabilities and votes
+    const allTimeSlots = await this.getTimeSlotOptions(meetingId);
+    const availabilities = await this.getAvailabilitiesByMeetingId(meetingId);
+    const votes = await this.getVotesByMeetingId(meetingId);
+    
+    // Create placeholder implementation
+    // In the real implementation, this would use the actual availability data
+    // and implement a more sophisticated algorithm
+    return allTimeSlots.map((slot, index) => ({
+      ...slot,
+      available: Math.min(index + 1, 5), // Higher availability for earlier slots (for demo)
+      total: 5, // Total participants (placeholder)
+      selected: index === 0 // First option selected as example
+    }));
+  }
+
   // Combined operations
   async getMeetingWithParticipantsAndAvailabilities(uniqueId: string): Promise<{
     meeting: Meeting;
@@ -183,6 +358,28 @@ export class MemStorage implements IStorage {
       meeting,
       participants,
       availabilities
+    };
+  }
+  
+  async getMeetingWithVotesAndSuggestions(uniqueId: string): Promise<{
+    meeting: Meeting;
+    participants: Participant[];
+    votes: Vote[];
+    suggestions: Suggestion[];
+  } | undefined> {
+    const meeting = await this.getMeetingByUniqueId(uniqueId);
+    
+    if (!meeting) return undefined;
+    
+    const participants = await this.getParticipantsByMeetingId(meeting.id);
+    const votes = await this.getVotesByMeetingId(meeting.id);
+    const suggestions = await this.getSuggestionsByMeetingId(meeting.id);
+    
+    return {
+      meeting,
+      participants,
+      votes,
+      suggestions
     };
   }
 }

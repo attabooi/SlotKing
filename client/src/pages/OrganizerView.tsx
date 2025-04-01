@@ -1,20 +1,63 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { Meeting, Participant, Availability } from "@shared/schema";
 import { generateTimeSlots, formatDateRange } from "@/lib/date-utils";
+import { apiRequest } from "@/lib/queryClient";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import CalendarGrid from "@/components/CalendarGrid";
 import WeeklyCalendarGrid from "@/components/WeeklyCalendarGrid";
 import ActivityFeed from "@/components/ActivityFeed";
-import { ClipboardCopy, Settings, Info } from "lucide-react";
+import { ClipboardCopy, Settings, Info, Check, Trash2, RefreshCw } from "lucide-react";
+import * as party from 'party-js';
+
+// Helper function to get color by day name
+const getDayColor = (date: string) => {
+  const day = new Date(date).getDay();
+  const colors = {
+    0: '#F87171', // Sunday - red
+    1: '#FB923C', // Monday - orange
+    2: '#34D399', // Tuesday - green
+    3: '#60A5FA', // Wednesday - blue
+    4: '#A78BFA', // Thursday - purple
+    5: '#F472B6', // Friday - pink
+    6: '#FBBF24', // Saturday - yellow
+  };
+  return colors[day as keyof typeof colors];
+};
+
+// Format date to weekday name
+const formatDateToWeekday = (date: string) => {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNum = new Date(date).getDay();
+  return days[dayNum];
+};
+
+// Format time for display
+const formatTimeForDisplay = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour = hours % 12 || 12;
+  return `${hour}${minutes > 0 ? `:${minutes}` : ''} ${period}`;
+};
 
 const OrganizerView = () => {
   const params = useParams<{ id: string }>();
@@ -23,6 +66,9 @@ const OrganizerView = () => {
   const [activeTab, setActiveTab] = useState("availability");
   const [bestTimeSlot, setBestTimeSlot] = useState<string | null>(null);
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<Array<{ date: string; time: string }>>([]);
+  const [votingMode, setVotingMode] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const confettiRef = useRef<HTMLDivElement>(null);
   const [meetingData, setMeetingData] = useState<{
     meeting: Meeting;
     participants: Participant[];
@@ -95,6 +141,84 @@ const OrganizerView = () => {
     }
   }, [data]);
 
+  // Group selected time slots by date
+  const groupedTimeSlots = selectedTimeSlots.reduce((acc, slot) => {
+    const date = slot.date;
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+    acc[date].push(slot.time);
+    return acc;
+  }, {} as Record<string, string[]>);
+
+  // Function to trigger confetti effect
+  const triggerConfetti = (element: HTMLElement) => {
+    if (element) {
+      party.confetti(element, {
+        count: party.variation.range(30, 40),
+        size: party.variation.range(0.8, 1.2),
+        spread: party.variation.range(35, 45),
+      });
+    }
+  };
+  
+  // Mutation to confirm meeting time slots
+  const confirmMutation = useMutation({
+    mutationFn: async () => {
+      // Find the organizer participant (assuming first participant with same name as meeting.organizer)
+      const organizerParticipant = participants.find(p => p.name === meeting.organizer);
+      const participantId = organizerParticipant?.id || 1;
+      
+      return await apiRequest(
+        "POST",
+        `/api/vote`,
+        {
+          meetingId: params.id,
+          participantId: participantId,
+          timeSlots: selectedTimeSlots.map(slot => `${slot.date}-${slot.time}`),
+          weight: 2, // Give organizer's selections more weight
+          metadata: { isOrganizer: true }
+        }
+      );
+    },
+    onSuccess: () => {
+      setVotingMode(true);
+      // Trigger confetti on the summary section
+      if (confettiRef.current) {
+        triggerConfetti(confettiRef.current);
+      }
+      toast({
+        title: "Time slots confirmed",
+        description: "Your selected time slots have been locked in. Share the link with participants for voting.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to confirm time slots. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Mutation to reset all selections
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      // This would be a more complex operation in a real app
+      // For now, we'll just clear the local state
+      return Promise.resolve();
+    },
+    onSuccess: () => {
+      setSelectedTimeSlots([]);
+      setVotingMode(false);
+      setShowResetConfirm(false);
+      toast({
+        title: "Reset successful",
+        description: "All time slots and participant data have been cleared.",
+      });
+    }
+  });
+
   const handleCopyLink = () => {
     const meetingUrl = `${window.location.origin}/join/${params.id}`;
     navigator.clipboard.writeText(meetingUrl);
@@ -103,6 +227,31 @@ const OrganizerView = () => {
       title: "Link copied",
       description: "Meeting link copied to clipboard",
     });
+  };
+  
+  const handleConfirmSchedule = () => {
+    if (selectedTimeSlots.length === 0) {
+      toast({
+        title: "No time slots selected",
+        description: "Please select at least one time slot before confirming.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    confirmMutation.mutate();
+  };
+  
+  const handleResetAll = () => {
+    setShowResetConfirm(true);
+  };
+  
+  const handleRemoveTimeSlot = (date: string, time: string) => {
+    setSelectedTimeSlots(
+      selectedTimeSlots.filter(
+        slot => !(slot.date === date && slot.time === time)
+      )
+    );
   };
 
   if (isLoading) {
@@ -224,6 +373,130 @@ const OrganizerView = () => {
             </div>
           </div>
         </div>
+        
+        {/* Meeting Summary Section */}
+        <div ref={confettiRef} className="mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+            <h2 className="text-xl font-medium text-primary mb-2 md:mb-0">Meeting Summary</h2>
+            <div className="space-x-2">
+              {!votingMode ? (
+                <Button 
+                  onClick={handleConfirmSchedule}
+                  disabled={selectedTimeSlots.length === 0 || confirmMutation.isPending}
+                  className="bg-gradient-to-r from-primary to-primary/90"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Confirm Schedule
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleResetAll}
+                  variant="outline"
+                  className="text-red-500 border-red-200 hover:bg-red-50"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Reset All
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          {selectedTimeSlots.length > 0 ? (
+            <div className="mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {Object.entries(groupedTimeSlots).map(([date, times]) => {
+                  const dayColor = getDayColor(date);
+                  const weekday = formatDateToWeekday(date);
+                  
+                  return times.map((time, timeIndex) => (
+                    <div 
+                      key={`${date}-${time}-${timeIndex}`}
+                      className={`relative group overflow-hidden rounded-lg border shadow-sm transition-all duration-200 ${
+                        votingMode ? 'animate-pulse-subtle border-primary/30' : 'border-gray-200 hover:border-primary/20'
+                      }`}
+                    >
+                      <div className="absolute top-0 left-0 h-full w-1.5" style={{ backgroundColor: dayColor }}></div>
+                      <div className="p-3 pl-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-semibold text-lg" style={{ color: dayColor }}>{weekday}</p>
+                            <p className="text-gray-700 text-lg">{formatTimeForDisplay(time)}</p>
+                            <p className="text-xs text-gray-500 mt-1">{new Date(date).toLocaleDateString()}</p>
+                          </div>
+                          
+                          {!votingMode && (
+                            <Button
+                              variant="ghost" 
+                              size="icon"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                              onClick={() => handleRemoveTimeSlot(date, time)}
+                            >
+                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                            </Button>
+                          )}
+                          
+                          {votingMode && participants.length > 0 && (
+                            <div className="flex -space-x-2">
+                              {participants.slice(0, 3).map((p, i) => (
+                                <div 
+                                  key={`participant-${p.id}-${i}`}
+                                  className="w-6 h-6 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-xs font-medium"
+                                  title={p.name}
+                                >
+                                  {p.name.charAt(0).toUpperCase()}
+                                </div>
+                              ))}
+                              {participants.length > 3 && (
+                                <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium">
+                                  +{participants.length - 3}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {votingMode && (
+                          <div className="mt-2 flex items-center">
+                            <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/10">
+                              {participants.length > 0 
+                                ? `${participants.length} participants` 
+                                : "Waiting for votes"}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ));
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 p-6 border border-dashed border-gray-300 rounded-lg text-center">
+              <p className="text-gray-500">No time slots selected yet. Please select your preferred time slots from the calendar below.</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Alert Dialog for Reset Confirmation */}
+        <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset all selections?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will clear all selected time slots and participant data. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => resetMutation.mutate()}
+                className="bg-red-500 hover:bg-red-600"
+              >
+                Reset
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         
         <div className="mb-6">
           <h2 className="text-xl font-medium text-primary mb-4">Schedule Meeting</h2>

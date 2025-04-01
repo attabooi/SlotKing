@@ -110,7 +110,54 @@ export type MeetingWithTimeSlots = Meeting & {
   availabilities: Availability[];
 };
 
+// MCP/AI suggestions schema (for future use)
+export const suggestions = pgTable("suggestions", {
+  id: serial("id").primaryKey(),
+  meetingId: integer("meeting_id").notNull(), // References meetings.id
+  suggestedBy: text("suggested_by").notNull(), // "ai" or participant ID
+  suggestedTimeSlots: json("suggested_time_slots").notNull(), // Prioritized time slots
+  reasoning: text("reasoning").default('').notNull(), // Explanation for the suggestion
+  score: integer("score").default(0).notNull(), // Quality score for the suggestion
+  metadata: json("metadata").default({}).notNull(), // Additional data like constraints considered
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSuggestionSchema = createInsertSchema(suggestions).pick({
+  meetingId: true,
+  suggestedBy: true,
+  suggestedTimeSlots: true,
+  reasoning: true,
+  score: true,
+  metadata: true,
+});
+
+export type InsertSuggestion = z.infer<typeof insertSuggestionSchema>;
+export type Suggestion = typeof suggestions.$inferSelect;
+
+// Vote schema (for recording votes from users or AI)
+export const votes = pgTable("votes", {
+  id: serial("id").primaryKey(),
+  meetingId: integer("meeting_id").notNull(), // References meetings.id
+  participantId: integer("participant_id").notNull(), // References participants.id
+  timeSlots: json("time_slots").notNull(), // Array of voted time slots
+  weight: integer("weight").default(1).notNull(), // For weighted voting (can be used by AI)
+  metadata: json("metadata").default({}).notNull(), // Additional context data
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertVoteSchema = createInsertSchema(votes).pick({
+  meetingId: true,
+  participantId: true,
+  timeSlots: true,
+  weight: true,
+  metadata: true,
+});
+
+export type InsertVote = z.infer<typeof insertVoteSchema>;
+export type Vote = typeof votes.$inferSelect;
+
+// Extended type for WebSocket messages
 export type WebSocketMessage = {
-  type: 'participant_joined' | 'availability_updated';
+  type: 'participant_joined' | 'availability_updated' | 'vote_submitted' | 'suggestion_added';
   data: any;
 };
