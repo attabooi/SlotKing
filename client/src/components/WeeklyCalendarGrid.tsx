@@ -221,19 +221,31 @@ const WeeklyCalendarGrid = forwardRef<any, WeeklyCalendarGridProps>(({
                   <div 
                     key={`cell-${day}-${hour}`} 
                     className={cn(
-                      "border-b border-r border-border/20 h-12 relative",
-                      (slotIsSelected || isInTempSelection) && "bg-primary/10 hover:bg-primary/15",
-                      !slotIsSelected && !isInTempSelection && "hover:bg-muted/50"
+                      "h-12 relative",
+                      (slotIsSelected || isInTempSelection) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/50",
+                      "border-b border-r border-border/20",
+                      slotIsSelected && "cell-selected",
+                      // 인접한 선택된 셀과의 경계선 제거를 위한 클래스
+                      slotIsSelected && timeSlots.some(slot => 
+                        slot.date === format(addDays(weekStart, day+1), "yyyy-MM-dd") && 
+                        slot.time === time && 
+                        isSelected(slot.date, slot.time)
+                      ) && "cell-selected-right",
+                      slotIsSelected && timeSlots.some(slot => 
+                        slot.date === date && 
+                        slot.time === `${hour+1}:00` && 
+                        isSelected(slot.date, slot.time)
+                      ) && "cell-selected-bottom"
                     )}
                     onMouseDown={() => handleMouseDown(day, hour)}
                     onMouseOver={() => handleMouseOver(day, hour)}
                     onTouchStart={() => handleMouseDown(day, hour)}
                     onTouchMove={() => handleMouseOver(day, hour)}
                   >
-                    {/* Organizer crown icon */}
-                    {slotIsSelected && isOrganizer && (
-                      <div className="absolute top-1 left-1">
-                        <Crown className="h-3.5 w-3.5 text-primary" />
+                    {/* Top voted crown icon - only show for slots with votes */}
+                    {slotIsSelected && availableCount > 0 && availableCount === Math.max(...timeSlots.filter(ts => isSelected(ts.date, ts.time)).map(ts => ts.available || 0)) && (
+                      <div className="absolute top-0.5 right-0.5 filter-crown-glow animate-bounce-slow">
+                        <Crown className="h-6 w-6 text-yellow-400" />
                       </div>
                     )}
                     
