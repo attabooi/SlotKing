@@ -546,7 +546,7 @@
   .cell-selected {
     @apply relative z-10;
     position: relative;
-    border: none !important;
+    border-color: transparent !important;
   }
   
   /* Horizontal connecting element to merge adjacent cells */
@@ -563,7 +563,7 @@
   
   /* Remove right border and extend overlay to cover */
   .cell-selected-right {
-    @apply border-r-0;
+    @apply border-r-transparent;
   }
   
   /* Create overlay that extends to cover border with 2px for safety */
@@ -575,7 +575,7 @@
   
   /* Remove bottom border and extend overlay to cover */
   .cell-selected-bottom {
-    @apply border-b-0;
+    @apply border-b-transparent;
   }
   
   /* Create overlay that extends to cover border with 2px for safety */
@@ -583,6 +583,22 @@
     height: calc(100% + 2px);
     bottom: -2px;
     top: auto;
+  }
+  
+  /* Remove top border and extend overlay to cover */
+  .cell-selected-top {
+    @apply border-t-transparent;
+  }
+  
+  /* Create overlay that extends to cover border with 2px for safety */
+  .cell-selected-top::after {
+    height: calc(100% + 2px);
+    top: -2px;
+  }
+  
+  /* Eliminate all visible borders between vertical connected cells */
+  .cell-selected + .cell-selected {
+    border-top: none !important;
   }
   
   /* Connection for cells in all directions */

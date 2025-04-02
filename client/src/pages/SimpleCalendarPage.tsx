@@ -164,39 +164,14 @@ const SimpleCalendarPage: React.FC = () => {
       slots.length;
     
     if (expectedSlotCount > 0 && userName) {
-      // This is only for demonstration - in real app you'd get this from server
-      const demoParticipants: Participant[] = [
+      // Only include the current user/host - no ghost participants
+      const realParticipants: Participant[] = [
         { name: userName, color: getUserColor(userName), isHost: isHost }
       ];
       
-      // Add some mock participants based on total selected slots count
-      if (expectedSlotCount > 3) {
-        demoParticipants.push(
-          { name: 'John', color: getUserColor('John') },
-          { name: 'Sarah', color: getUserColor('Sarah') }
-        );
-      }
-      
-      if (expectedSlotCount > 5) {
-        demoParticipants.push(
-          { name: 'Michael', color: getUserColor('Michael') },
-          { name: 'Emma', color: getUserColor('Emma') },
-          { name: 'Alex', color: getUserColor('Alex') }
-        );
-      }
-      
-      if (expectedSlotCount > 8) {
-        demoParticipants.push(
-          { name: 'Rachel', color: getUserColor('Rachel') },
-          { name: 'David', color: getUserColor('David') },
-          { name: 'Jessica', color: getUserColor('Jessica') },
-          { name: 'Thomas', color: getUserColor('Thomas') },
-          { name: 'Olivia', color: getUserColor('Olivia') },
-          { name: 'William', color: getUserColor('William') }
-        );
-      }
-      
-      setMockParticipants(demoParticipants);
+      // Only host is shown during creation, other participants will only be added
+      // when actual voting happens (via handleVoteForTimeSlot function)
+      setMockParticipants(realParticipants);
     }
   };
   
@@ -452,18 +427,30 @@ const SimpleCalendarPage: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 mb-6">
-            <Switch
-              id="host-mode"
-              checked={isHost}
-              onCheckedChange={setIsHost}
-            />
-            <Label htmlFor="host-mode">I am the meeting host</Label>
-            {isHost && (
-              <Badge variant="outline" className="ml-2 text-primary bg-primary/5">
-                Host Mode
-              </Badge>
-            )}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="host-mode"
+                checked={isHost}
+                onCheckedChange={setIsHost}
+              />
+              <Label htmlFor="host-mode">I am the meeting host</Label>
+              {isHost && (
+                <Badge variant="outline" className="ml-2 text-primary bg-primary/5">
+                  Host Mode
+                </Badge>
+              )}
+            </div>
+            
+            {/* Reset button to clear all selections */}
+            <Button 
+              variant="outline" 
+              className="border-destructive/30 text-destructive hover:bg-destructive/5 hover:border-destructive/50"
+              onClick={handleResetAll}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Reset All
+            </Button>
           </div>
           
           <SimpleWeeklyCalendar 

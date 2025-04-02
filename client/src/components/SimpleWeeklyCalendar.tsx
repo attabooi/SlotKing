@@ -729,6 +729,9 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
                     const hasBottomSelectedNeighbor = isSlotSelected && selectedSlots.some(
                       slot => slot.day === dayIndex && slot.hour === hour + 1
                     );
+                    const hasTopSelectedNeighbor = isSlotSelected && selectedSlots.some(
+                      slot => slot.day === dayIndex && slot.hour === hour - 1
+                    );
                     
                     return (
                       <div 
@@ -743,7 +746,8 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
                           // Apply border removal classes for selected cells
                           isSlotSelected && "cell-selected",
                           hasRightSelectedNeighbor && "cell-selected-right",
-                          hasBottomSelectedNeighbor && "cell-selected-bottom"
+                          hasBottomSelectedNeighbor && "cell-selected-bottom",
+                          hasTopSelectedNeighbor && "cell-selected-top"
                         )}
                         onMouseDown={() => handleMouseDown(dayIndex, hour)}
                         onMouseOver={() => handleMouseOver(dayIndex, hour)}
