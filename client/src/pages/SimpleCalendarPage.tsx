@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import SimpleWeeklyCalendar from '@/components/SimpleWeeklyCalendar';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Calendar, Copy, Check, RefreshCw, Share2, Link2, ChevronRight, Users, Clock, ThumbsUp } from 'lucide-react';
+import { Trash2, Calendar, Copy, Check, RefreshCw, Share2, Link2, ChevronRight, Users, Clock, ThumbsUp, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   AlertDialog,
@@ -49,6 +49,7 @@ const SimpleCalendarPage: React.FC = () => {
   const { 
     timeSlots, 
     addTimeSlot, 
+    deleteTimeSlot,
     deleteSlotGroup, 
     resetAll: resetAllSlots,
     updateParticipants 
@@ -176,10 +177,48 @@ const SimpleCalendarPage: React.FC = () => {
   };
   
   const handleDeleteTimeSlot = (day: number, hour: number) => {
+    console.log(`handleDeleteTimeSlot called for day: ${day}, hour: ${hour}`);
+    
+    // Find which time slot groups this slot belongs to
+    const affectedGroups = selectionGroups.filter(group => 
+      group.slots.some(slot => slot.day === day && slot.hour === hour)
+    );
+    
+    // First remove from local state
     const newSelectedSlots = selectedSlots.filter(
       slot => !(slot.day === day && slot.hour === hour)
     );
     setSelectedSlots(newSelectedSlots);
+    
+    // If the slot belongs to a group, delete the entire group from centralized state
+    if (affectedGroups.length > 0) {
+      affectedGroups.forEach(group => {
+        console.log(`Deleting group ${group.id} because it contains the deleted slot`);
+        deleteSlotGroup(group.id);
+        
+        // Also remove the group from selection groups state
+        setSelectionGroups(prev => prev.filter(g => g.id !== group.id));
+      });
+    } else {
+      // If we couldn't find a group, we might need to look through the centralized time slots
+      // Find any slots in the timeSlots state that match this day and hour
+      const currentDate = new Date();
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const dayDate = addDays(weekStart, day);
+      const slotDate = format(dayDate, 'yyyy-MM-dd');
+      const slotTime = format(new Date(0, 0, 0, hour), 'HH:mm');
+      
+      // Find matching slots in the centralized state
+      timeSlots.forEach(slot => {
+        if (slot.date === slotDate && slot.time === slotTime) {
+          console.log(`Deleting individual slot with ID: ${slot.id}`);
+          deleteTimeSlot(slot.id);
+        }
+      });
+    }
+    
+    // Update the summary view
+    handleSelectTimeSlots(newSelectedSlots, false);
   };
   
   const handleDeleteSelectionGroup = (groupId: string) => {
@@ -642,8 +681,18 @@ const SimpleCalendarPage: React.FC = () => {
                       
                       {/* Participant indicator section */}
                       <div className="flex items-center justify-between">
-                        <div className="text-xs text-muted-foreground font-medium">
+                        <div className="text-xs text-muted-foreground font-medium flex items-center">
                           {mockParticipants.length > 0 ? 'Participants' : 'No participants yet'}
+                          
+                          {/* Only show crown for the group with most participants when in voting mode */}
+                          {isVotingMode && mockParticipants.length > 0 && 
+                           selectionGroups.reduce((maxCount, currGroup) => 
+                             Math.max(maxCount, mockParticipants.filter(p => p.name !== userName).length + (group.id === currGroup.id ? 1 : 0)), 0) === 
+                           mockParticipants.filter(p => p.name !== userName).length + 1 && (
+                            <span className="ml-1.5 flex items-center text-amber-500" title="Most popular time slot">
+                              <Crown className="w-3.5 h-3.5" />
+                            </span>
+                          )}
                         </div>
                         
                         <div className="flex -space-x-1.5">
@@ -658,6 +707,7 @@ const SimpleCalendarPage: React.FC = () => {
                               title={participant.name}
                             >
                               {participant.name.charAt(0).toUpperCase()}
+                              {/* Only show host crown here, not popularity crown */}
                               {participant.isHost && (
                                 <span className="absolute -top-1 -right-1 text-[8px]">👑</span>
                               )}

@@ -24,6 +24,46 @@
   --primary-rgb: 37, 99, 235; /* Blue-600 default, should match your theme primary color */
 }
 
+/* Time slot selection styling for connecting slots */
+.cell-selected {
+  /* Give selected cells distinctive styling */
+  position: relative;
+  z-index: 1;
+}
+
+/* Remove borders between adjacent selected cells to create continuous blocks */
+.cell-selected-right {
+  border-right-color: transparent !important;
+}
+
+.cell-selected-bottom {
+  border-bottom-color: transparent !important;
+}
+
+.cell-selected-top {
+  border-top-color: transparent !important;
+}
+
+/* Visual indicators for connected slots */
+.slot-connected-top,
+.slot-connected-bottom,
+.slot-connected-left,
+.slot-connected-right {
+  background-color: rgba(var(--primary-rgb), 0.2);
+  z-index: 2;
+}
+
+/* Group indicator styling */
+.group-indicator {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(var(--primary-rgb), 0.05),
+    rgba(var(--primary-rgb), 0.05) 5px,
+    rgba(var(--primary-rgb), 0.1) 5px,
+    rgba(var(--primary-rgb), 0.1) 10px
+  );
+}
+
 @layer base {
   :root {
     --gold: #FFC107;
@@ -245,6 +285,24 @@
     z-index: 5;
     border: 1px solid rgba(126, 87, 194, 0.5);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Selection cell styling with border removal for adjacent cells */
+  .cell-selected {
+    position: relative;
+    z-index: 2;
+  }
+  
+  .cell-selected-right {
+    border-right-color: transparent !important;
+  }
+  
+  .cell-selected-bottom {
+    border-bottom-color: transparent !important;
+  }
+  
+  .cell-selected-top {
+    border-top-color: transparent !important;
   }
   
   /* SlotKing ranking styles */
