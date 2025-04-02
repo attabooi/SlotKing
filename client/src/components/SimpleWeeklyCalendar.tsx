@@ -737,20 +737,15 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
                       <div 
                         key={`cell-${dayIndex}-${hour}`} 
                         className={cn(
-                          "border-b border-r border-border/20 h-12 relative transition-colors duration-150",
+                          // 선택되지 않은 셀에만 테두리 적용 
+                          !isSlotSelected && "border-b border-r border-border/20", 
+                          "h-12 relative transition-colors duration-150",
                           isInSelection && "bg-primary/15 hover:bg-primary/20",
                           // Add special group styling without transparency 
-                          isSlotSelected && (hasRightSelectedNeighbor || hasBottomSelectedNeighbor || hasTopSelectedNeighbor) && "slot-group-inner",
+                          isSlotSelected && "slot-group-inner",
                           // Set default styles for non-grouped cells
-                          isSlotSelected && !(hasRightSelectedNeighbor || hasBottomSelectedNeighbor || hasTopSelectedNeighbor) && 
-                            (isHost ? "bg-primary/25 hover:bg-primary/30" : "bg-secondary/25 hover:bg-secondary/30"),
                           !isSlotSelected && !isInSelection && `hover:bg-muted/30 ${bgStyle}`,
-                          isDragging && "cursor-pointer",
-                          // Apply border removal classes only for isolated cells
-                          isSlotSelected && "cell-selected",
-                          hasRightSelectedNeighbor && "cell-selected-right",
-                          hasBottomSelectedNeighbor && "cell-selected-bottom",
-                          hasTopSelectedNeighbor && "cell-selected-top"
+                          isDragging && "cursor-pointer"
                         )}
                         onMouseDown={() => handleMouseDown(dayIndex, hour)}
                         onMouseOver={() => handleMouseOver(dayIndex, hour)}
@@ -810,10 +805,7 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
                               </div>
                             )}
                             
-                            {/* Visual indicators for grouped and connected slots */}
-                            {isSlotSelected && !isTopSlotOfGroup(dayIndex, hour) && (
-                              <div className="absolute inset-0 group-indicator opacity-30 pointer-events-none"></div>
-                            )}
+                            {/* 그룹화된 셀에 배경 인디케이터 추가하지 않음 */}
                             
                             {/* Show connection indicators only for slots within the same group */}
                             {isSlotSelected && (
@@ -826,25 +818,8 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
                                   // Only show connections within the same group
                                   return (
                                     <>
-                                      {/* Check if there's a selected slot above in the same group */}
-                                      {currentGroup.slots.some(slot => slot.day === dayIndex && slot.hour === hour - 1) && (
-                                        <div className="absolute inset-x-0 top-0 h-1/4 slot-connected-top pointer-events-none"></div>
-                                      )}
-                                      
-                                      {/* Check if there's a selected slot below in the same group */}
-                                      {currentGroup.slots.some(slot => slot.day === dayIndex && slot.hour === hour + 1) && (
-                                        <div className="absolute inset-x-0 bottom-0 h-1/4 slot-connected-bottom pointer-events-none"></div>
-                                      )}
-                                      
-                                      {/* Check if there's a selected slot to the left in the same group */}
-                                      {currentGroup.slots.some(slot => slot.day === dayIndex - 1 && slot.hour === hour) && (
-                                        <div className="absolute inset-y-0 left-0 w-1/4 slot-connected-left pointer-events-none"></div>
-                                      )}
-                                      
-                                      {/* Check if there's a selected slot to the right in the same group */}
-                                      {currentGroup.slots.some(slot => slot.day === dayIndex + 1 && slot.hour === hour) && (
-                                        <div className="absolute inset-y-0 right-0 w-1/4 slot-connected-right pointer-events-none"></div>
-                                      )}
+                                      {/* 그룹 연결 표시를 제거하고 하나의 통합된 배경으로 처리 */}
+                                      {/* 커넥션 그라디언트 대신 영역 전체에 동일한 배경색을 적용합니다 */}
                                     </>
                                   );
                                 })()}

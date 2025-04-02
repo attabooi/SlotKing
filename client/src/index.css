@@ -711,11 +711,19 @@
     z-index: 10;
     box-shadow: none !important;
     background-color: rgb(224, 215, 245) !important; /* 불투명한 배경색으로 변경 */
+    margin: 1px; /* 간격 추가하여 경계선 제거 */
+    outline: none;
   }
 
   /* Add a smooth transition for hover effect */
   .slot-group-inner:hover {
     background-color: rgb(213, 198, 245) !important; /* 호버시 어둡게 */
+  }
+  
+  /* 그룹화된 셀들간 경계선 완전히 제거를 위한 패딩 및 마진 조정 */
+  .slot-group-inner:not(:first-child):not(:last-child) {
+    margin: 0px !important;
+    padding: 1px !important;
   }
   
   /* Selection area highlight */
