@@ -747,7 +747,9 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
                           isSlotSelected && "cell-selected",
                           hasRightSelectedNeighbor && "cell-selected-right",
                           hasBottomSelectedNeighbor && "cell-selected-bottom",
-                          hasTopSelectedNeighbor && "cell-selected-top"
+                          hasTopSelectedNeighbor && "cell-selected-top", 
+                          // Add more classes for multi-selected groups
+                          isSlotSelected && (hasRightSelectedNeighbor || hasBottomSelectedNeighbor || hasTopSelectedNeighbor) && "slot-group-inner"
                         )}
                         onMouseDown={() => handleMouseDown(dayIndex, hour)}
                         onMouseOver={() => handleMouseOver(dayIndex, hour)}

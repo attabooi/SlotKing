@@ -620,7 +620,8 @@
   .cell-selected {
     @apply relative z-10;
     position: relative;
-    border-color: transparent !important;
+    border: none !important; /* 모든 테두리 제거 */
+    box-shadow: 0 0 0 1px rgba(126, 87, 194, 0.3) inset; /* 통합된 테두리 효과 */
   }
   
   /* Horizontal connecting element to merge adjacent cells */
@@ -637,31 +638,31 @@
   
   /* Remove right border and extend overlay to cover */
   .cell-selected-right {
-    @apply border-r-transparent;
+    box-shadow: none !important; /* 오른쪽에 이웃한 셀이 있으면 그쪽 테두리 제거 */
   }
   
-  /* Create overlay that extends to cover border with 2px for safety */
+  /* Create overlay that extends to cover border with 3px for safety */
   .cell-selected-right::after {
-    width: calc(100% + 2px);
-    right: -2px;
+    width: calc(100% + 3px);
+    right: -3px;
     left: auto;
   }
   
   /* Remove bottom border and extend overlay to cover */
   .cell-selected-bottom {
-    @apply border-b-transparent;
+    box-shadow: none !important; /* 아래에 이웃한 셀이 있으면 아래쪽 테두리 제거 */
   }
   
-  /* Create overlay that extends to cover border with 2px for safety */
+  /* Create overlay that extends to cover border with 3px for safety */
   .cell-selected-bottom::after {
-    height: calc(100% + 2px);
-    bottom: -2px;
+    height: calc(100% + 3px);
+    bottom: -3px;
     top: auto;
   }
   
   /* Remove top border and extend overlay to cover */
   .cell-selected-top {
-    @apply border-t-transparent;
+    box-shadow: none !important; /* 위에 이웃한 셀이 있으면 위쪽 테두리 제거 */
   }
   
   /* Create overlay that extends to cover border with 2px for safety */
@@ -673,14 +674,15 @@
   /* Eliminate all visible borders between vertical connected cells */
   .cell-selected + .cell-selected {
     border-top: none !important;
+    box-shadow: none !important;
   }
   
   /* Connection for cells in all directions */
   .cell-selected-all-sides::after {
-    width: calc(100% + 2px);
-    height: calc(100% + 2px);
-    top: -1px;
-    left: -1px;
+    width: calc(100% + 3px);
+    height: calc(100% + 3px);
+    top: -1.5px;
+    left: -1.5px;
   }
   
   /* Special case for connecting multiple cells in a grid */
@@ -700,6 +702,20 @@
     right: -1px;
     bottom: -1px;
     z-index: -1;
+  }
+  
+  /* For slots that are part of a group, no internal borders */
+  .slot-group-inner {
+    border: none !important;
+    position: relative;
+    z-index: 10;
+    box-shadow: none !important;
+    background-color: rgba(126, 87, 194, 0.2) !important;
+  }
+
+  /* Add a smooth transition for hover effect */
+  .slot-group-inner:hover {
+    background-color: rgba(126, 87, 194, 0.3) !important;
   }
   
   /* Selection area highlight */
