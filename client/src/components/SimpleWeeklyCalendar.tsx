@@ -739,17 +739,18 @@ const SimpleWeeklyCalendar = React.forwardRef<any, SimpleWeeklyCalendarProps>(
                         className={cn(
                           "border-b border-r border-border/20 h-12 relative transition-colors duration-150",
                           isInSelection && "bg-primary/15 hover:bg-primary/20",
-                          isSlotSelected && isHost && "bg-primary/25 hover:bg-primary/30",
-                          isSlotSelected && !isHost && "bg-secondary/25 hover:bg-secondary/30",
+                          // Add special group styling without transparency 
+                          isSlotSelected && (hasRightSelectedNeighbor || hasBottomSelectedNeighbor || hasTopSelectedNeighbor) && "slot-group-inner",
+                          // Set default styles for non-grouped cells
+                          isSlotSelected && !(hasRightSelectedNeighbor || hasBottomSelectedNeighbor || hasTopSelectedNeighbor) && 
+                            (isHost ? "bg-primary/25 hover:bg-primary/30" : "bg-secondary/25 hover:bg-secondary/30"),
                           !isSlotSelected && !isInSelection && `hover:bg-muted/30 ${bgStyle}`,
                           isDragging && "cursor-pointer",
-                          // Apply border removal classes for selected cells
+                          // Apply border removal classes only for isolated cells
                           isSlotSelected && "cell-selected",
                           hasRightSelectedNeighbor && "cell-selected-right",
                           hasBottomSelectedNeighbor && "cell-selected-bottom",
-                          hasTopSelectedNeighbor && "cell-selected-top", 
-                          // Add more classes for multi-selected groups
-                          isSlotSelected && (hasRightSelectedNeighbor || hasBottomSelectedNeighbor || hasTopSelectedNeighbor) && "slot-group-inner"
+                          hasTopSelectedNeighbor && "cell-selected-top"
                         )}
                         onMouseDown={() => handleMouseDown(dayIndex, hour)}
                         onMouseOver={() => handleMouseOver(dayIndex, hour)}

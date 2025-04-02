@@ -704,18 +704,18 @@
     z-index: -1;
   }
   
-  /* For slots that are part of a group, no internal borders */
+  /* For slots that are part of a group, no internal borders - 완전히 배경으로 채우기 */
   .slot-group-inner {
     border: none !important;
     position: relative;
     z-index: 10;
     box-shadow: none !important;
-    background-color: rgba(126, 87, 194, 0.2) !important;
+    background-color: rgb(224, 215, 245) !important; /* 불투명한 배경색으로 변경 */
   }
 
   /* Add a smooth transition for hover effect */
   .slot-group-inner:hover {
-    background-color: rgba(126, 87, 194, 0.3) !important;
+    background-color: rgb(213, 198, 245) !important; /* 호버시 어둡게 */
   }
   
   /* Selection area highlight */
