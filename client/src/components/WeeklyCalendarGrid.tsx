@@ -4,12 +4,15 @@ import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } f
 import { Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import TimeSlotComponent from "./TimeSlot";
 
 type WeeklyCalendarGridProps = {
   meeting: Meeting;
   timeSlots: TimeSlot[];
   isOrganizer?: boolean;
   onTimeSlotSelect?: (date: string, time: string) => void;
+  onTimeSlotDelete?: (date: string, time: string) => void;
+  onReset?: () => void;
   selectedSlots?: Array<{ date: string; time: string }>;
   participants?: Array<{ name: string; color: string }>;
 };
@@ -22,6 +25,8 @@ const WeeklyCalendarGrid = forwardRef<any, WeeklyCalendarGridProps>(({
   timeSlots,
   isOrganizer = false,
   onTimeSlotSelect,
+  onTimeSlotDelete,
+  onReset,
   selectedSlots = [],
   participants = []
 }, ref) => {
@@ -99,6 +104,19 @@ const WeeklyCalendarGrid = forwardRef<any, WeeklyCalendarGridProps>(({
     setTempSelectionCells([]);
   };
   
+  // Handle slot deletion
+  const handleSlotDelete = (date: string, time: string) => {
+    if (!isOrganizer || !onTimeSlotDelete) return;
+    
+    // Remove the slot from the local state
+    const updatedSlots = timeSlots.filter(
+      slot => !(slot.date === date && slot.time === time)
+    );
+    
+    // Call the parent's delete handler
+    onTimeSlotDelete(date, time);
+  };
+  
   // Add document-wide mouse up event listener
   useEffect(() => {
     const handleDocumentMouseUp = () => {
@@ -161,140 +179,144 @@ const WeeklyCalendarGrid = forwardRef<any, WeeklyCalendarGridProps>(({
     }
   }));
   
+  // Render a time slot cell
+  const renderTimeSlot = (day: number, hour: number) => {
+    const { date, time } = getDayAndTimeFromCell(day, hour);
+    const slot = timeSlots.find(s => s.date === date && s.time === time);
+    const isSlotSelected = isSelected(date, time);
+    const isInSelection = tempSelectionCells.some(cell => cell.day === day && cell.hour === hour);
+
+    // Don't render if the slot is deleted
+    if (!slot) return (
+      <div
+        key={`${day}-${hour}`}
+        className="relative border border-gray-200"
+      />
+    );
+
+    return (
+      <div
+        key={`${day}-${hour}`}
+        className={cn(
+          "relative border border-gray-200",
+          isInSelection && "bg-primary/10",
+          isSlotSelected && "bg-primary/20"
+        )}
+        onMouseDown={() => handleMouseDown(day, hour)}
+        onMouseOver={() => handleMouseOver(day, hour)}
+        onMouseUp={handleMouseUp}
+      >
+        <TimeSlotComponent
+          available={slot.available || 0}
+          total={participants.length}
+          selected={isSlotSelected}
+          isOrganizer={isOrganizer}
+          participants={participants}
+          showParticipants={true}
+          onClick={() => isOrganizer ? handleSlotDelete(date, time) : onTimeSlotSelect?.(date, time)}
+        />
+      </div>
+    );
+  };
+  
   return (
-    <div className="overflow-auto">
+    <div className="w-full">
       {isOrganizer && (
-        <div className="bg-primary/5 rounded-lg p-3 mb-4 text-sm text-muted-foreground flex items-center gap-2">
-          <span className="text-primary font-medium">💡 Tip:</span> 
-          Click and drag to select multiple time slots at once.
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={onReset}
+            className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+          >
+            모든 슬롯 초기화
+          </button>
         </div>
       )}
-      
-      <div className="min-w-[800px]">
-        {/* Header row with days */}
-        <div className="grid grid-cols-[60px_repeat(7,1fr)]">
-          <div className="border-b border-r border-border/20 p-2"></div>
-          
-          {DAYS_OF_WEEK.map(day => {
-            const date = addDays(weekStart, day);
-            return (
-              <div 
-                key={`day-${day}`} 
-                className="border-b border-r border-border/20 p-2 text-center"
-              >
-                <div className="text-sm font-medium">{format(date, "EEE")}</div>
-                <div className="text-xs text-muted-foreground">{format(date, "MMM d")}</div>
-              </div>
-            );
-          })}
+      <div className="grid grid-cols-8 gap-0">
+        {/* Time labels */}
+        <div className="col-span-1">
+          {HOURS.map(hour => (
+            <div key={`hour-${hour}`} className="h-12 flex items-center justify-end pr-2 text-sm text-gray-500">
+              {format(new Date().setHours(hour), "h a")}
+            </div>
+          ))}
         </div>
         
-        {/* Time grid */}
-        <div>
+        {/* Calendar grid */}
+        <div className="col-span-7 grid grid-cols-7 gap-0">
           {HOURS.map(hour => (
-            <div key={`hour-${hour}`} className="grid grid-cols-[60px_repeat(7,1fr)]">
-              {/* Time label */}
-              <div className="border-b border-r border-border/20 p-2 text-xs font-medium text-muted-foreground text-right pr-3">
-                {format(new Date(2023, 0, 1, hour), "h a")}
-              </div>
-              
-              {/* Day cells */}
-              {DAYS_OF_WEEK.map(day => {
-                const { date, time } = getDayAndTimeFromCell(day, hour);
-                const slotIsSelected = isSelected(date, time);
-                const isInTempSelection = tempSelectionCells.some(
-                  cell => cell.day === day && cell.hour === hour
-                );
-                
-                // Find available participants count for this time slot
-                const timeSlotAvailability = timeSlots.find(
-                  slot => slot.date === date && slot.time === time
-                );
-                const availableCount = timeSlotAvailability?.available || 0;
-                const totalCount = timeSlotAvailability?.total || 0;
-                
-                // Generate a subset of participants for this slot if it's selected
-                const slotParticipants = slotIsSelected ? 
-                  participants.slice(0, Math.min(4, participants.length)) : [];
-                
-                return (
-                  <div 
-                    key={`cell-${day}-${hour}`} 
-                    className={cn(
-                      "h-12 relative",
-                      (slotIsSelected || isInTempSelection) ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted/50",
-                      "border-b border-r border-border/20",
-                      slotIsSelected && "cell-selected",
-                      // 인접한 선택된 셀과의 경계선 제거를 위한 클래스
-                      slotIsSelected && timeSlots.some(slot => 
-                        slot.date === format(addDays(weekStart, day+1), "yyyy-MM-dd") && 
-                        slot.time === time && 
-                        isSelected(slot.date, slot.time)
-                      ) && "cell-selected-right",
-                      slotIsSelected && timeSlots.some(slot => 
-                        slot.date === date && 
-                        slot.time === `${hour+1}:00` && 
-                        isSelected(slot.date, slot.time)
-                      ) && "cell-selected-bottom"
-                    )}
-                    onMouseDown={() => handleMouseDown(day, hour)}
-                    onMouseOver={() => handleMouseOver(day, hour)}
-                    onTouchStart={() => handleMouseDown(day, hour)}
-                    onTouchMove={() => handleMouseOver(day, hour)}
-                  >
-                    {/* Top voted crown icon - only show for slots with votes */}
-                    {slotIsSelected && availableCount > 0 && availableCount === Math.max(...timeSlots.filter(ts => isSelected(ts.date, ts.time)).map(ts => ts.available || 0)) && (
-                      <div className="absolute top-0.5 right-0.5 filter-crown-glow animate-bounce-slow">
-                        <Crown className="h-6 w-6 text-yellow-400" />
-                      </div>
-                    )}
-                    
-                    {/* Availability badge when not dragging */}
-                    {!isDraggingRef.current && !isInTempSelection && availableCount > 0 && totalCount > 0 && (
-                      <div className="absolute bottom-1 left-1">
-                        <Badge 
-                          variant="outline" 
-                          className={cn(
-                            "text-xs py-0 h-5",
-                            availableCount === totalCount 
-                              ? "border-green-500/30 text-green-500" 
-                              : availableCount > totalCount / 2
-                              ? "border-amber-500/30 text-amber-500"
-                              : "border-primary/30 text-primary/70"
-                          )}
-                        >
-                          {availableCount}/{totalCount}
-                        </Badge>
-                      </div>
-                    )}
-                    
-                    {/* Participant icons */}
-                    {slotIsSelected && slotParticipants.length > 0 && (
-                      <div className="absolute top-1 right-1 flex -space-x-2">
-                        {slotParticipants.map((participant, index) => (
-                          <div
-                            key={`p-${index}`}
-                            className="participant-icon w-6 h-6 flex items-center justify-center rounded-full"
-                            style={{
-                              backgroundColor: participant.color,
-                              zIndex: slotParticipants.length - index,
-                              animationDelay: `${index * 0.1}s`
-                            }}
-                          >
-                            <span className="text-[10px] font-medium">
-                              {participant.name.charAt(0)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <div key={`row-${hour}`} className="grid grid-cols-7 gap-0">
+              {DAYS_OF_WEEK.map(day => renderTimeSlot(day, hour))}
             </div>
           ))}
         </div>
       </div>
+      <style>{`
+        .calendar-button {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          transition: all 0.2s ease;
+        }
+        
+        .calendar-button.organizer {
+          cursor: pointer;
+        }
+        
+        .calendar-button.selected {
+          background-color: var(--primary-color);
+          color: white;
+        }
+        
+        .calendar-button:hover {
+          opacity: 0.8;
+        }
+        
+        .participant-icon {
+          position: absolute;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: popIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes popIn {
+          0% {
+            transform: scale(0);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        
+        .crown-float {
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-5px);
+          }
+        }
+        
+        /* Remove borders between selected cells */
+        .cell-selected {
+          border-right: none;
+          border-bottom: none;
+        }
+        
+        .cell-selected-right {
+          border-right: none;
+        }
+        
+        .cell-selected-bottom {
+          border-bottom: none;
+        }
+      `}</style>
     </div>
   );
 });

@@ -400,5 +400,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Delete a time slot from a meeting
+  app.delete('/api/meetings/:uniqueId/timeslots', async (req: Request, res: Response) => {
+    try {
+      const { uniqueId } = req.params;
+      const { date, time } = req.body;
+      
+      const meeting = await storage.getMeetingByUniqueId(uniqueId);
+      
+      if (!meeting) {
+        return res.status(404).json({ message: 'Meeting not found' });
+      }
+      
+      // Remove the time slot from all availabilities for this meeting
+      const availabilities = await storage.getAvailabilitiesByMeetingId(meeting.id);
+      
+      for (const availability of availabilities) {
+        const timeSlots = availability.timeSlots as string[];
+        const updatedTimeSlots = timeSlots.filter(slot => slot !== `${date}-${time}`);
+        
+        await storage.updateAvailability(availability.participantId, updatedTimeSlots);
+      }
+      
+      // Broadcast the update to all connected clients
+      broadcastUpdate('timeslot_deleted', {
+        meetingId: meeting.id,
+        date,
+        time
+      });
+      
+      res.status(200).json({ message: 'Time slot deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Error deleting time slot', error });
+    }
+  });
+  
   return httpServer;
 }

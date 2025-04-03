@@ -161,7 +161,8 @@ const OrganizerView = () => {
   
   // Keep groupedTimeSlots in sync with selectedTimeSlots
   useEffect(() => {
-    setGroupedTimeSlots(updateGroupedTimeSlots(selectedTimeSlots));
+    const newGrouped = updateGroupedTimeSlots(selectedTimeSlots);
+    setGroupedTimeSlots(newGrouped);
   }, [selectedTimeSlots]);
 
   // Function to trigger confetti effect
@@ -316,11 +317,25 @@ const OrganizerView = () => {
   const handleAddTimeSlot = (date: string, time: string) => {
     console.log(`Adding time slot: ${date} at ${time}`);
     
+    // Check if slot already exists
+    const slotExists = selectedTimeSlots.some(
+      slot => slot.date === date && slot.time === time
+    );
+    
+    if (slotExists) {
+      console.log("Slot already exists, skipping...");
+      return selectedTimeSlots;
+    }
+
     // Create new array with the added slot
     const updatedTimeSlots = [...selectedTimeSlots, { date, time }];
     
     // Update state
     setSelectedTimeSlots(updatedTimeSlots);
+    
+    // Update groupedTimeSlots
+    const newGrouped = updateGroupedTimeSlots(updatedTimeSlots);
+    setGroupedTimeSlots(newGrouped);
     
     // Synchronize all calendars
     setTimeout(() => {
@@ -334,10 +349,6 @@ const OrganizerView = () => {
         if (simpleCalendarRef.current && typeof simpleCalendarRef.current.forceSync === 'function') {
           simpleCalendarRef.current.forceSync(updatedTimeSlots);
         }
-        
-        // Force a recalculation of grouped time slots
-        const updatedGroups = updateGroupedTimeSlots(updatedTimeSlots);
-        setGroupedTimeSlots(updatedGroups);
       } catch (error) {
         console.error("Error synchronizing calendars after adding time slot:", error);
       }
@@ -346,113 +357,94 @@ const OrganizerView = () => {
     return updatedTimeSlots;
   };
 
-  const handleRemoveTimeSlot = (date: string, time: string, event?: React.MouseEvent) => {
+  const handleRemoveTimeSlot = async (date: string, time: string, event?: React.MouseEvent) => {
     // Prevent event propagation to avoid triggering other handlers
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
     
-    console.log(`Removing time slot: ${date} at ${time}`);
+    console.log('=== 삭제 작업 시작 ===');
+    console.log('삭제할 슬롯:', { date, time });
+    console.log('현재 selectedTimeSlots:', selectedTimeSlots);
+    console.log('현재 groupedTimeSlots:', groupedTimeSlots);
     
-    // Get the specific time slot to remove
-    const targetKey = `${date}-${time}`;
-    
-    // Find the exact slot to remove by matching both date and time
-    const slotToRemove = selectedTimeSlots.find(slot => 
-      slot.date === date && slot.time === time
-    );
-    
-    if (!slotToRemove) {
-      console.error("Could not find the time slot to remove");
-      return;
-    }
-    
-    // Create a new array without the specific slot
-    const updatedTimeSlots = selectedTimeSlots.filter(slot => 
-      !(slot.date === date && slot.time === time)
-    );
-    
-    console.log(`Removed 1 time slot, remaining: ${updatedTimeSlots.length}`);
-    
-    // First update state with filtered slots to make sure UI reflects the change
-    setSelectedTimeSlots(updatedTimeSlots);
-    
-    // A complete and robust synchronization of all calendar components
-    const syncCalendars = () => {
-      try {
-        // Sync the weekly calendar if it's available
-        if (calendarRef.current) {
-          console.log("Syncing weekly calendar with updated time slots");
-          const weeklyCalendar = calendarRef.current as any;
-          if (weeklyCalendar && typeof weeklyCalendar.forceSync === 'function') {
-            weeklyCalendar.forceSync(updatedTimeSlots);
-          }
-        }
-        
-        // Sync the simple weekly calendar if it's available
-        if (simpleCalendarRef.current) {
-          console.log("Syncing simple calendar with updated time slots");
-          const simpleCalendar = simpleCalendarRef.current as any;
-          if (simpleCalendar && typeof simpleCalendar.forceSync === 'function') {
-            simpleCalendar.forceSync(updatedTimeSlots);
-          }
-        }
-        
-        // Force a recalculation of the groupedTimeSlots
-        const updatedGroups = updateGroupedTimeSlots(updatedTimeSlots);
-        setGroupedTimeSlots(updatedGroups);
-        
-        // Double-ensure the selectedTimeSlots state is accurate
-        // This creates a new array reference which helps React detect the change
-        setTimeout(() => {
-          setSelectedTimeSlots([...updatedTimeSlots]);
-        }, 0);
-      } catch (error) {
-        console.error("Error during calendar synchronization:", error);
-        // Recover from any errors by ensuring the state is correct
-        setSelectedTimeSlots(updatedTimeSlots);
-      }
-    };
-    
-    // Run the sync immediately
-    syncCalendars();
-    
-    // And then run it again after a short delay to ensure full propagation
-    setTimeout(syncCalendars, 50);
-    
-    // Add enhanced visual effect for the Meeting Summary area update after deleting a time slot
-    if (confettiRef.current) {
-      // Add slide-out animation for removed items
-      confettiRef.current.classList.add('fade-reset');
-      confettiRef.current.classList.add('slide-effect');
+    try {
+      // Remove from selectedTimeSlots first
+      const updatedTimeSlots = selectedTimeSlots.filter(
+        slot => !(slot.date === date && slot.time === time)
+      );
       
-      // Create a subtle fade effect
-      const fadeEffect = document.createElement('div');
-      fadeEffect.className = 'delete-fade-effect';
-      if (confettiRef.current.firstChild) {
-        confettiRef.current.insertBefore(fadeEffect, confettiRef.current.firstChild);
-      } else {
-        confettiRef.current.appendChild(fadeEffect);
+      // Update groupedTimeSlots
+      const newGrouped = { ...groupedTimeSlots };
+      if (newGrouped[date]) {
+        newGrouped[date] = newGrouped[date].filter(t => t !== time);
+        if (newGrouped[date].length === 0) {
+          delete newGrouped[date];
+        }
       }
       
-      // Clean up animations
-      setTimeout(() => {
-        if (confettiRef.current) {
-          confettiRef.current.classList.remove('fade-reset');
-          confettiRef.current.classList.remove('slide-effect');
-          if (fadeEffect.parentNode === confettiRef.current) {
-            confettiRef.current.removeChild(fadeEffect);
-          }
+      // Update states immediately
+      setSelectedTimeSlots(updatedTimeSlots);
+      setGroupedTimeSlots(newGrouped);
+      
+      // Force sync all calendar components with the updated slots
+      const syncCalendars = () => {
+        if (calendarRef.current?.forceSync) {
+          console.log('Syncing WeeklyCalendarGrid with:', updatedTimeSlots);
+          calendarRef.current.forceSync(updatedTimeSlots);
         }
-      }, 600);
+        
+        if (simpleCalendarRef.current?.forceSync) {
+          console.log('Syncing SimpleWeeklyCalendar with:', updatedTimeSlots);
+          simpleCalendarRef.current.forceSync(updatedTimeSlots);
+        }
+      };
+      
+      // Immediate sync
+      syncCalendars();
+      
+      // Sync with server
+      const response = await apiRequest(
+        "DELETE",
+        `/api/meetings/${params.id}/timeslots`,
+        {
+          date,
+          time
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete time slot on server');
+      }
+      
+      // Additional sync after server response
+      setTimeout(syncCalendars, 100);
+      
+      // Show success toast
+      toast({
+        title: "시간대가 삭제되었습니다",
+        description: `${new Date(date).toLocaleDateString()} ${formatTimeForDisplay(time)} 삭제됨`,
+      });
+      
+      // Force a refetch to ensure server sync
+      await refetch();
+      
+      console.log('=== 삭제 작업 완료 ===');
+      console.log('최종 selectedTimeSlots:', updatedTimeSlots);
+      console.log('최종 groupedTimeSlots:', newGrouped);
+      
+    } catch (error) {
+      console.error("Failed to delete time slot:", error);
+      toast({
+        title: "에러",
+        description: "시간대 삭제에 실패했습니다. 다시 시도해주세요.",
+        variant: "destructive"
+      });
+      
+      // Revert the state changes on error
+      refetch();
     }
-    
-    // Show a toast notification
-    toast({
-      title: "Time slot deleted",
-      description: `Removed ${new Date(date).toLocaleDateString()} at ${formatTimeForDisplay(time)}`,
-    });
   };
 
   if (isLoading) {
@@ -665,247 +657,256 @@ const OrganizerView = () => {
                   const dayColor = getDayColor(date);
                   const weekday = formatDateToWeekday(date);
                   
-                  return times.map((time, timeIndex) => (
-                    <div 
-                      key={`${date}-${time}-${timeIndex}`}
-                      className={`relative group overflow-hidden rounded-lg border shadow-sm transition-all duration-300 ${
-                        votingMode 
-                          ? (`${date}-${time}` === topVotedSlot && maxAvailableCount > 0
-                              ? 'animate-pulse-subtle border-yellow-300 bg-gradient-to-br from-card to-yellow-50/5' 
-                              : 'border-primary/30 bg-gradient-to-br from-card to-primary/5')
-                          : 'border-gray-200 hover:border-primary/20 hover:shadow-md bg-card'
-                      }`}
-                    >
-                      {/* Colored bar with gradient overlay */}
-                      <div className="absolute top-0 left-0 h-full w-1.5 opacity-90" 
-                        style={{ 
-                          background: `linear-gradient(to bottom, ${dayColor}, ${dayColor}80)`
-                        }}
-                      ></div>
-                      
-                      {/* Subtle day indicator pattern */}
-                      <div className="absolute top-0 right-0 h-full w-full opacity-5 pointer-events-none"
-                        style={{
-                          backgroundImage: `radial-gradient(circle at 80% 20%, ${dayColor}, transparent 60%)`
-                        }}
-                      ></div>
-                      
-                      <div className="p-3 pl-4 relative z-10">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-bold text-lg bg-gradient-to-r from-[#555] to-[#333] bg-clip-text text-transparent dark:from-white dark:to-gray-200" 
-                              style={{ 
-                                WebkitTextFillColor: 'transparent',
-                                backgroundImage: `linear-gradient(to right, ${dayColor}, ${dayColor}99)`,
-                                letterSpacing: '-0.01em',
-                                textShadow: '0 1px 1px rgba(255,255,255,0.1)'
-                              }}
-                            >
-                              {weekday}
-                            </p>
-                            <p className="text-gray-700 text-lg font-semibold">{formatTimeForDisplay(time)}</p>
-                            <p className="text-xs text-gray-500 mt-1 font-medium">{new Date(date).toLocaleDateString()}</p>
-                          </div>
-                          
-                          {!votingMode && (
-                            <Button
-                              variant="ghost" 
-                              size="icon"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleRemoveTimeSlot(date, time, e);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
-                            </Button>
-                          )}
-                          
-                          {/* Enhanced crown icon with improved animation for the top voted slot */}
-                          {votingMode && `${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && (
-                            <div className="flex items-center justify-center">
-                              <div className="absolute -top-12 -right-6 crown-float z-20 animate-bounce-slow">
-                                {/* Add shimmer effect to the crown */}
-                                <div className="absolute inset-0 crown-shimmer"></div>
-                                <Crown className="h-24 w-24 text-yellow-500 drop-shadow-xl filter-crown-glow" />
-                                {/* Add small sparkles around the crown */}
-                                <div className="absolute top-1/4 right-1/4 animate-ping-slow">
-                                  <span className="block h-1.5 w-1.5 rounded-full bg-yellow-300"></span>
-                                </div>
-                                <div className="absolute bottom-1/3 left-1/3 animate-ping-slow delay-300">
-                                  <span className="block h-2 w-2 rounded-full bg-yellow-200"></span>
-                                </div>
-                                <div className="absolute top-1/2 left-1/4 animate-ping-slow delay-700">
-                                  <span className="block h-1 w-1 rounded-full bg-yellow-100"></span>
+                  return times.map((time, timeIndex) => {
+                    // Only render if the slot exists in selectedTimeSlots
+                    const slotExists = selectedTimeSlots.some(
+                      slot => slot.date === date && slot.time === time
+                    );
+                    
+                    if (!slotExists) return null;
+                    
+                    return (
+                      <div 
+                        key={`${date}-${time}-${timeIndex}`}
+                        className={`relative group overflow-hidden rounded-lg border shadow-sm transition-all duration-300 ${
+                          votingMode 
+                            ? (`${date}-${time}` === topVotedSlot && maxAvailableCount > 0
+                                ? 'animate-pulse-subtle border-yellow-300 bg-gradient-to-br from-card to-yellow-50/5' 
+                                : 'border-primary/30 bg-gradient-to-br from-card to-primary/5')
+                            : 'border-gray-200 hover:border-primary/20 hover:shadow-md bg-card'
+                        }`}
+                      >
+                        {/* Colored bar with gradient overlay */}
+                        <div className="absolute top-0 left-0 h-full w-1.5 opacity-90" 
+                          style={{ 
+                            background: `linear-gradient(to bottom, ${dayColor}, ${dayColor}80)`
+                          }}
+                        ></div>
+                        
+                        {/* Subtle day indicator pattern */}
+                        <div className="absolute top-0 right-0 h-full w-full opacity-5 pointer-events-none"
+                          style={{
+                            backgroundImage: `radial-gradient(circle at 80% 20%, ${dayColor}, transparent 60%)`
+                          }}
+                        ></div>
+                        
+                        <div className="p-3 pl-4 relative z-10">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-bold text-lg bg-gradient-to-r from-[#555] to-[#333] bg-clip-text text-transparent dark:from-white dark:to-gray-200" 
+                                style={{ 
+                                  WebkitTextFillColor: 'transparent',
+                                  backgroundImage: `linear-gradient(to right, ${dayColor}, ${dayColor}99)`,
+                                  letterSpacing: '-0.01em',
+                                  textShadow: '0 1px 1px rgba(255,255,255,0.1)'
+                                }}
+                              >
+                                {weekday}
+                              </p>
+                              <p className="text-gray-700 text-lg font-semibold">{formatTimeForDisplay(time)}</p>
+                              <p className="text-xs text-gray-500 mt-1 font-medium">{new Date(date).toLocaleDateString()}</p>
+                            </div>
+                            
+                            {!votingMode && (
+                              <Button
+                                variant="ghost" 
+                                size="icon"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleRemoveTimeSlot(date, time, e);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                              </Button>
+                            )}
+                            
+                            {/* Enhanced crown icon with improved animation for the top voted slot */}
+                            {votingMode && `${date}-${time}` === topVotedSlot && maxAvailableCount > 0 && (
+                              <div className="flex items-center justify-center">
+                                <div className="absolute -top-12 -right-6 crown-float z-20 animate-bounce-slow">
+                                  {/* Add shimmer effect to the crown */}
+                                  <div className="absolute inset-0 crown-shimmer"></div>
+                                  <Crown className="h-24 w-24 text-yellow-500 drop-shadow-xl filter-crown-glow" />
+                                  {/* Add small sparkles around the crown */}
+                                  <div className="absolute top-1/4 right-1/4 animate-ping-slow">
+                                    <span className="block h-1.5 w-1.5 rounded-full bg-yellow-300"></span>
+                                  </div>
+                                  <div className="absolute bottom-1/3 left-1/3 animate-ping-slow delay-300">
+                                    <span className="block h-2 w-2 rounded-full bg-yellow-200"></span>
+                                  </div>
+                                  <div className="absolute top-1/2 left-1/4 animate-ping-slow delay-700">
+                                    <span className="block h-1 w-1 rounded-full bg-yellow-100"></span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Show participants only if they've selected this time slot AND there are actual participants */}
-                          {votingMode && availabilities.some(a => (a.timeSlots as string[]).includes(`${date}-${time}`)) && (
-                            <div className="flex -space-x-2">
-                              {(() => {
-                                // Get unique participant IDs for this time slot
-                                const uniqueParticipantMap: Record<number, boolean> = {};
-                                const participantsForSlot: Participant[] = [];
-                                
-                                // Only consider slots that are still in selectedTimeSlots to prevent ghost participants
-                                const isSlotStillSelected = selectedTimeSlots.some(
-                                  slot => slot.date === date && slot.time === time
-                                );
-                                
-                                if (isSlotStillSelected) {
-                                  // Filter availabilities for this time slot
-                                  availabilities
-                                    .filter(availability => 
-                                      (availability.timeSlots as string[]).includes(`${date}-${time}`)
-                                    )
-                                    .forEach(availability => {
-                                      // Only add if we haven't already added this participant
-                                      if (!uniqueParticipantMap[availability.participantId]) {
-                                        uniqueParticipantMap[availability.participantId] = true;
-                                        const participant = participants.find(p => p.id === availability.participantId);
-                                        if (participant) {
-                                          participantsForSlot.push(participant);
-                                        }
-                                      }
-                                    });
-                                }
-                                
-                                // Return the first 3 unique participants with enhanced styling
-                                return participantsForSlot.slice(0, 3).map((participant, i) => {
-                                  // Get a color for this participant (cyclic)
-                                  const participantColor = [
-                                    '#F87171', // red-400
-                                    '#FB923C', // orange-400
-                                    '#FBBF24', // amber-400
-                                    '#4ADE80', // green-400
-                                    '#60A5FA', // blue-400
-                                    '#A78BFA', // violet-400
-                                    '#F472B6', // pink-400
-                                  ][participants.findIndex(p => p.id === participant.id) % 7];
+                            {/* Show participants only if they've selected this time slot AND there are actual participants */}
+                            {votingMode && availabilities.some(a => (a.timeSlots as string[]).includes(`${date}-${time}`)) && (
+                              <div className="flex -space-x-2">
+                                {(() => {
+                                  // Get unique participant IDs for this time slot
+                                  const uniqueParticipantMap: Record<number, boolean> = {};
+                                  const participantsForSlot: Participant[] = [];
                                   
-                                  return (
-                                    <div 
-                                      key={`participant-${participant.id}-${i}`}
-                                      className="w-7 h-7 rounded-full border-2 shadow-sm flex items-center justify-center text-xs font-medium transform transition-all duration-300 hover:scale-110 hover:rotate-3 participant-icon"
-                                      title={participant.name}
-                                      style={{ 
-                                        backgroundColor: participantColor,
-                                        borderColor: 'white',
-                                        boxShadow: `0 0 8px ${participantColor}50`
-                                      }}
-                                    >
-                                      <span className="text-white font-semibold" style={{
-                                        textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                                      }}>
-                                        {participant.name.charAt(0).toUpperCase()}
-                                      </span>
-                                    </div>
+                                  // Only consider slots that are still in selectedTimeSlots to prevent ghost participants
+                                  const isSlotStillSelected = selectedTimeSlots.some(
+                                    slot => slot.date === date && slot.time === time
                                   );
-                                });
-                              })()}
-                              
-                              {/* Show the "+X" only if there are more than 3 UNIQUE participants for this time slot */}
-                              {(() => {
-                                // Get unique participant IDs for this time slot
-                                const uniqueParticipantMap: Record<number, boolean> = {};
-                                
-                                // Only consider slots that are still in selectedTimeSlots
-                                const isSlotStillSelected = selectedTimeSlots.some(
-                                  slot => slot.date === date && slot.time === time
-                                );
-                                
-                                let uniqueCount = 0;
-                                if (isSlotStillSelected) {
-                                  availabilities
-                                    .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
-                                    .forEach(a => {
-                                      uniqueParticipantMap[a.participantId] = true;
-                                    });
                                   
-                                  uniqueCount = Object.keys(uniqueParticipantMap).length;
-                                }
+                                  if (isSlotStillSelected) {
+                                    // Filter availabilities for this time slot
+                                    availabilities
+                                      .filter(availability => 
+                                        (availability.timeSlots as string[]).includes(`${date}-${time}`)
+                                      )
+                                      .forEach(availability => {
+                                        // Only add if we haven't already added this participant
+                                        if (!uniqueParticipantMap[availability.participantId]) {
+                                          uniqueParticipantMap[availability.participantId] = true;
+                                          const participant = participants.find(p => p.id === availability.participantId);
+                                          if (participant) {
+                                            participantsForSlot.push(participant);
+                                          }
+                                        }
+                                      });
+                                  }
+                                  
+                                  // Return the first 3 unique participants with enhanced styling
+                                  return participantsForSlot.slice(0, 3).map((participant, i) => {
+                                    // Get a color for this participant (cyclic)
+                                    const participantColor = [
+                                      '#F87171', // red-400
+                                      '#FB923C', // orange-400
+                                      '#FBBF24', // amber-400
+                                      '#4ADE80', // green-400
+                                      '#60A5FA', // blue-400
+                                      '#A78BFA', // violet-400
+                                      '#F472B6', // pink-400
+                                    ][participants.findIndex(p => p.id === participant.id) % 7];
+                                    
+                                    return (
+                                      <div 
+                                        key={`participant-${participant.id}-${i}`}
+                                        className="w-7 h-7 rounded-full border-2 shadow-sm flex items-center justify-center text-xs font-medium transform transition-all duration-300 hover:scale-110 hover:rotate-3 participant-icon"
+                                        title={participant.name}
+                                        style={{ 
+                                          backgroundColor: participantColor,
+                                          borderColor: 'white',
+                                          boxShadow: `0 0 8px ${participantColor}50`
+                                        }}
+                                      >
+                                        <span className="text-white font-semibold" style={{
+                                          textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                        }}>
+                                          {participant.name.charAt(0).toUpperCase()}
+                                        </span>
+                                      </div>
+                                    );
+                                  });
+                                })()}
                                 
-                                // Only show "+X" if there are more than 3 unique participants
-                                return uniqueCount > 3 ? (
-                                  <div className="w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center text-xs font-semibold bg-gradient-to-br from-primary/20 to-primary/40 text-primary hover:scale-110 transition-transform duration-300"
-                                    style={{
-                                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                                    }}>
-                                    +{uniqueCount - 3}
-                                  </div>
-                                ) : null;
-                              })()}
+                                {/* Show the "+X" only if there are more than 3 UNIQUE participants for this time slot */}
+                                {(() => {
+                                  // Get unique participant IDs for this time slot
+                                  const uniqueParticipantMap: Record<number, boolean> = {};
+                                  
+                                  // Only consider slots that are still in selectedTimeSlots
+                                  const isSlotStillSelected = selectedTimeSlots.some(
+                                    slot => slot.date === date && slot.time === time
+                                  );
+                                  
+                                  let uniqueCount = 0;
+                                  if (isSlotStillSelected) {
+                                    availabilities
+                                      .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
+                                      .forEach(a => {
+                                        uniqueParticipantMap[a.participantId] = true;
+                                      });
+                                    
+                                    uniqueCount = Object.keys(uniqueParticipantMap).length;
+                                  }
+                                  
+                                  // Only show "+X" if there are more than 3 unique participants
+                                  return uniqueCount > 3 ? (
+                                    <div className="w-7 h-7 rounded-full border-2 border-white shadow-md flex items-center justify-center text-xs font-semibold bg-gradient-to-br from-primary/20 to-primary/40 text-primary hover:scale-110 transition-transform duration-300"
+                                      style={{
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                      }}>
+                                      +{uniqueCount - 3}
+                                    </div>
+                                  ) : null;
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {votingMode && (
+                            <div className="mt-2 flex items-center">
+                              {/* Enhanced badge with participant count and visual indicators */}
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs py-1 px-2.5 ${
+                                  `${date}-${time}` === topVotedSlot && maxAvailableCount > 0
+                                    ? 'bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700 border-yellow-200 shadow-sm' 
+                                    : 'bg-gradient-to-r from-primary/5 to-primary/10 text-primary border-primary/20 shadow-sm'
+                                }`}
+                              >
+                                {/* Add icon based on status */}
+                                {(() => {
+                                  // Get unique participant IDs for this time slot
+                                  const participantMap: Record<number, boolean> = {};
+                                  
+                                  // Only consider slots that are still in selectedTimeSlots to prevent ghost participants
+                                  const isSlotStillSelected = selectedTimeSlots.some(
+                                    slot => slot.date === date && slot.time === time
+                                  );
+                                  
+                                  let count = 0;
+                                  if (isSlotStillSelected) {
+                                    availabilities
+                                      .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
+                                      .forEach(a => {
+                                        participantMap[a.participantId] = true;
+                                      });
+                                    
+                                    count = Object.keys(participantMap).length;
+                                  }
+                                  
+                                  if (`${date}-${time}` === topVotedSlot && maxAvailableCount > 0) {
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <Crown className="h-3 w-3 text-yellow-600 mr-0.5" />
+                                        <span>{count === 1 ? "1 participant" : `${count} participants`}</span>
+                                        <span className="inline-flex items-center ml-1 text-yellow-600 font-semibold">• Top Pick</span>
+                                      </div>
+                                    );
+                                  } else if (count > 0) {
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <Users className="h-3 w-3 text-primary mr-0.5" />
+                                        <span>{count === 1 ? "1 participant" : `${count} participants`}</span>
+                                      </div>
+                                    );
+                                  } else {
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3 text-gray-400 mr-0.5" />
+                                        <span className="text-gray-500">Waiting for votes</span>
+                                      </div>
+                                    );
+                                  }
+                                })()
+                                }
+                              </Badge>
                             </div>
                           )}
                         </div>
-                        
-                        {votingMode && (
-                          <div className="mt-2 flex items-center">
-                            {/* Enhanced badge with participant count and visual indicators */}
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs py-1 px-2.5 ${
-                                `${date}-${time}` === topVotedSlot && maxAvailableCount > 0
-                                  ? 'bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700 border-yellow-200 shadow-sm' 
-                                  : 'bg-gradient-to-r from-primary/5 to-primary/10 text-primary border-primary/20 shadow-sm'
-                              }`}
-                            >
-                              {/* Add icon based on status */}
-                              {(() => {
-                                // Get unique participant IDs for this time slot
-                                const participantMap: Record<number, boolean> = {};
-                                
-                                // Only consider slots that are still in selectedTimeSlots to prevent ghost participants
-                                const isSlotStillSelected = selectedTimeSlots.some(
-                                  slot => slot.date === date && slot.time === time
-                                );
-                                
-                                let count = 0;
-                                if (isSlotStillSelected) {
-                                  availabilities
-                                    .filter(a => (a.timeSlots as string[]).includes(`${date}-${time}`))
-                                    .forEach(a => {
-                                      participantMap[a.participantId] = true;
-                                    });
-                                  
-                                  count = Object.keys(participantMap).length;
-                                }
-                                
-                                if (`${date}-${time}` === topVotedSlot && maxAvailableCount > 0) {
-                                  return (
-                                    <div className="flex items-center gap-1">
-                                      <Crown className="h-3 w-3 text-yellow-600 mr-0.5" />
-                                      <span>{count === 1 ? "1 participant" : `${count} participants`}</span>
-                                      <span className="inline-flex items-center ml-1 text-yellow-600 font-semibold">• Top Pick</span>
-                                    </div>
-                                  );
-                                } else if (count > 0) {
-                                  return (
-                                    <div className="flex items-center gap-1">
-                                      <Users className="h-3 w-3 text-primary mr-0.5" />
-                                      <span>{count === 1 ? "1 participant" : `${count} participants`}</span>
-                                    </div>
-                                  );
-                                } else {
-                                  return (
-                                    <div className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3 text-gray-400 mr-0.5" />
-                                      <span className="text-gray-500">Waiting for votes</span>
-                                    </div>
-                                  );
-                                }
-                              })()
-                              }
-                            </Badge>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  ));
+                    );
+                  }).filter(Boolean); // Remove null values
                 })}
               </div>
             </div>

@@ -62,15 +62,22 @@ export const useTimeSlots = () => {
   
   // Delete a single time slot by id
   const deleteTimeSlot = useCallback((slotId: string) => {
-    // Add this ID to the deleted set to prevent it from being re-added
-    setDeletedSlotIds(prev => {
-      // Fix for iteration issue - convert Set to Array and back
-      const prevArray = Array.from(prev);
-      return new Set([...prevArray, slotId]);
+    return new Promise<void>((resolve, reject) => {
+      try {
+        // Add this ID to the deleted set to prevent it from being re-added
+        setDeletedSlotIds(prev => {
+          const prevArray = Array.from(prev);
+          return new Set([...prevArray, slotId]);
+        });
+        
+        // Remove from state
+        setTimeSlots(prev => prev.filter(slot => slot.id !== slotId));
+        
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     });
-    
-    // Remove from state
-    setTimeSlots(prev => prev.filter(slot => slot.id !== slotId));
   }, []);
   
   // Toggle a time slot's selected state
