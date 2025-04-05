@@ -136,20 +136,20 @@ export default function SimpleCalendarPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-2">Schedule a Meeting</h1>
         <p className="text-gray-600">Select available time slots for your meeting.</p>
-      </div>
+          </div>
 
       {/* Meeting Summary */}
       <div className="mb-8">
         <MeetingSummary
           selectedSlots={selectedSlots}
-        />
-      </div>
-
+              />
+            </div>
+            
       {/* Calendar Grid */}
-      <SimpleWeeklyCalendar
+          <SimpleWeeklyCalendar 
         selectedTimeSlots={selectedSlots}
-        onSelectTimeSlots={handleSelectTimeSlots}
-        onDeleteTimeSlot={handleDeleteTimeSlot}
+            onSelectTimeSlots={handleSelectTimeSlots} 
+            onDeleteTimeSlot={handleDeleteTimeSlot}
       />
 
       {/* Available Time Slots */}
@@ -161,7 +161,7 @@ export default function SimpleCalendarPage() {
               key={group.groupId}
               className="flex items-center justify-between bg-white p-4 rounded-lg shadow"
             >
-              <div>
+                    <div>
                 <p className="font-medium">
                   {format(addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), group.day), 'EEEE')}
                 </p>
@@ -178,7 +178,7 @@ export default function SimpleCalendarPage() {
             </div>
           ))}
         </div>
-      </div>
+            </div>
     </div>
   );
 }
