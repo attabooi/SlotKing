@@ -13,6 +13,8 @@ import ParticipantView from "@/pages/ParticipantView";
 import SimpleCalendarPage from "@/pages/SimpleCalendarPage";
 import Layout from "@/components/Layout";
 import I18nProvider from "@/components/I18nProvider";
+import LoginPage from "./pages/LoginPage";
+import PaymentPage from "./pages/PaymentPage";
 
 export default function App() {
   return (
@@ -23,9 +25,11 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/create" element={<Create />} />
             <Route path="/vote/:meetingId" element={<Vote />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/payment" element={<PaymentPage />} />
           </Routes>
         </Router>
-        <Layout>
+        {/* <Layout>
           <Router>
             <Routes>
               <Route path="/" element={<Home />} />
@@ -37,7 +41,7 @@ export default function App() {
               <Route path="/not-found" element={<NotFound />} />
             </Routes>
           </Router>
-        </Layout>
+        </Layout> */}
         <Toaster />
       </I18nProvider>
     </QueryClientProvider>
