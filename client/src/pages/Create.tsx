@@ -311,9 +311,9 @@ export default function Create() {
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
       className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50"
     >
       <div className="max-w-4xl mx-auto">
@@ -388,7 +388,7 @@ export default function Create() {
                   onMouseDown={() => handleMouseDown(day, hour, dayIndex)}
                   onMouseEnter={() => handleMouseEnter(day, hour, dayIndex)}
                   onMouseUp={() => handleMouseUp()}
-                  onClick={() => handleSlotClick(day, hour, dayIndex)}
+                  
                   className={`p-2 border rounded transition-colors text-sm font-medium ${
                     isInDragSelection(day, hour, dayIndex)
                       ? "bg-indigo-300 text-white border-indigo-400"
