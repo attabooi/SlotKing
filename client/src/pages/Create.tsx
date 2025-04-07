@@ -78,6 +78,47 @@ export default function Create() {
     );
   };
 
+  // Handle individual slot click
+  const handleSlotClick = (day: string, hour: string, dayIndex: number) => {
+    const dateString = getDateStringForDay(dayIndex);
+    
+    // Check if the slot is already selected
+    const isSelected = selectedSlots.some(
+      slot => slot.date === dateString && slot.hour === hour
+    );
+    
+    if (isSelected) {
+      // If already selected, remove it
+      setSelectedSlots(prev => 
+        prev.filter(slot => !(slot.date === dateString && slot.hour === hour))
+      );
+      
+      // Also remove the corresponding time block
+      setTimeBlocks(prev => 
+        prev.filter(block => 
+          !(block.date === dateString && block.startHour === hour && block.endHour === hour)
+        )
+      );
+    } else {
+      // If not selected, add it
+      setSelectedSlots(prev => [...prev, { day, hour, date: dateString }]);
+      
+      // Create a time block for single hour selections
+      const newBlock: TimeBlock = {
+        id: `${dateString}-${hour}-${Date.now()}`,
+        day: day,
+        date: dateString,
+        startHour: hour,
+        endHour: hour,
+      };
+      
+      // Check if this block already exists to prevent duplicates
+      if (!isTimeBlockDuplicate(newBlock.date, newBlock.startHour, newBlock.endHour)) {
+        setTimeBlocks(prev => [...prev, newBlock]);
+      }
+    }
+  };
+
   // Handle mouse events for drag selection
   const handleMouseDown = (day: string, hour: string, dayIndex: number) => {
     const dateString = getDateStringForDay(dayIndex);
@@ -143,47 +184,6 @@ export default function Create() {
     setIsDragging(false);
     setDragStart(null);
     setDragEnd(null);
-  };
-
-  // Handle individual slot click
-  const handleSlotClick = (day: string, hour: string, dayIndex: number) => {
-    const dateString = getDateStringForDay(dayIndex);
-    
-    // Check if the slot is already selected
-    const isSelected = selectedSlots.some(
-      slot => slot.date === dateString && slot.hour === hour
-    );
-    
-    if (isSelected) {
-      // If already selected, remove it
-      setSelectedSlots(prev => 
-        prev.filter(slot => !(slot.date === dateString && slot.hour === hour))
-      );
-      
-      // Also remove the corresponding time block
-      setTimeBlocks(prev => 
-        prev.filter(block => 
-          !(block.date === dateString && block.startHour === hour && block.endHour === hour)
-        )
-      );
-    } else {
-      // If not selected, add it
-      setSelectedSlots(prev => [...prev, { day, hour, date: dateString }]);
-      
-      // Create a time block for single hour selections
-      const newBlock: TimeBlock = {
-        id: `${dateString}-${hour}-${Date.now()}`,
-        day: day,
-        date: dateString,
-        startHour: hour,
-        endHour: hour,
-      };
-      
-      // Check if this block already exists to prevent duplicates
-      if (!isTimeBlockDuplicate(newBlock.date, newBlock.startHour, newBlock.endHour)) {
-        setTimeBlocks(prev => [...prev, newBlock]);
-      }
-    }
   };
 
   // Remove a time block
@@ -264,6 +264,44 @@ export default function Create() {
   const formatDateForDisplay = (dateString: string, day: string) => {
     const date = parseISO(dateString);
     return `${day}, ${format(date, 'MMM d')}`;
+  };
+
+  // Get text color based on day and time
+  const getTextColorClass = (day: string, startHour: string) => {
+    const hour = parseInt(startHour.split(':')[0]);
+    
+    // 시간대별 색상 (모든 요일에 동일하게 적용)
+    if (hour < 12) {
+      return 'text-blue-600'; // 오전
+    } else if (hour < 15) {
+      return 'text-green-600'; // 오후 초반
+    } else if (hour < 18) {
+      return 'text-orange-600'; // 오후 후반
+    } else {
+      return 'text-indigo-600'; // 저녁
+    }
+  };
+
+  // Get day text color
+  const getDayTextColorClass = (day: string) => {
+    if (day === 'Sat') {
+      return 'text-blue-500';
+    }
+    if (day === 'Sun') {
+      return 'text-red-500';
+    }
+    return 'text-gray-900';
+  };
+
+  // Get dot color based on day
+  const getDotColorClass = (day: string) => {
+    if (day === 'Sat') {
+      return 'bg-blue-500';
+    }
+    if (day === 'Sun') {
+      return 'bg-red-500';
+    }
+    return 'bg-indigo-500';
   };
 
   return (
@@ -368,30 +406,43 @@ export default function Create() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white p-4 rounded-lg shadow-md mb-6"
           >
-            <h2 className="text-xl font-semibold mb-3 text-indigo-700">Selected Time Blocks</h2>
-            <div className="space-y-2">
+            <h2 className="text-xl font-semibold mb-4 text-indigo-700">Selected Time Blocks</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               <AnimatePresence>
                 {timeBlocks.map((block) => (
                   <motion.div
                     key={block.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="flex justify-between items-center p-3 bg-indigo-50 rounded-md"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex flex-col bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                   >
-                    <span className="font-medium text-indigo-900">
-                      {formatDateForDisplay(block.date, block.day)} {block.startHour} - {block.endHour}
-                    </span>
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => removeTimeBlock(block.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </motion.button>
+                    <div className="flex-1 p-4">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${getDotColorClass(block.day)}`} />
+                        <span className={`font-medium ${getDayTextColorClass(block.day)}`}>{block.day}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-500">
+                          {format(parseISO(block.date), 'MMM d, yyyy')}
+                        </div>
+                        <div className={`font-bold ${getTextColorClass(block.day, block.startHour)}`}>
+                          {block.startHour} - {block.endHour}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border-t border-gray-100 p-3 flex justify-end">
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => removeTimeBlock(block.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1.5"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </motion.button>
+                    </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
