@@ -78,47 +78,6 @@ export default function Create() {
     );
   };
 
-  // Handle individual slot click
-  const handleSlotClick = (day: string, hour: string, dayIndex: number) => {
-    const dateString = getDateStringForDay(dayIndex);
-    
-    // Check if the slot is already selected
-    const isSelected = selectedSlots.some(
-      slot => slot.date === dateString && slot.hour === hour
-    );
-    
-    if (isSelected) {
-      // If already selected, remove it
-      setSelectedSlots(prev => 
-        prev.filter(slot => !(slot.date === dateString && slot.hour === hour))
-      );
-      
-      // Also remove the corresponding time block
-      setTimeBlocks(prev => 
-        prev.filter(block => 
-          !(block.date === dateString && block.startHour === hour && block.endHour === hour)
-        )
-      );
-    } else {
-      // If not selected, add it
-      setSelectedSlots(prev => [...prev, { day, hour, date: dateString }]);
-      
-      // Create a time block for single hour selections
-      const newBlock: TimeBlock = {
-        id: `${dateString}-${hour}-${Date.now()}`,
-        day: day,
-        date: dateString,
-        startHour: hour,
-        endHour: hour,
-      };
-      
-      // Check if this block already exists to prevent duplicates
-      if (!isTimeBlockDuplicate(newBlock.date, newBlock.startHour, newBlock.endHour)) {
-        setTimeBlocks(prev => [...prev, newBlock]);
-      }
-    }
-  };
-
   // Handle mouse events for drag selection
   const handleMouseDown = (day: string, hour: string, dayIndex: number) => {
     const dateString = getDateStringForDay(dayIndex);
@@ -144,39 +103,44 @@ export default function Create() {
         const startIndex = hours.indexOf(dragStart.hour);
         const endIndex = hours.indexOf(dragEnd.hour);
         
-        // Ensure start is before end
-        const actualStart = Math.min(startIndex, endIndex);
-        const actualEnd = Math.max(startIndex, endIndex);
-        
-        // Create a new time block
-        const newBlock: TimeBlock = {
-          id: `${dragStart.date}-${dragStart.hour}-${Date.now()}`,
-          day: dragStart.day,
-          date: dragStart.date,
-          startHour: hours[actualStart],
-          endHour: hours[actualEnd],
-        };
-        
-        // Check if this block already exists to prevent duplicates
-        if (!isTimeBlockDuplicate(newBlock.date, newBlock.startHour, newBlock.endHour)) {
-          // Add to time blocks
-          setTimeBlocks(prev => [...prev, newBlock]);
+        // If start and end are the same (single click), create a 1-hour block
+        if (startIndex === endIndex) {
+          handleSlotClick(dragStart.day, dragStart.hour, days.indexOf(dragStart.day));
+        } else {
+          // Ensure start is before end
+          const actualStart = Math.min(startIndex, endIndex);
+          const actualEnd = Math.max(startIndex, endIndex);
           
-          // Add all slots in the range to selected slots
-          const newSlots: TimeSlot[] = [];
-          for (let i = actualStart; i <= actualEnd; i++) {
-            newSlots.push({ day: dragStart.day, hour: hours[i], date: dragStart.date });
+          // Create a new time block
+          const newBlock: TimeBlock = {
+            id: `${dragStart.date}-${dragStart.hour}-${Date.now()}`,
+            day: dragStart.day,
+            date: dragStart.date,
+            startHour: hours[actualStart],
+            endHour: hours[actualEnd],
+          };
+          
+          // Check if this block already exists to prevent duplicates
+          if (!isTimeBlockDuplicate(newBlock.date, newBlock.startHour, newBlock.endHour)) {
+            // Add to time blocks
+            setTimeBlocks(prev => [...prev, newBlock]);
+            
+            // Add all slots in the range to selected slots
+            const newSlots: TimeSlot[] = [];
+            for (let i = actualStart; i <= actualEnd; i++) {
+              newSlots.push({ day: dragStart.day, hour: hours[i], date: dragStart.date });
+            }
+            
+            setSelectedSlots(prev => {
+              // Remove any existing slots for this day in this range
+              const filtered = prev.filter(slot => 
+                slot.date !== dragStart.date || 
+                hours.indexOf(slot.hour) < actualStart || 
+                hours.indexOf(slot.hour) > actualEnd
+              );
+              return [...filtered, ...newSlots];
+            });
           }
-          
-          setSelectedSlots(prev => {
-            // Remove any existing slots for this day in this range
-            const filtered = prev.filter(slot => 
-              slot.date !== dragStart.date || 
-              hours.indexOf(slot.hour) < actualStart || 
-              hours.indexOf(slot.hour) > actualEnd
-            );
-            return [...filtered, ...newSlots];
-          });
         }
       }
     }
@@ -184,6 +148,47 @@ export default function Create() {
     setIsDragging(false);
     setDragStart(null);
     setDragEnd(null);
+  };
+
+  // Handle individual slot click
+  const handleSlotClick = (day: string, hour: string, dayIndex: number) => {
+    const dateString = getDateStringForDay(dayIndex);
+    
+    // Check if the slot is already selected
+    const isSelected = selectedSlots.some(
+      slot => slot.date === dateString && slot.hour === hour
+    );
+    
+    if (isSelected) {
+      // If already selected, remove it
+      setSelectedSlots(prev => 
+        prev.filter(slot => !(slot.date === dateString && slot.hour === hour))
+      );
+      
+      // Also remove the corresponding time block
+      setTimeBlocks(prev => 
+        prev.filter(block => 
+          !(block.date === dateString && block.startHour === hour && block.endHour === hour)
+        )
+      );
+    } else {
+      // If not selected, add it as a 1-hour block
+      setSelectedSlots(prev => [...prev, { day, hour, date: dateString }]);
+      
+      // Create a time block for single hour selections
+      const newBlock: TimeBlock = {
+        id: `${dateString}-${hour}-${Date.now()}`,
+        day: day,
+        date: dateString,
+        startHour: hour,
+        endHour: hour,
+      };
+      
+      // Check if this block already exists to prevent duplicates
+      if (!isTimeBlockDuplicate(newBlock.date, newBlock.startHour, newBlock.endHour)) {
+        setTimeBlocks(prev => [...prev, newBlock]);
+      }
+    }
   };
 
   // Remove a time block
