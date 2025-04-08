@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SlotKingLogo } from "@/components/ui/SlotKingLogo";
 import { motion, AnimatePresence } from "framer-motion";
-import { format, addWeeks, subWeeks, startOfWeek, endOfWeek, addDays, isToday, parseISO } from "date-fns";
+import { format, addWeeks, subWeeks, startOfWeek, endOfWeek, addDays, isToday, parseISO, addDays as dateFnsAddDays } from "date-fns";
+import { createMeeting } from "@/lib/api";
 
 interface TimeSlot {
   day: string;
@@ -28,6 +29,12 @@ export default function Create() {
   const [dragStart, setDragStart] = useState<{ day: string; hour: string; date: string } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ day: string; hour: string; date: string } | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
+  
+  // 새로운 상태 추가
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [votingDeadline, setVotingDeadline] = useState("");
+  const [titleError, setTitleError] = useState("");
+  const [deadlineError, setDeadlineError] = useState("");
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const hours = Array.from({ length: 16 }, (_, i) => `${i + 9}:00`);
@@ -66,6 +73,10 @@ export default function Create() {
   const handleReset = () => {
     setSelectedSlots([]);
     setTimeBlocks([]);
+    setMeetingTitle("");
+    setVotingDeadline("");
+    setTitleError("");
+    setDeadlineError("");
   };
 
   // Check if a time block already exists to prevent duplicates
@@ -105,6 +116,7 @@ export default function Create() {
         
         // If start and end are the same (single click), create a 1-hour block
         if (startIndex === endIndex) {
+          // 단일 클릭인 경우 handleSlotClick 호출
           handleSlotClick(dragStart.day, dragStart.hour, days.indexOf(dragStart.day));
         } else {
           // Ensure start is before end
@@ -113,7 +125,7 @@ export default function Create() {
           
           // Create a new time block
           const newBlock: TimeBlock = {
-            id: `${dragStart.date}-${dragStart.hour}-${Date.now()}`,
+            id: `${crypto.randomUUID()}`,
             day: dragStart.day,
             date: dragStart.date,
             startHour: hours[actualStart],
@@ -212,18 +224,58 @@ export default function Create() {
     }
   };
 
+  // Validate form inputs
+  const validateForm = () => {
+    let isValid = true;
+    
+    if (!meetingTitle.trim()) {
+      setTitleError("Meeting title is required");
+      isValid = false;
+    } else {
+      setTitleError("");
+    }
+    
+    if (!votingDeadline) {
+      setDeadlineError("Voting deadline is required");
+      isValid = false;
+    } else {
+      const deadlineDate = new Date(votingDeadline);
+      const now = new Date();
+      
+      if (deadlineDate <= now) {
+        setDeadlineError("Deadline must be in the future");
+        isValid = false;
+      } else {
+        setDeadlineError("");
+      }
+    }
+    
+    if (timeBlocks.length === 0) {
+      alert("Please select at least one time slot");
+      isValid = false;
+    }
+    
+    return isValid;
+  };
+
   // Handle form submission
   const handleSubmit = async () => {
-    if (selectedSlots.length === 0) return;
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
-      // TODO: API 호출로 변경
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // 임시로 123을 meetingId로 사용
-      navigate("/vote/123");
+      
+      const response = await createMeeting({
+        title: meetingTitle,
+        votingDeadline: votingDeadline,
+        timeBlocks: timeBlocks
+      });
+      
+      // Navigate to the voting page with the new meeting ID
+      navigate(`/vote/${response.id}`);
     } catch (error) {
       console.error("Failed to create meeting:", error);
+      alert("Failed to create meeting. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -311,9 +363,10 @@ export default function Create() {
 
   return (
     <motion.div 
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.4, ease: "easeInOut" }}
       className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50"
     >
       <div className="max-w-4xl mx-auto">
@@ -332,6 +385,43 @@ export default function Create() {
         <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
           Select Available Time Slots
         </h1>
+
+        {/* Meeting Title and Deadline Form */}
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+          <div className="mb-4">
+            <label htmlFor="meetingTitle" className="block text-sm font-medium text-gray-900 mb-1">
+              Meeting Title
+            </label>
+            <input
+              type="text"
+              id="meetingTitle"
+              value={meetingTitle}
+              onChange={(e) => setMeetingTitle(e.target.value)}
+              className={`w-full px-4 py-2 border text-sm font-medium text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                titleError ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="Enter meeting title"
+            />
+            {titleError && <p className="mt-1 text-sm text-red-500">{titleError}</p>}
+          </div>
+          
+          <div>
+            <label htmlFor="votingDeadline" className="block text-sm font-medium text-gray-900 mb-1">
+              Voting Deadline
+            </label>
+            <input
+              type="datetime-local"
+              id="votingDeadline"
+              value={votingDeadline}
+              onChange={(e) => setVotingDeadline(e.target.value)}
+              min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+              className={`w-full px-4 py-2 border rounded-md text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                deadlineError ? "border-red-500" : "border-gray-300"
+              }`}
+            />
+            {deadlineError && <p className="mt-1 text-sm text-red-500">{deadlineError}</p>}
+          </div>
+        </div>
 
         {/* Week Navigation */}
         <div className="flex justify-between items-center mb-6 bg-white p-3 rounded-lg shadow-md">
@@ -387,8 +477,8 @@ export default function Create() {
                   whileTap={{ scale: 0.9 }}
                   onMouseDown={() => handleMouseDown(day, hour, dayIndex)}
                   onMouseEnter={() => handleMouseEnter(day, hour, dayIndex)}
-                  onMouseUp={() => handleMouseUp()}
-                  
+                  onMouseUp={() => {handleMouseUp()
+                  }}
                   className={`p-2 border rounded transition-colors text-sm font-medium ${
                     isInDragSelection(day, hour, dayIndex)
                       ? "bg-indigo-300 text-white border-indigo-400"
