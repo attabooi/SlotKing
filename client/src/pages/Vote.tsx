@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { getMeeting, submitVote } from "@/lib/api";
+import { getMeeting, submitVote, clearVotes } from "@/lib/api";
 import { SlotKingLogo } from "@/components/ui/SlotKingLogo";
 import { motion } from "framer-motion";
-import { format, parseISO, isAfter } from "date-fns";
+import { format, parseISO, isAfter, formatDistanceToNow, differenceInSeconds } from "date-fns";
 
 interface TimeBlock {
   id: string;
@@ -18,6 +18,14 @@ interface Meeting {
   title: string;
   timeBlocks: TimeBlock[];
   votingDeadline: string;
+  votes: { [slotId: string]: { [userId: string]: boolean } };
+}
+
+interface MeetingResponse {
+  id: string;
+  title: string;
+  timeBlocks: TimeBlock[];
+  votingDeadline: string;
   votes: { [slotId: string]: number };
 }
 
@@ -28,34 +36,38 @@ export default function Vote() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
   const [isVotingClosed, setIsVotingClosed] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<string>("");
+
+  // Get vote counts for a time block
+  const getVoteCount = (blockId: string) => {
+    if (!meeting?.votes[blockId]) return 0;
+    return Object.values(meeting.votes[blockId]).filter(voted => voted).length;
+  };
 
   useEffect(() => {
     async function fetchMeeting() {
       try {
         const meetingData = await getMeeting(meetingId!);
-        
-        // Ensure timeBlocks is an array and votes is an object
-        const meeting: Meeting = {
-          ...meetingData,
-          timeBlocks: Array.isArray(meetingData.timeBlocks) ? meetingData.timeBlocks : [],
-          votes: meetingData.votes || {}
-        };
-        
-        setMeeting(meeting);
+        setMeeting(meetingData);
         
         // Check if voting is closed based on deadline
-        const deadlineDate = parseISO(meeting.votingDeadline);
+        const deadlineDate = parseISO(meetingData.votingDeadline);
         const now = new Date();
         const isDeadlinePassed = isAfter(now, deadlineDate);
-        
         setIsVotingClosed(isDeadlinePassed);
         
         // Check if user has already voted
-        const votedKey = `voted-${meetingId}`;
-        const hasVotedBefore = localStorage.getItem(votedKey) === "true";
-        setHasVoted(hasVotedBefore);
+        const userId = localStorage.getItem('anonymousUserId');
+        if (userId) {
+          const userVotes = Object.entries(meetingData.votes)
+            .filter(([_, voters]) => voters[userId])
+            .map(([blockId]) => blockId);
+          setSelectedSlots(userVotes);
+          setHasVoted(userVotes.length > 0);
+        }
       } catch (error) {
         console.error("Failed to fetch meeting:", error);
       } finally {
@@ -68,8 +80,36 @@ export default function Vote() {
     }
   }, [meetingId]);
 
+  // Update countdown timer every second
+  useEffect(() => {
+    if (!meeting) return;
+
+    const updateTimeLeft = () => {
+      const now = new Date();
+      const deadline = parseISO(meeting.votingDeadline);
+      
+      if (isAfter(now, deadline)) {
+        setIsVotingClosed(true);
+        setTimeLeft("Voting has ended");
+        return;
+      }
+
+      const secondsLeft = differenceInSeconds(deadline, now);
+      const hours = Math.floor(secondsLeft / 3600);
+      const minutes = Math.floor((secondsLeft % 3600) / 60);
+      const seconds = secondsLeft % 60;
+      
+      setTimeLeft(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    };
+
+    updateTimeLeft();
+    const timer = setInterval(updateTimeLeft, 1000); // Update every second
+
+    return () => clearInterval(timer);
+  }, [meeting]);
+
   const handleSlotClick = (slotId: string) => {
-    if (isVotingClosed || hasVoted) return;
+    if (isVotingClosed) return;
     
     setSelectedSlots((prev) => {
       if (prev.includes(slotId)) {
@@ -80,20 +120,46 @@ export default function Vote() {
   };
 
   const handleSubmit = async () => {
-    if (selectedSlots.length === 0 || isVotingClosed || hasVoted) return;
+    if (selectedSlots.length === 0 || isVotingClosed) return;
 
     setIsSubmitting(true);
     try {
-      await submitVote(meetingId!, selectedSlots);
-      
-      // Save to localStorage to prevent duplicate votes
-      localStorage.setItem(`voted-${meetingId}`, "true");
+      const updatedMeeting = await submitVote(meetingId!, selectedSlots);
+      setMeeting(updatedMeeting);
       setHasVoted(true);
       
+      setToastMessage("Your vote has been submitted!");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (error) {
       console.error("Failed to submit vote:", error);
+      setToastMessage("Failed to submit vote. Please try again.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVoteAgain = async () => {
+    if (isVotingClosed) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Clear votes from backend
+      const updatedMeeting = await clearVotes(meetingId!);
+      setMeeting(updatedMeeting);
+      setHasVoted(false);
+      setSelectedSlots([]);
+      
+      setToastMessage("Previous votes cleared. You can now vote again!");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (error) {
+      console.error("Failed to clear votes:", error);
+      setToastMessage("Failed to clear votes. Please try again.");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     } finally {
       setIsSubmitting(false);
     }
@@ -138,9 +204,17 @@ export default function Vote() {
           {meeting.title}
         </h1>
         
-        <p className="text-gray-600 mb-6">
-          Voting deadline: <span className="font-medium text-gray-900">{formattedDeadline}</span>
-        </p>
+        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+          <div className="flex flex-col space-y-2">
+            <div className="text-sm text-gray-600">Voting Deadline</div>
+            <div className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              {formattedDeadline}
+            </div>
+            <div className={`text-sm font-medium ${isVotingClosed ? "text-red-500" : "text-indigo-600"}`}>
+              {timeLeft}
+            </div>
+          </div>
+        </div>
 
         {(isVotingClosed || hasVoted) && (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
@@ -150,12 +224,20 @@ export default function Vote() {
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div className="ml-3">
+              <div className="ml-3 flex justify-between items-center w-full">
                 <p className="text-sm text-yellow-700">
                   {isVotingClosed 
                     ? "Voting is now closed. Here are the results:" 
                     : "You have already voted. Here are the current results:"}
                 </p>
+                {!isVotingClosed && (
+                  <button
+                    onClick={handleVoteAgain}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
+                  >
+                    Vote Again
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -186,7 +268,7 @@ export default function Vote() {
                     </span>
                   </div>
                   <div className={`text-sm ${selectedSlots.includes(block.id) ? "text-indigo-100" : "text-gray-500"}`}>
-                    {meeting.votes[block.id] || 0} {meeting.votes[block.id] === 1 ? "vote" : "votes"} so far
+                    {getVoteCount(block.id)} {getVoteCount(block.id) === 1 ? "vote" : "votes"} so far
                   </div>
                 </div>
                 {selectedSlots.includes(block.id) && (
@@ -238,7 +320,7 @@ export default function Vote() {
           showToast ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
-        Your vote has been submitted!
+        {toastMessage}
       </div>
     </motion.div>
   );
