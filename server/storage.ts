@@ -72,7 +72,7 @@ export interface IStorage {
   resetMeeting(uniqueId: string): Promise<boolean>;
   
   // Time slot options
-  getTimeSlotOptions(meetingId: number): Promise<TimeSlot[]>;
+  getTimeSlotOptions(startDate?: Date, endDate?: Date): TimeSlot[];
   calculateOptimalTimeSlots(meetingId: number, minRequired?: number): Promise<TimeSlot[]>;
   
   // Combined operations
@@ -308,73 +308,65 @@ export class MemStorage implements IStorage {
   }
   
   // Time slot options methods
-  async getTimeSlotOptions(meetingId: number): Promise<TimeSlot[]> {
-    const meeting = await this.getMeeting(meetingId);
-    if (!meeting) return [];
-    
-    // This would generate time slots based on meeting parameters
-    // For now, we'll create placeholder slots with dummy data
-    const startDate = new Date(meeting.startDate);
-    const endDate = new Date(meeting.endDate);
+  getTimeSlotOptions(startDate?: Date, endDate?: Date): TimeSlot[] {
     const timeSlots: TimeSlot[] = [];
     
-    // Create some default time slots for placeholder purposes
-    // In the real implementation, this would calculate based on meeting parameters
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    
-    // Generate a few example slots
-    timeSlots.push({
-      id: `${today.toISOString().split('T')[0]}-09-00`,
-      date: today.toISOString().split('T')[0],
-      time: '09:00',
-      formattedDate: today.toLocaleDateString(),
-      formattedTime: '9:00 AM'
-    });
-    
-    timeSlots.push({
-      id: `${today.toISOString().split('T')[0]}-14-00`,
-      date: today.toISOString().split('T')[0],
-      time: '14:00',
-      formattedDate: today.toLocaleDateString(),
-      formattedTime: '2:00 PM'
-    });
-    
-    timeSlots.push({
-      id: `${tomorrow.toISOString().split('T')[0]}-10-00`,
-      date: tomorrow.toISOString().split('T')[0],
-      time: '10:00',
-      formattedDate: tomorrow.toLocaleDateString(),
-      formattedTime: '10:00 AM'
-    });
-    
-    timeSlots.push({
-      id: `${tomorrow.toISOString().split('T')[0]}-15-00`,
-      date: tomorrow.toISOString().split('T')[0],
-      time: '15:00',
-      formattedDate: tomorrow.toLocaleDateString(),
-      formattedTime: '3:00 PM'
-    });
-    
+    // Default to today and tomorrow if no dates provided
+    const today = startDate || new Date();
+    const tomorrow = endDate || new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Generate slots for today
+    for (let hour = 9; hour <= 17; hour++) {
+      const timeSlot: TimeSlot = {
+        id: `${today.toISOString().split('T')[0]}-${hour.toString().padStart(2, '0')}-00`,
+        date: today.toISOString().split('T')[0],
+        time: `${hour.toString().padStart(2, '0')}:00`,
+        formattedDate: today.toLocaleDateString(),
+        formattedTime: `${hour % 12 || 12}:00 ${hour < 12 ? 'AM' : 'PM'}`
+      };
+      timeSlots.push(timeSlot);
+    }
+
+    // Generate slots for tomorrow
+    for (let hour = 9; hour <= 17; hour++) {
+      const timeSlot: TimeSlot = {
+        id: `${tomorrow.toISOString().split('T')[0]}-${hour.toString().padStart(2, '0')}-00`,
+        date: tomorrow.toISOString().split('T')[0],
+        time: `${hour.toString().padStart(2, '0')}:00`,
+        formattedDate: tomorrow.toLocaleDateString(),
+        formattedTime: `${hour % 12 || 12}:00 ${hour < 12 ? 'AM' : 'PM'}`
+      };
+      timeSlots.push(timeSlot);
+    }
+
     return timeSlots;
   }
   
   async calculateOptimalTimeSlots(meetingId: number, minRequired: number = 1): Promise<TimeSlot[]> {
-    // Real implementation would analyze availabilities and votes
-    const allTimeSlots = await this.getTimeSlotOptions(meetingId);
-    const availabilities = await this.getAvailabilitiesByMeetingId(meetingId);
-    const votes = await this.getVotesByMeetingId(meetingId);
+    const meeting = await this.getMeeting(meetingId);
+    if (!meeting || !meeting.startDate || !meeting.endDate) return [];
+
+    // Get time slots based on meeting dates
+    const allTimeSlots = this.getTimeSlotOptions(
+      new Date(meeting.startDate),
+      new Date(meeting.endDate)
+    );
     
-    // Create placeholder implementation
-    // In the real implementation, this would use the actual availability data
-    // and implement a more sophisticated algorithm
-    return allTimeSlots.map((slot, index) => ({
-      ...slot,
-      available: Math.min(index + 1, 5), // Higher availability for earlier slots (for demo)
-      total: 5, // Total participants (placeholder)
-      selected: index === 0 // First option selected as example
-    }));
+    const availabilities: Record<string, string[]> = await this.getAvailabilitiesByMeetingId(meetingId);
+    const votes: Record<string, string[]> = await this.getVotesByMeetingId(meetingId);
+
+    // Process availabilities and votes
+    return allTimeSlots.map(slot => {
+      const slotId = slot.id.toString();
+      return {
+        ...slot,
+        available: (availabilities[slotId]?.length ?? 0),
+        total: (votes[slotId]?.length ?? 0),
+        participants: availabilities[slotId] || [],
+        selected: (votes[slotId]?.length ?? 0) >= minRequired
+      };
+    });
   }
 
   // Combined operations
