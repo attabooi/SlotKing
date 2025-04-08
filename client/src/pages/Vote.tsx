@@ -47,6 +47,20 @@ export default function Vote() {
     return Object.keys(meeting.votes[blockId] || {}).length;
   };
 
+  const getTimeLeftAnimation = () => {
+    if (!meeting) return "";
+  
+    const now = new Date();
+    const deadline = parseISO(meeting.votingDeadline);
+    const secondsLeft = differenceInSeconds(deadline, now);
+  
+    if (secondsLeft <= 60) return "animate-pulse text-red-600"; // 🔴 1분 이하면 긴급
+    if (secondsLeft <= 300) return "animate-bounce text-orange-600"; // 🟠 5분 이하
+    if (secondsLeft <= 3600) return "animate-wiggle text-yellow-600"; // 🟡 1시간 이하
+    return "text-indigo-600"; // 🔵 그 외
+  };
+  
+
   // Get vote count text
   const getVoteCountText = (blockId: string) => {
     const count = getVoteCount(blockId);
@@ -58,13 +72,13 @@ export default function Vote() {
       try {
         const meetingData = await getMeeting(meetingId!);
         setMeeting(meetingData);
-        
+
         // Check if voting is closed based on deadline
         const deadlineDate = parseISO(meetingData.votingDeadline);
         const now = new Date();
         const isDeadlinePassed = isAfter(now, deadlineDate);
         setIsVotingClosed(isDeadlinePassed);
-        
+
         // Check if user has already voted
         const userId = localStorage.getItem('anonymousUserId');
         if (userId) {
@@ -93,7 +107,7 @@ export default function Vote() {
     const updateTimeLeft = () => {
       const now = new Date();
       const deadline = parseISO(meeting.votingDeadline);
-      
+
       if (isAfter(now, deadline)) {
         setIsVotingClosed(true);
         setTimeLeft("Voting has ended");
@@ -104,7 +118,7 @@ export default function Vote() {
       const hours = Math.floor(secondsLeft / 3600);
       const minutes = Math.floor((secondsLeft % 3600) / 60);
       const seconds = secondsLeft % 60;
-      
+
       setTimeLeft(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     };
 
@@ -117,11 +131,11 @@ export default function Vote() {
   // Get time left color based on remaining time
   const getTimeLeftColor = () => {
     if (!meeting) return "text-indigo-600";
-    
+
     const now = new Date();
     const deadline = parseISO(meeting.votingDeadline);
     const secondsLeft = differenceInSeconds(deadline, now);
-    
+
     if (secondsLeft <= 60) return "text-red-600"; // 1분 이하
     if (secondsLeft <= 300) return "text-orange-600"; // 5분 이하
     if (secondsLeft <= 3600) return "text-yellow-600"; // 1시간 이하
@@ -131,7 +145,7 @@ export default function Vote() {
 
   const handleSlotClick = (slotId: string) => {
     if (isVotingClosed) return;
-    
+
     setSelectedSlots((prev) => {
       if (prev.includes(slotId)) {
         return prev.filter((id) => id !== slotId);
@@ -147,13 +161,13 @@ export default function Vote() {
     try {
       const updatedMeeting = await submitVote(meetingId!, selectedSlots);
       console.log("Updated meeting after vote:", updatedMeeting);
-      
+
       // Ensure we have the updated votes object
       if (updatedMeeting && updatedMeeting.votes) {
         // Update the entire meeting state with the new data
         setMeeting(updatedMeeting);
         setHasVoted(true);
-        
+
         setToastMessage("Your vote has been submitted!");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
@@ -172,20 +186,20 @@ export default function Vote() {
 
   const handleVoteAgain = async () => {
     if (isVotingClosed) return;
-    
+
     setIsSubmitting(true);
     try {
       // Clear votes from backend
       const updatedMeeting = await clearVotes(meetingId!);
       console.log("Updated meeting after clearing votes:", updatedMeeting);
-      
+
       // Ensure we have the updated votes object
       if (updatedMeeting && updatedMeeting.votes) {
         // Update the entire meeting state with the new data
         setMeeting(updatedMeeting);
         setHasVoted(false);
         setSelectedSlots([]);
-        
+
         setToastMessage("Previous votes cleared. You can now vote again!");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
@@ -210,7 +224,7 @@ export default function Vote() {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      
+
       if (data.type === 'votes_updated' && data.data.meetingId === meetingId) {
         // Fetch the latest meeting data when votes are updated
         getMeeting(meetingId).then(updatedMeeting => {
@@ -264,7 +278,7 @@ export default function Vote() {
         <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
           {meeting.title}
         </h1>
-        
+
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
           <div className="flex flex-col space-y-2">
             <div className="text-sm text-gray-600">Voting Deadline</div>
@@ -272,10 +286,27 @@ export default function Vote() {
               {formattedDeadline}
             </div>
             <div className="flex items-center">
-              <span className="text-sm font-medium text-gray-600 mr-2">Voting ends in</span>
-              <span className={`text-sm font-bold ${getTimeLeftColor()}`}>
-                {timeLeft}
-              </span>
+              {isVotingClosed ? (
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  className="text-sm font-bold text-red-600"
+                >
+                  Voting has ended
+                </motion.span>
+              ) : (
+                <>
+                  <span className="text-sm font-medium text-gray-600 mr-2">
+                    ⏳ Voting ends in
+                  </span>
+                  <span
+                    className={`text-sm font-bold transition-all duration-500 ${getTimeLeftAnimation()}`}
+                  >
+                    {timeLeft}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -290,9 +321,9 @@ export default function Vote() {
               </div>
               <div className="ml-3 flex justify-between items-center w-full">
                 <p className="text-sm text-yellow-700">
-                  {isVotingClosed 
-                    ? "Voting is now closed. Here are the results:" 
-                    : "You have already voted. Here are the current results:"}
+                  {isVotingClosed
+                    ? " Voting’s over! Check out the final results 👇"
+                    : "✅ You've already voted! Here's the current result "}
                 </p>
                 {!isVotingClosed && (
                   <button
@@ -315,11 +346,10 @@ export default function Vote() {
               whileTap={{ scale: 0.98 }}
               onClick={() => handleSlotClick(block.id)}
               disabled={isVotingClosed || hasVoted}
-              className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${
-                selectedSlots.includes(block.id)
-                  ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
-                  : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
-              } ${(isVotingClosed || hasVoted) ? "cursor-default opacity-75" : ""}`}
+              className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${selectedSlots.includes(block.id)
+                ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
+                : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
+                } ${(isVotingClosed || hasVoted) ? "cursor-default opacity-75" : ""}`}
             >
               <div className="flex justify-between items-center">
                 <div className="text-left space-y-1">
@@ -359,11 +389,10 @@ export default function Vote() {
             whileTap={{ scale: 0.95 }}
             onClick={handleSubmit}
             disabled={selectedSlots.length === 0 || isSubmitting}
-            className={`mt-8 w-full py-4 rounded-lg font-semibold text-lg shadow-lg transition-shadow ${
-              selectedSlots.length === 0 || isSubmitting
-                ? "bg-slate-300 cursor-not-allowed"
-                : "bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-xl"
-            }`}
+            className={`mt-8 w-full py-4 rounded-lg font-semibold text-lg shadow-lg transition-shadow ${selectedSlots.length === 0 || isSubmitting
+              ? "bg-slate-300 cursor-not-allowed"
+              : "bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-xl"
+              }`}
           >
             {isSubmitting ? "Submitting..." : "Submit Vote"}
           </motion.button>
@@ -372,7 +401,7 @@ export default function Vote() {
         {isVotingClosed && (
           <div className="mt-8 text-center">
             <p className="text-gray-600">
-              Voting is now closed. The meeting organizer will be notified of the results.
+              🎉 Voting is closed! Results will be shared with the host.
             </p>
           </div>
         )}
@@ -380,13 +409,11 @@ export default function Vote() {
 
       {/* Toast */}
       <div
-        className={`fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ${
-          showToast ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ${showToast ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
       >
         {toastMessage}
       </div>
     </motion.div>
   );
 }
- 

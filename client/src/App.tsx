@@ -5,18 +5,16 @@ import Vote from "./pages/Vote";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import NotFound from "@/pages/not-found";
-import CreateMeeting from "@/pages/CreateMeeting";
-import OrganizerView from "@/pages/OrganizerView";
-import JoinMeeting from "@/pages/JoinMeeting";
-import ParticipantView from "@/pages/ParticipantView";
-import SimpleCalendarPage from "@/pages/SimpleCalendarPage";
-import Layout from "@/components/Layout";
 import I18nProvider from "@/components/I18nProvider";
 import LoginPage from "./pages/LoginPage";
 import PaymentPage from "./pages/PaymentPage";
+import SignUpPage from "./pages/SignUpPage";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "@/lib/firebase";
 
 export default function App() {
+  const [user] = useAuthState(auth);
+
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
@@ -27,21 +25,9 @@ export default function App() {
             <Route path="/vote/:meetingId" element={<Vote />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/payment" element={<PaymentPage />} />
+            <Route path="/signup" element={<SignUpPage />} />
           </Routes>
         </Router>
-        {/* <Layout>
-          <Router>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/create" element={<Create />} />
-              <Route path="/meeting/:id" element={<OrganizerView />} />
-              <Route path="/join/:id" element={<JoinMeeting />} />
-              <Route path="/participate/:id" element={<ParticipantView />} />
-              <Route path="/simple-calendar" element={<SimpleCalendarPage />} />
-              <Route path="/not-found" element={<NotFound />} />
-            </Routes>
-          </Router>
-        </Layout> */}
         <Toaster />
       </I18nProvider>
     </QueryClientProvider>

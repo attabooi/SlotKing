@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
 
+
+
 export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
@@ -80,10 +82,18 @@ export default {
           },
         },
       },
+
+      wiggle: {
+        '0%, 100%': { transform: 'rotate(-2deg)' },
+        '50%': { transform: 'rotate(2deg)' },
+      },
+    
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        wiggle: 'wiggle 1s ease-in-out infinite',
       },
+      
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
