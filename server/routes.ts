@@ -48,20 +48,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new meeting
   app.post('/api/meetings', async (req: Request, res: Response) => {
     try {
-      const validatedData = insertMeetingSchema.parse({
-        title: req.body.meetingTitle,
-        organizer: req.body.organizer,
-        startDate: req.body.startDate,
-        endDate: req.body.endDate,
-        startTime: parseInt(req.body.startTime),
-        endTime: parseInt(req.body.endTime),
-        timeSlotDuration: parseInt(req.body.timeSlotDuration),
+      const { title, votingDeadline, timeBlocks } = req.body;
+
+      // Validate required fields
+      if (!title || !votingDeadline || !timeBlocks || !Array.isArray(timeBlocks)) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+
+      // Create meeting
+      const meeting = await storage.createMeeting({
+        title,
+        votingDeadline,
+        timeBlocks: timeBlocks.map(block => ({
+          ...block,
+          id: nanoid() // Ensure each block has a unique ID
+        }))
       });
-      
-      const meeting = await storage.createMeeting(validatedData);
-      
-      res.status(201).json(meeting);
+
+      res.status(201).json({ id: meeting.uniqueId });
     } catch (error) {
+      console.error('Failed to create meeting:', error);
       res.status(400).json({ message: 'Invalid meeting data', error });
     }
   });
@@ -70,13 +76,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/meetings/:uniqueId', async (req: Request, res: Response) => {
     try {
       const { uniqueId } = req.params;
-      const meetingData = await storage.getMeetingWithParticipantsAndAvailabilities(uniqueId);
-      
-      if (!meetingData) {
+      const meeting = await storage.getMeetingByUniqueId(uniqueId);
+
+      if (!meeting) {
         return res.status(404).json({ message: 'Meeting not found' });
       }
-      
-      res.status(200).json(meetingData);
+
+      res.status(200).json(meeting);
     } catch (error) {
       res.status(500).json({ message: 'Error retrieving meeting', error });
     }
@@ -432,6 +438,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({ message: 'Time slot deleted successfully' });
     } catch (error) {
       res.status(500).json({ message: 'Error deleting time slot', error });
+    }
+  });
+  
+  // Submit votes for a meeting
+  app.post('/api/meetings/:uniqueId/vote', async (req: Request, res: Response) => {
+    try {
+      const { uniqueId } = req.params;
+      const { selectedSlots } = req.body;
+
+      const meeting = await storage.getMeetingByUniqueId(uniqueId);
+
+      if (!meeting) {
+        return res.status(404).json({ message: 'Meeting not found' });
+      }
+
+      // Check if voting is closed
+      const now = new Date();
+      const deadline = new Date(meeting.votingDeadline);
+      if (now > deadline) {
+        return res.status(400).json({ message: 'Voting is closed for this meeting' });
+      }
+
+      // Update vote counts for selected slots
+      const updatedMeeting = await storage.updateVotes(uniqueId, selectedSlots);
+
+      res.status(200).json(updatedMeeting);
+    } catch (error) {
+      res.status(400).json({ message: 'Failed to submit vote', error });
     }
   });
   

@@ -9,6 +9,30 @@ import {
 } from "@shared/schema";
 import { nanoid } from "nanoid";
 
+interface TimeBlock {
+  id: string;
+  day: string;
+  date: string;
+  startHour: string;
+  endHour: string;
+}
+
+interface Meeting {
+  id: number;
+  uniqueId: string;
+  title: string;
+  votingDeadline: string;
+  timeBlocks: TimeBlock[];
+  votes: { [slotId: string]: number };
+  createdAt: Date;
+}
+
+interface InsertMeeting {
+  title: string;
+  votingDeadline: string;
+  timeBlocks: TimeBlock[];
+}
+
 export interface IStorage {
   // Users
   getUser(id: number): Promise<User | undefined>;
@@ -19,6 +43,7 @@ export interface IStorage {
   createMeeting(meeting: InsertMeeting): Promise<Meeting>;
   getMeetingByUniqueId(uniqueId: string): Promise<Meeting | undefined>;
   getMeeting(id: number): Promise<Meeting | undefined>;
+  updateVotes(uniqueId: string, selectedSlots: string[]): Promise<Meeting>;
   
   // Participants
   createParticipant(participant: InsertParticipant): Promise<Participant>;
@@ -115,14 +140,15 @@ export class MemStorage implements IStorage {
   // Meeting methods
   async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
     const id = this.meetingId++;
-    const uniqueId = nanoid(10); // Generate a unique ID for the meeting URL
+    const uniqueId = nanoid(10);
     const now = new Date();
     
-    const meeting: Meeting = { 
-      ...insertMeeting, 
-      id, 
-      uniqueId, 
-      createdAt: now 
+    const meeting: Meeting = {
+      ...insertMeeting,
+      id,
+      uniqueId,
+      votes: {},
+      createdAt: now
     };
     
     this.meetings.set(id, meeting);
@@ -131,7 +157,7 @@ export class MemStorage implements IStorage {
 
   async getMeetingByUniqueId(uniqueId: string): Promise<Meeting | undefined> {
     return Array.from(this.meetings.values()).find(
-      (meeting) => meeting.uniqueId === uniqueId,
+      (meeting) => meeting.uniqueId === uniqueId
     );
   }
 
@@ -433,6 +459,21 @@ export class MemStorage implements IStorage {
     }
     
     return true;
+  }
+
+  async updateVotes(uniqueId: string, selectedSlots: string[]): Promise<Meeting> {
+    const meeting = await this.getMeetingByUniqueId(uniqueId);
+    if (!meeting) {
+      throw new Error('Meeting not found');
+    }
+
+    // Update vote counts for selected slots
+    selectedSlots.forEach(slotId => {
+      meeting.votes[slotId] = (meeting.votes[slotId] || 0) + 1;
+    });
+
+    this.meetings.set(meeting.id, meeting);
+    return meeting;
   }
 }
 

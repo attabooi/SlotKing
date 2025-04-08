@@ -5,19 +5,20 @@ import { SlotKingLogo } from "@/components/ui/SlotKingLogo";
 import { motion } from "framer-motion";
 import { format, parseISO, isAfter } from "date-fns";
 
-interface TimeSlot {
+interface TimeBlock {
   id: string;
   day: string;
-  hour: string;
-  votes: number;
+  date: string;
+  startHour: string;
+  endHour: string;
 }
 
 interface Meeting {
   id: string;
   title: string;
-  timeSlots: TimeSlot[];
+  timeBlocks: TimeBlock[];
   votingDeadline: string;
-  isVotingClosed: boolean;
+  votes: { [slotId: string]: number };
 }
 
 export default function Vote() {
@@ -34,14 +35,22 @@ export default function Vote() {
     async function fetchMeeting() {
       try {
         const meetingData = await getMeeting(meetingId!);
-        setMeeting(meetingData);
+        
+        // Ensure timeBlocks is an array and votes is an object
+        const meeting: Meeting = {
+          ...meetingData,
+          timeBlocks: Array.isArray(meetingData.timeBlocks) ? meetingData.timeBlocks : [],
+          votes: meetingData.votes || {}
+        };
+        
+        setMeeting(meeting);
         
         // Check if voting is closed based on deadline
-        const deadlineDate = parseISO(meetingData.votingDeadline);
+        const deadlineDate = parseISO(meeting.votingDeadline);
         const now = new Date();
         const isDeadlinePassed = isAfter(now, deadlineDate);
         
-        setIsVotingClosed(isDeadlinePassed || meetingData.isVotingClosed);
+        setIsVotingClosed(isDeadlinePassed);
         
         // Check if user has already voted
         const votedKey = `voted-${meetingId}`;
@@ -153,34 +162,49 @@ export default function Vote() {
         )}
 
         <div className="space-y-4">
-          {meeting.timeSlots.map((slot) => (
+          {Array.isArray(meeting.timeBlocks) && meeting.timeBlocks.map((block) => (
             <motion.button
-              key={slot.id}
+              key={block.id}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => handleSlotClick(slot.id)}
+              onClick={() => handleSlotClick(block.id)}
               disabled={isVotingClosed || hasVoted}
-              className={`w-full p-4 rounded-lg border transition-colors ${
-                selectedSlots.includes(slot.id)
-                  ? "bg-indigo-500 text-white border-indigo-600"
-                  : "bg-white hover:bg-indigo-50 border-slate-200"
-              } ${(isVotingClosed || hasVoted) ? "cursor-default" : ""}`}
+              className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${
+                selectedSlots.includes(block.id)
+                  ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
+                  : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
+              } ${(isVotingClosed || hasVoted) ? "cursor-default opacity-75" : ""}`}
             >
               <div className="flex justify-between items-center">
-                <div className="text-left">
-                  <div className="font-semibold">
-                    {slot.day}요일 {slot.hour}
+                <div className="text-left space-y-1">
+                  <div className="font-semibold text-lg flex items-center gap-2">
+                    <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                      {block.day}
+                    </span>
+                    <span className={selectedSlots.includes(block.id) ? "text-white" : "text-gray-600"}>
+                      {block.startHour} - {block.endHour}
+                    </span>
                   </div>
-                  <div className="text-sm opacity-75">
-                    {slot.votes} votes so far
+                  <div className={`text-sm ${selectedSlots.includes(block.id) ? "text-indigo-100" : "text-gray-500"}`}>
+                    {meeting.votes[block.id] || 0} {meeting.votes[block.id] === 1 ? "vote" : "votes"} so far
                   </div>
                 </div>
-                {selectedSlots.includes(slot.id) && (
-                  <div className="text-white">✓</div>
+                {selectedSlots.includes(block.id) && (
+                  <div className="bg-white bg-opacity-20 p-2 rounded-full">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
                 )}
               </div>
             </motion.button>
           ))}
+
+          {(!Array.isArray(meeting.timeBlocks) || meeting.timeBlocks.length === 0) && (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No time blocks available for this meeting.</p>
+            </div>
+          )}
         </div>
 
         {!isVotingClosed && !hasVoted && (
@@ -218,4 +242,5 @@ export default function Vote() {
       </div>
     </motion.div>
   );
-} 
+}
+ 

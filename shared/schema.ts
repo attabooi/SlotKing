@@ -2,7 +2,16 @@ import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzl
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User schema for authentication (keeping the existing schema)
+// TimeBlock interface
+export interface TimeBlock {
+  id: string;
+  day: string;
+  date: string;
+  startHour: string;
+  endHour: string;
+}
+
+// User schema for authentication
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -20,25 +29,18 @@ export type User = typeof users.$inferSelect;
 // Meeting schema
 export const meetings = pgTable("meetings", {
   id: serial("id").primaryKey(),
-  uniqueId: text("unique_id").notNull().unique(), // For shareable URLs
+  uniqueId: text("unique_id").notNull().unique(),
   title: text("title").notNull(),
-  organizer: text("organizer").notNull(),
-  startDate: text("start_date").notNull(), // Store as ISO string
-  endDate: text("end_date").notNull(), // Store as ISO string
-  startTime: integer("start_time").notNull(), // Store as hour (24h format)
-  endTime: integer("end_time").notNull(), // Store as hour (24h format)
-  timeSlotDuration: integer("time_slot_duration").notNull(), // In minutes
+  votingDeadline: text("voting_deadline").notNull(),
+  timeBlocks: json("time_blocks").notNull(),
+  votes: json("votes").default({}).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const insertMeetingSchema = createInsertSchema(meetings).pick({
   title: true,
-  organizer: true,
-  startDate: true,
-  endDate: true,
-  startTime: true,
-  endTime: true,
-  timeSlotDuration: true,
+  votingDeadline: true,
+  timeBlocks: true,
 });
 
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
@@ -163,6 +165,6 @@ export type Vote = typeof votes.$inferSelect;
 
 // Extended type for WebSocket messages
 export type WebSocketMessage = {
-  type: 'participant_joined' | 'availability_updated' | 'vote_submitted' | 'suggestion_added' | 'meeting_reset';
+  type: 'vote_submitted' | 'meeting_created';
   data: any;
 };
