@@ -43,8 +43,8 @@ export default function Vote() {
 
   // Get vote counts for a time block
   const getVoteCount = (blockId: string) => {
-    if (!meeting?.votes || !meeting.votes[blockId]) return 0;
-    return Object.values(meeting.votes[blockId]).filter(voted => voted).length;
+    if (!meeting?.votes) return 0;
+    return Object.keys(meeting.votes[blockId] || {}).length;
   };
 
   useEffect(() => {
@@ -141,12 +141,18 @@ export default function Vote() {
     try {
       const updatedMeeting = await submitVote(meetingId!, selectedSlots);
       console.log("Updated meeting after vote:", updatedMeeting);
-      setMeeting(updatedMeeting);
-      setHasVoted(true);
       
-      setToastMessage("Your vote has been submitted!");
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      // Ensure we have the updated votes object
+      if (updatedMeeting && updatedMeeting.votes) {
+        setMeeting(updatedMeeting);
+        setHasVoted(true);
+        
+        setToastMessage("Your vote has been submitted!");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        throw new Error("Invalid response from server");
+      }
     } catch (error) {
       console.error("Failed to submit vote:", error);
       setToastMessage("Failed to submit vote. Please try again.");
@@ -165,13 +171,19 @@ export default function Vote() {
       // Clear votes from backend
       const updatedMeeting = await clearVotes(meetingId!);
       console.log("Updated meeting after clearing votes:", updatedMeeting);
-      setMeeting(updatedMeeting);
-      setHasVoted(false);
-      setSelectedSlots([]);
       
-      setToastMessage("Previous votes cleared. You can now vote again!");
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      // Ensure we have the updated votes object
+      if (updatedMeeting && updatedMeeting.votes) {
+        setMeeting(updatedMeeting);
+        setHasVoted(false);
+        setSelectedSlots([]);
+        
+        setToastMessage("Previous votes cleared. You can now vote again!");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        throw new Error("Invalid response from server");
+      }
     } catch (error) {
       console.error("Failed to clear votes:", error);
       setToastMessage("Failed to clear votes. Please try again.");

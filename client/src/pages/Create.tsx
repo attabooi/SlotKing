@@ -4,6 +4,8 @@ import { SlotKingLogo } from "@/components/ui/SlotKingLogo";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addWeeks, subWeeks, startOfWeek, endOfWeek, addDays, isToday, parseISO, addDays as dateFnsAddDays } from "date-fns";
 import { createMeeting } from "@/lib/api";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 interface TimeSlot {
   day: string;
@@ -19,6 +21,110 @@ interface TimeBlock {
   endHour: string;
 }
 
+// Add custom styles for the date picker
+const datePickerStyles = `
+  .react-datepicker-wrapper {
+    width: 100%;
+  }
+
+  .react-datepicker {
+    font-family: inherit;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .react-datepicker__header {
+    background-color: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    padding-top: 0.5rem;
+  }
+  
+  .react-datepicker__day-name {
+    color: #4b5563;
+    font-weight: 500;
+  }
+  
+  .react-datepicker__day {
+    color: #1f2937;
+    font-weight: 500;
+  }
+  
+  .react-datepicker__day--disabled {
+    color: #9ca3af !important;
+    cursor: not-allowed;
+  }
+  
+  .react-datepicker__day--selected {
+    background-color: #4f46e5 !important;
+    color: white !important;
+    border-radius: 0.25rem;
+  }
+  
+  .react-datepicker__day--keyboard-selected {
+    background-color: #4f46e5 !important;
+    color: white !important;
+    border-radius: 0.25rem;
+  }
+  
+  .react-datepicker__time-container {
+    border-left: 1px solid #e5e7eb;
+    width: 100px;
+  }
+  
+  .react-datepicker__time-container .react-datepicker__time {
+    background-color: #f9fafb;
+  }
+  
+  .react-datepicker__time-container .react-datepicker__time-box {
+    width: 100px;
+  }
+  
+  .react-datepicker__time-list-item--disabled {
+    color: #9ca3af !important;
+    cursor: not-allowed;
+  }
+  
+  .react-datepicker__time-container .react-datepicker__time-list-item {
+    color: #1f2937;
+    font-weight: 500;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .react-datepicker__time-container .react-datepicker__time-list-item--selected {
+    background-color: #4f46e5 !important;
+    color: white !important;
+  }
+  
+  .react-datepicker__time-container .react-datepicker__time-list-item:hover:not(.react-datepicker__time-list-item--disabled) {
+    background-color: #e5e7eb;
+  }
+  
+  .react-datepicker__navigation {
+    top: 0.5rem;
+  }
+  
+  .react-datepicker__navigation--previous {
+    left: 0.5rem;
+  }
+  
+  .react-datepicker__navigation--next {
+    right: 0.5rem;
+  }
+  
+  .react-datepicker__current-month {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+  }
+`;
+
 export default function Create() {
   const navigate = useNavigate();
   const [selectedSlots, setSelectedSlots] = useState<TimeSlot[]>([]);
@@ -32,7 +138,7 @@ export default function Create() {
   
   // 새로운 상태 추가
   const [meetingTitle, setMeetingTitle] = useState("");
-  const [votingDeadline, setVotingDeadline] = useState("");
+  const [votingDeadline, setVotingDeadline] = useState<Date | null>(null);
   const [titleError, setTitleError] = useState("");
   const [deadlineError, setDeadlineError] = useState("");
 
@@ -74,7 +180,7 @@ export default function Create() {
     setSelectedSlots([]);
     setTimeBlocks([]);
     setMeetingTitle("");
-    setVotingDeadline("");
+    setVotingDeadline(null);
     setTitleError("");
     setDeadlineError("");
   };
@@ -224,7 +330,7 @@ export default function Create() {
     }
   };
 
-  // Validate form inputs
+  // Validate form before submission
   const validateForm = () => {
     let isValid = true;
     
@@ -238,16 +344,11 @@ export default function Create() {
     if (!votingDeadline) {
       setDeadlineError("Voting deadline is required");
       isValid = false;
+    } else if (votingDeadline < new Date()) {
+      setDeadlineError("Voting deadline must be in the future");
+      isValid = false;
     } else {
-      const deadlineDate = new Date(votingDeadline);
-      const now = new Date();
-      
-      if (deadlineDate <= now) {
-        setDeadlineError("Deadline must be in the future");
-        isValid = false;
-      } else {
-        setDeadlineError("");
-      }
+      setDeadlineError("");
     }
     
     if (timeBlocks.length === 0) {
@@ -267,7 +368,7 @@ export default function Create() {
       
       const response = await createMeeting({
         title: meetingTitle,
-        votingDeadline: votingDeadline,
+        votingDeadline: votingDeadline ? votingDeadline.toISOString() : "",
         timeBlocks: timeBlocks
       });
       
@@ -369,6 +470,8 @@ export default function Create() {
       transition={{ duration: 0.4, ease: "easeInOut" }}
       className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50"
     >
+      <style>{datePickerStyles}</style>
+      
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <SlotKingLogo />
@@ -409,16 +512,39 @@ export default function Create() {
             <label htmlFor="votingDeadline" className="block text-sm font-medium text-gray-900 mb-1">
               Voting Deadline
             </label>
-            <input
-              type="datetime-local"
-              id="votingDeadline"
-              value={votingDeadline}
-              onChange={(e) => setVotingDeadline(e.target.value)}
-              min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
-              className={`w-full px-4 py-2 border rounded-md text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                deadlineError ? "border-red-500" : "border-gray-300"
-              }`}
-            />
+            <div className="relative">
+              <DatePicker
+                selected={votingDeadline}
+                onChange={(date) => setVotingDeadline(date)}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={15}
+                timeCaption="Time"
+                dateFormat="MMMM d, yyyy h:mm aa"
+                minDate={new Date()}
+                filterTime={(time) => {
+                  const now = new Date();
+                  const selected = new Date(time);
+                  
+                  // If selected date is today, only allow future times
+                  if (format(selected, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd')) {
+                    return selected > now;
+                  }
+                  
+                  // For future dates, allow all times
+                  return true;
+                }}
+                placeholderText="Select date and time"
+                className={`w-full px-4 py-2 border rounded-md text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                  deadlineError ? "border-red-500" : "border-gray-300"
+                }`}
+                isClearable
+                popperClassName="react-datepicker-popper"
+                popperPlacement="bottom-start"
+                calendarClassName="shadow-lg border border-gray-200 rounded-lg"
+                shouldCloseOnSelect={false}
+              />
+            </div>
             {deadlineError && <p className="mt-1 text-sm text-red-500">{deadlineError}</p>}
           </div>
         </div>
