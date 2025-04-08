@@ -47,6 +47,12 @@ export default function Vote() {
     return Object.keys(meeting.votes[blockId] || {}).length;
   };
 
+  // Get vote count text
+  const getVoteCountText = (blockId: string) => {
+    const count = getVoteCount(blockId);
+    return `${count} ${count === 1 ? "vote" : "votes"} so far`;
+  };
+
   useEffect(() => {
     async function fetchMeeting() {
       try {
@@ -144,6 +150,7 @@ export default function Vote() {
       
       // Ensure we have the updated votes object
       if (updatedMeeting && updatedMeeting.votes) {
+        // Update the entire meeting state with the new data
         setMeeting(updatedMeeting);
         setHasVoted(true);
         
@@ -174,6 +181,7 @@ export default function Vote() {
       
       // Ensure we have the updated votes object
       if (updatedMeeting && updatedMeeting.votes) {
+        // Update the entire meeting state with the new data
         setMeeting(updatedMeeting);
         setHasVoted(false);
         setSelectedSlots([]);
@@ -193,6 +201,30 @@ export default function Vote() {
       setIsSubmitting(false);
     }
   };
+
+  // Add WebSocket connection for real-time updates
+  useEffect(() => {
+    if (!meetingId) return;
+
+    const ws = new WebSocket(`ws://localhost:3000/ws`);
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'votes_updated' && data.data.meetingId === meetingId) {
+        // Fetch the latest meeting data when votes are updated
+        getMeeting(meetingId).then(updatedMeeting => {
+          if (updatedMeeting) {
+            setMeeting(updatedMeeting);
+          }
+        });
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [meetingId]);
 
   if (isLoading) {
     return (
@@ -300,7 +332,7 @@ export default function Vote() {
                     </span>
                   </div>
                   <div className={`text-sm ${selectedSlots.includes(block.id) ? "text-indigo-100" : "text-gray-500"}`}>
-                    {getVoteCount(block.id)} {getVoteCount(block.id) === 1 ? "vote" : "votes"} so far
+                    {getVoteCountText(block.id)}
                   </div>
                 </div>
                 {selectedSlots.includes(block.id) && (

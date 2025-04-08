@@ -17,7 +17,7 @@ interface TimeBlock {
   endHour: string;
 }
 
-interface Meeting {
+interface StorageMeeting {
   id: number;
   uniqueId: string;
   title: string;
@@ -25,9 +25,11 @@ interface Meeting {
   timeBlocks: TimeBlock[];
   votes: { [slotId: string]: { [userId: string]: boolean } };
   createdAt: Date;
+  startDate?: Date;
+  endDate?: Date;
 }
 
-interface InsertMeeting {
+interface StorageInsertMeeting {
   title: string;
   votingDeadline: string;
   timeBlocks: TimeBlock[];
@@ -40,10 +42,10 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   
   // Meetings
-  createMeeting(meeting: InsertMeeting): Promise<Meeting>;
-  getMeetingByUniqueId(uniqueId: string): Promise<Meeting | undefined>;
-  getMeeting(id: number): Promise<Meeting | undefined>;
-  updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting: boolean = true): Promise<Meeting>;
+  createMeeting(meeting: StorageInsertMeeting): Promise<StorageMeeting>;
+  getMeetingByUniqueId(uniqueId: string): Promise<StorageMeeting | undefined>;
+  getMeeting(id: number): Promise<StorageMeeting | undefined>;
+  updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting?: boolean): Promise<StorageMeeting>;
   
   // Participants
   createParticipant(participant: InsertParticipant): Promise<Participant>;
@@ -75,13 +77,13 @@ export interface IStorage {
   
   // Combined operations
   getMeetingWithParticipantsAndAvailabilities(uniqueId: string): Promise<{
-    meeting: Meeting;
+    meeting: StorageMeeting;
     participants: Participant[];
     availabilities: Availability[];
   } | undefined>;
   
   getMeetingWithVotesAndSuggestions(uniqueId: string): Promise<{
-    meeting: Meeting;
+    meeting: StorageMeeting;
     participants: Participant[];
     votes: Vote[];
     suggestions: Suggestion[];
@@ -90,7 +92,7 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
-  private meetings: Map<number, Meeting>;
+  private meetings: Map<number, StorageMeeting>;
   private participants: Map<number, Participant>;
   private availabilities: Map<number, Availability>;
   private votes: Map<number, Vote>;
@@ -138,12 +140,12 @@ export class MemStorage implements IStorage {
   }
 
   // Meeting methods
-  async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
+  async createMeeting(insertMeeting: StorageInsertMeeting): Promise<StorageMeeting> {
     const id = this.meetingId++;
     const uniqueId = nanoid(10);
     const now = new Date();
     
-    const meeting: Meeting = {
+    const meeting: StorageMeeting = {
       ...insertMeeting,
       id,
       uniqueId,
@@ -155,13 +157,13 @@ export class MemStorage implements IStorage {
     return meeting;
   }
 
-  async getMeetingByUniqueId(uniqueId: string): Promise<Meeting | undefined> {
+  async getMeetingByUniqueId(uniqueId: string): Promise<StorageMeeting | undefined> {
     return Array.from(this.meetings.values()).find(
       (meeting) => meeting.uniqueId === uniqueId
     );
   }
 
-  async getMeeting(id: number): Promise<Meeting | undefined> {
+  async getMeeting(id: number): Promise<StorageMeeting | undefined> {
     return this.meetings.get(id);
   }
 
@@ -324,6 +326,7 @@ export class MemStorage implements IStorage {
     
     // Generate a few example slots
     timeSlots.push({
+      id: `${today.toISOString().split('T')[0]}-09-00`,
       date: today.toISOString().split('T')[0],
       time: '09:00',
       formattedDate: today.toLocaleDateString(),
@@ -331,6 +334,7 @@ export class MemStorage implements IStorage {
     });
     
     timeSlots.push({
+      id: `${today.toISOString().split('T')[0]}-14-00`,
       date: today.toISOString().split('T')[0],
       time: '14:00',
       formattedDate: today.toLocaleDateString(),
@@ -338,6 +342,7 @@ export class MemStorage implements IStorage {
     });
     
     timeSlots.push({
+      id: `${tomorrow.toISOString().split('T')[0]}-10-00`,
       date: tomorrow.toISOString().split('T')[0],
       time: '10:00',
       formattedDate: tomorrow.toLocaleDateString(),
@@ -345,6 +350,7 @@ export class MemStorage implements IStorage {
     });
     
     timeSlots.push({
+      id: `${tomorrow.toISOString().split('T')[0]}-15-00`,
       date: tomorrow.toISOString().split('T')[0],
       time: '15:00',
       formattedDate: tomorrow.toLocaleDateString(),
@@ -373,7 +379,7 @@ export class MemStorage implements IStorage {
 
   // Combined operations
   async getMeetingWithParticipantsAndAvailabilities(uniqueId: string): Promise<{
-    meeting: Meeting;
+    meeting: StorageMeeting;
     participants: Participant[];
     availabilities: Availability[];
   } | undefined> {
@@ -392,7 +398,7 @@ export class MemStorage implements IStorage {
   }
   
   async getMeetingWithVotesAndSuggestions(uniqueId: string): Promise<{
-    meeting: Meeting;
+    meeting: StorageMeeting;
     participants: Participant[];
     votes: Vote[];
     suggestions: Suggestion[];
@@ -461,7 +467,7 @@ export class MemStorage implements IStorage {
     return true;
   }
 
-  async updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting: boolean = true): Promise<Meeting> {
+  async updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting?: boolean): Promise<StorageMeeting> {
     const meeting = await this.getMeetingByUniqueId(uniqueId);
     
     if (!meeting) {
@@ -479,6 +485,10 @@ export class MemStorage implements IStorage {
       Object.keys(meeting.votes).forEach(slotId => {
         if (meeting.votes[slotId] && meeting.votes[slotId][userId]) {
           delete meeting.votes[slotId][userId];
+          // Clean up empty vote objects
+          if (Object.keys(meeting.votes[slotId]).length === 0) {
+            delete meeting.votes[slotId];
+          }
         }
       });
     }
@@ -491,11 +501,12 @@ export class MemStorage implements IStorage {
       meeting.votes[slotId][userId] = true;
     });
     
-    // Update meeting in storage
-    this.meetings.set(meeting.id, meeting);
+    // Update meeting in storage with a new reference
+    const updatedMeeting = { ...meeting };
+    this.meetings.set(meeting.id, updatedMeeting);
     
     // Return a deep copy of the meeting to ensure the client gets the updated data
-    return JSON.parse(JSON.stringify(meeting));
+    return JSON.parse(JSON.stringify(updatedMeeting));
   }
 }
 
