@@ -108,6 +108,21 @@ export default function Vote() {
     return () => clearInterval(timer);
   }, [meeting]);
 
+  // Get time left color based on remaining time
+  const getTimeLeftColor = () => {
+    if (!meeting) return "text-indigo-600";
+    
+    const now = new Date();
+    const deadline = parseISO(meeting.votingDeadline);
+    const secondsLeft = differenceInSeconds(deadline, now);
+    
+    if (secondsLeft <= 60) return "text-red-600"; // 1분 이하
+    if (secondsLeft <= 300) return "text-orange-600"; // 5분 이하
+    if (secondsLeft <= 3600) return "text-yellow-600"; // 1시간 이하
+    if (secondsLeft <= 86400) return "text-blue-600"; // 1일 이하
+    return "text-indigo-600"; // 1일 초과
+  };
+
   const handleSlotClick = (slotId: string) => {
     if (isVotingClosed) return;
     
@@ -210,8 +225,11 @@ export default function Vote() {
             <div className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               {formattedDeadline}
             </div>
-            <div className={`text-sm font-medium ${isVotingClosed ? "text-red-500" : "text-indigo-600"}`}>
-              {timeLeft}
+            <div className="flex items-center">
+              <span className="text-sm font-medium text-gray-600 mr-2">Voting ends in</span>
+              <span className={`text-sm font-bold ${getTimeLeftColor()}`}>
+                {timeLeft}
+              </span>
             </div>
           </div>
         </div>

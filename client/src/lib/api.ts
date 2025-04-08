@@ -80,7 +80,13 @@ export async function submitVote(meetingId: string, selectedSlots: string[]): Pr
     throw new Error("Failed to submit vote");
   }
   
-  return response.json();
+  const updatedMeeting = await response.json();
+  
+  // Update local storage to track user's votes
+  const votedKey = `voted-${meetingId}`;
+  localStorage.setItem(votedKey, "true");
+  
+  return updatedMeeting;
 }
 
 export async function clearVotes(meetingId: string): Promise<Meeting> {
@@ -98,5 +104,11 @@ export async function clearVotes(meetingId: string): Promise<Meeting> {
     throw new Error("Failed to clear votes");
   }
   
-  return response.json();
+  const updatedMeeting = await response.json();
+  
+  // Remove vote tracking from local storage
+  const votedKey = `voted-${meetingId}`;
+  localStorage.removeItem(votedKey);
+  
+  return updatedMeeting;
 } 
