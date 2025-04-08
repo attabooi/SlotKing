@@ -64,6 +64,8 @@ export async function createMeeting(data: CreateMeetingRequest): Promise<{ id: s
 export async function submitVote(meetingId: string, selectedSlots: string[]): Promise<Meeting> {
   const userId = getOrCreateUserId();
   
+  console.log("Submitting vote with userId:", userId, "and slots:", selectedSlots);
+  
   const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/vote`, {
     method: "POST",
     headers: {
@@ -72,7 +74,7 @@ export async function submitVote(meetingId: string, selectedSlots: string[]): Pr
     body: JSON.stringify({ 
       selectedSlots,
       userId,
-      replaceExisting: true // Tell backend to replace existing votes
+      replaceExisting: true
     }),
   });
   
@@ -81,6 +83,7 @@ export async function submitVote(meetingId: string, selectedSlots: string[]): Pr
   }
   
   const updatedMeeting = await response.json();
+  console.log("Received updated meeting from server:", updatedMeeting);
   
   // Update local storage to track user's votes
   const votedKey = `voted-${meetingId}`;
@@ -91,6 +94,8 @@ export async function submitVote(meetingId: string, selectedSlots: string[]): Pr
 
 export async function clearVotes(meetingId: string): Promise<Meeting> {
   const userId = getOrCreateUserId();
+  
+  console.log("Clearing votes for userId:", userId);
   
   const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/vote`, {
     method: "DELETE",
@@ -105,6 +110,7 @@ export async function clearVotes(meetingId: string): Promise<Meeting> {
   }
   
   const updatedMeeting = await response.json();
+  console.log("Received updated meeting after clearing votes:", updatedMeeting);
   
   // Remove vote tracking from local storage
   const votedKey = `voted-${meetingId}`;

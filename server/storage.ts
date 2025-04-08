@@ -23,7 +23,7 @@ interface Meeting {
   title: string;
   votingDeadline: string;
   timeBlocks: TimeBlock[];
-  votes: { [slotId: string]: number };
+  votes: { [slotId: string]: { [userId: string]: boolean } };
   createdAt: Date;
 }
 
@@ -43,7 +43,7 @@ export interface IStorage {
   createMeeting(meeting: InsertMeeting): Promise<Meeting>;
   getMeetingByUniqueId(uniqueId: string): Promise<Meeting | undefined>;
   getMeeting(id: number): Promise<Meeting | undefined>;
-  updateVotes(uniqueId: string, selectedSlots: string[]): Promise<Meeting>;
+  updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting: boolean = true): Promise<Meeting>;
   
   // Participants
   createParticipant(participant: InsertParticipant): Promise<Participant>;
@@ -461,19 +461,41 @@ export class MemStorage implements IStorage {
     return true;
   }
 
-  async updateVotes(uniqueId: string, selectedSlots: string[]): Promise<Meeting> {
+  async updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting: boolean = true): Promise<Meeting> {
     const meeting = await this.getMeetingByUniqueId(uniqueId);
+    
     if (!meeting) {
-      throw new Error('Meeting not found');
+      throw new Error("Meeting not found");
     }
-
-    // Update vote counts for selected slots
+    
+    // Initialize votes object if it doesn't exist
+    if (!meeting.votes) {
+      meeting.votes = {};
+    }
+    
+    // If replaceExisting is true, remove all existing votes for this user
+    if (replaceExisting) {
+      // Remove user's votes from all slots
+      Object.keys(meeting.votes).forEach(slotId => {
+        if (meeting.votes[slotId] && meeting.votes[slotId][userId]) {
+          delete meeting.votes[slotId][userId];
+        }
+      });
+    }
+    
+    // Add new votes
     selectedSlots.forEach(slotId => {
-      meeting.votes[slotId] = (meeting.votes[slotId] || 0) + 1;
+      if (!meeting.votes[slotId]) {
+        meeting.votes[slotId] = {};
+      }
+      meeting.votes[slotId][userId] = true;
     });
-
+    
+    // Update meeting in storage
     this.meetings.set(meeting.id, meeting);
-    return meeting;
+    
+    // Return a deep copy of the meeting to ensure the client gets the updated data
+    return JSON.parse(JSON.stringify(meeting));
   }
 }
 

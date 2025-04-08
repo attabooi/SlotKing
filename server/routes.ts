@@ -445,27 +445,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/meetings/:uniqueId/vote', async (req: Request, res: Response) => {
     try {
       const { uniqueId } = req.params;
-      const { selectedSlots } = req.body;
-
-      const meeting = await storage.getMeetingByUniqueId(uniqueId);
-
-      if (!meeting) {
-        return res.status(404).json({ message: 'Meeting not found' });
+      const { selectedSlots, userId, replaceExisting } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: 'User ID is required' });
       }
-
-      // Check if voting is closed
-      const now = new Date();
-      const deadline = new Date(meeting.votingDeadline);
-      if (now > deadline) {
-        return res.status(400).json({ message: 'Voting is closed for this meeting' });
-      }
-
-      // Update vote counts for selected slots
-      const updatedMeeting = await storage.updateVotes(uniqueId, selectedSlots);
-
+      
+      // Update votes and get the updated meeting
+      const updatedMeeting = await storage.updateVotes(uniqueId, selectedSlots, userId, replaceExisting);
+      
+      // Broadcast the vote update to connected clients
+      broadcastUpdate('votes_updated', {
+        meetingId: updatedMeeting.id,
+        votes: updatedMeeting.votes
+      });
+      
+      // Return the updated meeting with the new votes
       res.status(200).json(updatedMeeting);
     } catch (error) {
-      res.status(400).json({ message: 'Failed to submit vote', error });
+      console.error('Failed to submit vote:', error);
+      res.status(400).json({ message: 'Invalid vote data', error });
+    }
+  });
+  
+  // Clear votes for a user
+  app.delete('/api/meetings/:uniqueId/vote', async (req: Request, res: Response) => {
+    try {
+      const { uniqueId } = req.params;
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: 'User ID is required' });
+      }
+      
+      // Clear votes and get the updated meeting
+      const updatedMeeting = await storage.updateVotes(uniqueId, [], userId, true);
+      
+      // Broadcast the vote update to connected clients
+      broadcastUpdate('votes_cleared', {
+        meetingId: updatedMeeting.id,
+        userId
+      });
+      
+      // Return the updated meeting with the cleared votes
+      res.status(200).json(updatedMeeting);
+    } catch (error) {
+      console.error('Failed to clear votes:', error);
+      res.status(400).json({ message: 'Failed to clear votes', error });
     }
   });
   

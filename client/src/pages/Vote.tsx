@@ -43,7 +43,7 @@ export default function Vote() {
 
   // Get vote counts for a time block
   const getVoteCount = (blockId: string) => {
-    if (!meeting?.votes[blockId]) return 0;
+    if (!meeting?.votes || !meeting.votes[blockId]) return 0;
     return Object.values(meeting.votes[blockId]).filter(voted => voted).length;
   };
 
@@ -140,6 +140,7 @@ export default function Vote() {
     setIsSubmitting(true);
     try {
       const updatedMeeting = await submitVote(meetingId!, selectedSlots);
+      console.log("Updated meeting after vote:", updatedMeeting);
       setMeeting(updatedMeeting);
       setHasVoted(true);
       
@@ -163,6 +164,7 @@ export default function Vote() {
     try {
       // Clear votes from backend
       const updatedMeeting = await clearVotes(meetingId!);
+      console.log("Updated meeting after clearing votes:", updatedMeeting);
       setMeeting(updatedMeeting);
       setHasVoted(false);
       setSelectedSlots([]);
