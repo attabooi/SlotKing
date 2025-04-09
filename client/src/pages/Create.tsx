@@ -6,6 +6,8 @@ import { format, addWeeks, subWeeks, startOfWeek, endOfWeek, addDays, isToday, p
 import { createMeeting } from "@/lib/api";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import UserProfile from "@/components/UserProfile";
+import { auth } from "@/lib/firebase";
 
 interface TimeSlot {
   day: string;
@@ -141,6 +143,7 @@ export default function Create() {
   const [votingDeadline, setVotingDeadline] = useState<Date | null>(null);
   const [titleError, setTitleError] = useState("");
   const [deadlineError, setDeadlineError] = useState("");
+  const [error, setError] = useState("");
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const hours = Array.from({ length: 16 }, (_, i) => `${i + 9}:00`);
@@ -360,23 +363,50 @@ export default function Create() {
   };
 
   // Handle form submission
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSubmitting(true);
+    setError("");
+
     try {
-      
-      const response = await createMeeting({
+      const user = auth.currentUser;
+      if (!user) {
+        setError("Please log in to create a meeting");
+        navigate("/login");
+        return;
+      }
+
+      if (!meetingTitle.trim()) {
+        setError("Please enter a meeting title");
+        return;
+      }
+
+      if (!votingDeadline) {
+        setError("Please select a voting deadline");
+        return;
+      }
+
+      if (timeBlocks.length === 0) {
+        setError("Please select at least one time slot");
+        return;
+      }
+
+      const meetingData = {
         title: meetingTitle,
-        votingDeadline: votingDeadline ? votingDeadline.toISOString() : "",
-        timeBlocks: timeBlocks
-      });
+        votingDeadline: votingDeadline.toISOString(),
+        timeBlocks,
+        creator: {
+          uid: user.uid,
+          displayName: user.displayName || user.email?.split('@')[0] || 'User',
+          photoURL: user.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${user.uid}`
+        }
+      };
       
-      // Navigate to the voting page with the new meeting ID
-      navigate(`/vote/${response.id}`);
+      const { id } = await createMeeting(meetingData);
+      navigate(`/vote/${id}`);
     } catch (error) {
       console.error("Failed to create meeting:", error);
-      alert("Failed to create meeting. Please try again.");
+      setError("Failed to create meeting. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -475,14 +505,7 @@ export default function Create() {
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <SlotKingLogo />
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleReset}
-            className="px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-shadow"
-          >
-            Reset
-          </motion.button>
+          <UserProfile />
         </div>
 
         <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">

@@ -48,21 +48,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new meeting
   app.post('/api/meetings', async (req: Request, res: Response) => {
     try {
-      const { title, votingDeadline, timeBlocks } = req.body;
+      const { title, votingDeadline, timeBlocks, creator } = req.body;
 
       // Validate required fields
       if (!title || !votingDeadline || !timeBlocks || !Array.isArray(timeBlocks)) {
         return res.status(400).json({ message: 'Missing required fields' });
       }
 
-      // Create meeting
+      // Create meeting with creator info
       const meeting = await storage.createMeeting({
         title,
         votingDeadline,
         timeBlocks: timeBlocks.map(block => ({
           ...block,
           id: nanoid() // Ensure each block has a unique ID
-        }))
+        })),
+        creator: creator || {
+          uid: 'anonymous',
+          displayName: 'Anonymous',
+          photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
+        }
       });
 
       res.status(201).json({ id: meeting.uniqueId });
@@ -445,14 +450,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/meetings/:uniqueId/vote', async (req: Request, res: Response) => {
     try {
       const { uniqueId } = req.params;
-      const { selectedSlots, userId, replaceExisting } = req.body;
+      const { selectedSlots, userId, voterInfo, replaceExisting } = req.body;
       
       if (!userId) {
         return res.status(400).json({ message: 'User ID is required' });
       }
       
       // Update votes and get the updated meeting
-      const updatedMeeting = await storage.updateVotes(uniqueId, selectedSlots, userId, replaceExisting);
+      const updatedMeeting = await storage.updateVotes(uniqueId, selectedSlots, userId, replaceExisting, voterInfo);
       
       // Broadcast the vote update to connected clients
       broadcastUpdate('votes_updated', {

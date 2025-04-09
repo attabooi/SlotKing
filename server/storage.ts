@@ -17,22 +17,38 @@ interface TimeBlock {
   endHour: string;
 }
 
+interface Voter {
+  uid: string;
+  displayName: string;
+  photoURL: string;
+}
+
 interface StorageMeeting {
   id: number;
   uniqueId: string;
   title: string;
   votingDeadline: string;
   timeBlocks: TimeBlock[];
-  votes: { [slotId: string]: { [userId: string]: boolean } };
+  votes: { [slotId: string]: { [userId: string]: Voter } };
   createdAt: Date;
   startDate?: Date;
   endDate?: Date;
+  creator?: {
+    uid: string;
+    displayName: string;
+    photoURL: string;
+  };
 }
 
 interface StorageInsertMeeting {
   title: string;
   votingDeadline: string;
   timeBlocks: TimeBlock[];
+  creator?: {
+    uid: string;
+    displayName: string;
+    photoURL: string;
+  };
 }
 
 export interface IStorage {
@@ -45,7 +61,7 @@ export interface IStorage {
   createMeeting(meeting: StorageInsertMeeting): Promise<StorageMeeting>;
   getMeetingByUniqueId(uniqueId: string): Promise<StorageMeeting | undefined>;
   getMeeting(id: number): Promise<StorageMeeting | undefined>;
-  updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting?: boolean): Promise<StorageMeeting>;
+  updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting?: boolean, voterInfo?: Voter): Promise<StorageMeeting>;
   
   // Participants
   createParticipant(participant: InsertParticipant): Promise<Participant>;
@@ -150,7 +166,12 @@ export class MemStorage implements IStorage {
       id,
       uniqueId,
       votes: {},
-      createdAt: now
+      createdAt: now,
+      creator: insertMeeting.creator || {
+        uid: 'anonymous',
+        displayName: 'Anonymous',
+        photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
+      }
     };
     
     this.meetings.set(id, meeting);
@@ -459,7 +480,7 @@ export class MemStorage implements IStorage {
     return true;
   }
 
-  async updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting?: boolean): Promise<StorageMeeting> {
+  async updateVotes(uniqueId: string, selectedSlots: string[], userId: string, replaceExisting?: boolean, voterInfo?: Voter): Promise<StorageMeeting> {
     const meeting = await this.getMeetingByUniqueId(uniqueId);
     
     if (!meeting) {
@@ -485,12 +506,18 @@ export class MemStorage implements IStorage {
       });
     }
     
-    // Add new votes
+    // Add new votes with voter info
+    const voterData = voterInfo || {
+      uid: userId,
+      displayName: 'Anonymous',
+      photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=${userId}`
+    };
+    
     selectedSlots.forEach(slotId => {
       if (!meeting.votes[slotId]) {
         meeting.votes[slotId] = {};
       }
-      meeting.votes[slotId][userId] = true;
+      meeting.votes[slotId][userId] = voterData;
     });
     
     // Update meeting in storage with a new reference
