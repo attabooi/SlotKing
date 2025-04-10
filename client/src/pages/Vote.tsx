@@ -6,46 +6,7 @@ import { motion } from "framer-motion";
 import { format, parseISO, isAfter, formatDistanceToNow, differenceInSeconds } from "date-fns";
 import { auth } from "@/lib/firebase";
 import UserProfile from "@/components/UserProfile";
-
-interface TimeBlock {
-  id: string;
-  day: string;
-  date: string;
-  startHour: string;
-  endHour: string;
-}
-
-interface Voter {
-  uid: string;
-  displayName: string;
-  photoURL: string;
-}
-
-interface Meeting {
-  id: string;
-  title: string;
-  timeBlocks: TimeBlock[];
-  votingDeadline: string;
-  votes: { [slotId: string]: { [userId: string]: Voter } };
-  creator?: {
-    uid: string;
-    displayName: string;
-    photoURL: string;
-  };
-}
-
-interface MeetingResponse {
-  id: string;
-  title: string;
-  timeBlocks: TimeBlock[];
-  votingDeadline: string;
-  votes: { [slotId: string]: { [userId: string]: Voter } };
-  creator: {
-    uid: string;
-    displayName: string;
-    photoURL: string;
-  };
-}
+import type { Meeting, TimeBlock, Voter } from "@/lib/api";
 
 export default function Vote() {
   const { meetingId } = useParams<{ meetingId: string }>();
@@ -60,7 +21,9 @@ export default function Vote() {
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [showVotersModal, setShowVotersModal] = useState(false);
   const [selectedSlotVoters, setSelectedSlotVoters] = useState<Voter[]>([]);
-  const [selectedSlotInfo, setSelectedSlotInfo] = useState<{day: string, time: string} | null>(null);
+  const [selectedSlotInfo, setSelectedSlotInfo] = useState<{ day: string, time: string } | null>(null);
+  const [showVoterProfileModal, setShowVoterProfileModal] = useState(false);
+  const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
 
   // Get vote counts for a time block
   const getVoteCount = (blockId: string) => {
@@ -86,40 +49,59 @@ export default function Vote() {
 
   // Show voters modal
   const showVotersForSlot = (blockId: string, day: string, time: string) => {
-    setSelectedSlotVoters(getVoters(blockId));
+    console.log("showVotersForSlot called", { blockId, day, time });
+    const voters = getVoters(blockId);
+    console.log("Voters:", voters);
+    setSelectedSlotVoters(voters);
     setSelectedSlotInfo({ day, time });
     setShowVotersModal(true);
+    console.log("showVotersModal set to true");
+  };
+
+  // Show voter profile modal
+  const showVoterProfile = (voter: Voter) => {
+    console.log("showVoterProfile called", voter);
+    setSelectedVoter(voter);
+    setShowVoterProfileModal(true);
+    console.log("showVoterProfileModal set to true");
   };
 
   const getTimeLeftAnimation = () => {
     if (!meeting) return "";
-  
+
     const now = new Date();
     const deadline = parseISO(meeting.votingDeadline);
     const secondsLeft = differenceInSeconds(deadline, now);
-  
+
     if (secondsLeft <= 60) return "animate-pulse text-red-600"; // 🔴 1분 이하면 긴급
     if (secondsLeft <= 300) return "animate-bounce text-orange-600"; // 🟠 5분 이하
     if (secondsLeft <= 3600) return "animate-wiggle text-yellow-600"; // 🟡 1시간 이하
     return "text-indigo-600"; // 🔵 그 외
   };
-  
+
   // Get vote count text
   const getVoteCountText = (blockId: string) => {
     const count = getVoteCount(blockId);
     return `${count} ${count === 1 ? "vote" : "votes"} so far`;
   };
 
+  // Show voters modal when vote count is clicked
+  const handleVoteCountClick = (blockId: string, day: string, time: string, e: React.MouseEvent) => {
+    console.log("handleVoteCountClick called", { blockId, day, time });
+    e.stopPropagation();
+    showVotersForSlot(blockId, day, time);
+  };
+
   useEffect(() => {
     async function fetchMeeting() {
       try {
         const meetingData = await getMeeting(meetingId!);
-        
+
         // Ensure the meeting has the required structure
         if (!meetingData.votes) {
           meetingData.votes = {};
         }
-        
+
         // Ensure creator exists
         if (!meetingData.creator) {
           meetingData.creator = {
@@ -128,7 +110,7 @@ export default function Vote() {
             photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
           };
         }
-        
+
         setMeeting(meetingData);
 
         // Check if voting is closed based on deadline
@@ -218,7 +200,7 @@ export default function Vote() {
     setIsSubmitting(true);
     try {
       const user = auth.currentUser;
-      
+
       if (!user) {
         setToastMessage("로그인이 필요합니다.");
         setShowToast(true);
@@ -226,13 +208,13 @@ export default function Vote() {
         setIsSubmitting(false);
         return;
       }
-      
+
       const voterInfo = {
         uid: user.uid,
         displayName: user.displayName || '사용자',
         photoURL: user.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${user.displayName || 'user'}`
       };
-      
+
       const updatedMeeting = await submitVote(meetingId!, selectedSlots, voterInfo);
       console.log("Updated meeting after vote:", updatedMeeting);
 
@@ -246,7 +228,7 @@ export default function Vote() {
             photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
           };
         }
-        
+
         // Update the entire meeting state with the new data
         setMeeting(updatedMeeting);
         setHasVoted(true);
@@ -273,7 +255,7 @@ export default function Vote() {
     setIsSubmitting(true);
     try {
       const user = auth.currentUser;
-      
+
       if (!user) {
         setToastMessage("로그인이 필요합니다.");
         setShowToast(true);
@@ -281,7 +263,7 @@ export default function Vote() {
         setIsSubmitting(false);
         return;
       }
-      
+
       // Clear votes from backend
       const updatedMeeting = await clearVotes(meetingId!, user.uid);
       console.log("Updated meeting after clearing votes:", updatedMeeting);
@@ -296,7 +278,7 @@ export default function Vote() {
             photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
           };
         }
-        
+
         // Update the entire meeting state with the new data
         setMeeting(updatedMeeting);
         setHasVoted(false);
@@ -339,7 +321,7 @@ export default function Vote() {
                 photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
               };
             }
-            
+
             setMeeting(updatedMeeting);
           }
         });
@@ -394,9 +376,9 @@ export default function Vote() {
         {/* Creator Info */}
         <div className="flex items-center mb-4">
           <div className="flex items-center space-x-2 bg-white rounded-full px-3 py-1 shadow-sm">
-            <img 
-              src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`} 
-              alt="Creator" 
+            <img
+              src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
+              alt="Creator"
               className="w-6 h-6 rounded-full"
             />
             <span className="text-sm font-medium text-gray-700">
@@ -488,29 +470,38 @@ export default function Vote() {
                     </span>
                   </div>
                   <div className={`text-sm ${selectedSlots.includes(block.id) ? "text-indigo-100" : "text-gray-500"}`}>
-                    {getVoteCountText(block.id)}
+                    <button 
+                      onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
+                      className="hover:underline cursor-pointer"
+                    >
+                      {getVoteCountText(block.id)}
+                    </button>
                   </div>
-                  
+
                   {/* Voters display */}
                   {getVoteCount(block.id) > 0 && (
                     <div className="mt-2 flex items-center">
                       <div className="flex -space-x-2">
-                        {getFirstFewVoters(block.id).map((voter, index) => (
-                          <img 
-                            key={voter.uid} 
-                            src={voter.photoURL} 
-                            alt={voter.displayName} 
-                            className="w-6 h-6 rounded-full border-2 border-white"
+                        {getFirstFewVoters(block.id).map((voter) => (
+                          <img
+                            key={voter.uid}
+                            src={voter.photoURL}
+                            alt={voter.displayName}
                             title={voter.displayName}
-                          />
-                        ))}
-                        {hasMoreVoters(block.id) && (
-                          <button 
+                            className="w-6 h-6 rounded-full border-2 border-white cursor-pointer hover:ring-2 hover:ring-indigo-300"
                             onClick={(e) => {
                               e.stopPropagation();
                               showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`);
                             }}
-                            className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600 border-2 border-white"
+                          />
+                        ))}
+                        {hasMoreVoters(block.id) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`);
+                            }}
+                            className="w-6 h-6 rounded-full bg-gray-200 text-xs text-gray-600 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-gray-300"
                           >
                             ...
                           </button>
@@ -571,44 +562,81 @@ export default function Vote() {
 
       {/* Voters Modal */}
       {showVotersModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4" 
+          onClick={() => setShowVotersModal(false)}
+        >
           <motion.div 
+            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            transition={{ duration: 0.2 }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                Voters for {selectedSlotInfo?.day} ({selectedSlotInfo?.time})
+                Voters for {selectedSlotInfo?.day || 'Unknown'} ({selectedSlotInfo?.time || 'Unknown'})
               </h3>
-              <button 
+              <button
                 onClick={() => setShowVotersModal(false)}
                 className="text-gray-500 hover:text-gray-700"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             </div>
-            
             <div className="space-y-3 max-h-80 overflow-y-auto">
-              {selectedSlotVoters.length > 0 ? (
+              {selectedSlotVoters && selectedSlotVoters.length > 0 ? (
                 selectedSlotVoters.map((voter) => (
-                  <div key={voter.uid} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-md">
+                  <div
+                    key={voter.uid}
+                    className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-md cursor-pointer transition-colors duration-150"
+                    onClick={() => {
+                      setShowVotersModal(false);
+                      showVoterProfile(voter);
+                    }}
+                  >
                     <img 
                       src={voter.photoURL} 
-                      alt={voter.displayName} 
-                      className="w-10 h-10 rounded-full"
+                      alt={voter.displayName}
+                      className="w-8 h-8 rounded-full border-2 border-white shadow-sm" 
                     />
-                    <span className="font-medium text-gray-900">{voter.displayName}</span>
+                    <span className="text-sm font-medium text-gray-900">{voter.displayName}</span>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-center py-4">No voters yet</p>
+                <p className="text-gray-500 text-center py-4">No voters found</p>
               )}
             </div>
           </motion.div>
+        </div>
+      )}
+
+      {/* Voter Profile Modal */}
+      {showVoterProfileModal && selectedVoter && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999]" 
+          onClick={() => setShowVoterProfileModal(false)}
+        >
+          <div 
+            className="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={selectedVoter.photoURL} 
+              alt={selectedVoter.displayName}
+              className="w-24 h-24 mx-auto rounded-full border-4 border-white shadow-lg mb-4" 
+            />
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-gray-900">{selectedVoter.displayName}</h2>
+            </div>
+            <button
+              onClick={() => setShowVoterProfileModal(false)}
+              className="mt-6 w-full py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors duration-150"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
     </motion.div>

@@ -1,27 +1,28 @@
 import { auth } from "@/lib/firebase";
 
-interface TimeSlot {
+export interface TimeSlot {
   id: string;
   day: string;
   hour: string;
   votes: number;
 }
 
-interface TimeBlock {
+export interface TimeBlock {
   id: string;
   day: string;
   date: string;
   startHour: string;
   endHour: string;
+  timeSlots: TimeSlot[];
 }
 
-interface Voter {
+export interface Voter {
   uid: string;
   displayName: string;
   photoURL: string;
 }
 
-interface Meeting {
+export interface Meeting {
   id: string;
   title: string;
   timeBlocks: TimeBlock[];
@@ -34,7 +35,7 @@ interface Meeting {
   };
 }
 
-interface CreateMeetingRequest {
+export interface CreateMeetingRequest {
   title: string;
   votingDeadline: string;
   timeBlocks: TimeBlock[];
