@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import SlotKingLogo from './SlotKingLogo';
 import { useI18n, languages } from '@/lib/i18n';
+import UserProfile from './UserProfile';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Use our i18n context
@@ -33,6 +34,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </Link>
             </div>
             <div className="flex items-center space-x-3">
+              {/* User Profile */}
+              <UserProfile />
+              
               {/* Language Selector */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

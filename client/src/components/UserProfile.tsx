@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { getCurrentUser, UserInfo } from '@/lib/user';
 
 interface UserProfileProps {
   className?: string;
@@ -11,14 +12,30 @@ interface UserProfileProps {
 
 const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
   const navigate = useNavigate();
-  const [user, loading] = useAuthState(auth);
+  const [firebaseUser, loading] = useAuthState(auth);
+  const [guestUser, setGuestUser] = useState<UserInfo | null>(null);
+  
+  useEffect(() => {
+    // If no Firebase user, check for guest user
+    if (!firebaseUser && !loading) {
+      const currentUser = getCurrentUser();
+      setGuestUser(currentUser);
+    } else {
+      setGuestUser(null);
+    }
+  }, [firebaseUser, loading]);
 
   const handleLogout = async () => {
     try {
+      // Clear guest user data from localStorage if present
+      localStorage.removeItem("guestUser");
+      // Sign out from Firebase
       await signOut(auth);
+      // Update local state to remove guest user
+      setGuestUser(null);
       navigate('/login');
     } catch (error) {
-      console.error('로그아웃 중 오류 발생:', error);
+      console.error('Logout error:', error);
     }
   };
 
@@ -26,6 +43,9 @@ const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
     return <div className="animate-pulse w-8 h-8 bg-gray-200 rounded-full"></div>;
   }
 
+  // Use Firebase user or guest user
+  const user = firebaseUser || guestUser;
+  
   if (!user) {
     return (
       <motion.button
