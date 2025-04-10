@@ -63,6 +63,7 @@ export default function Vote() {
     console.log("showVoterProfile called", voter);
     setSelectedVoter(voter);
     setShowVoterProfileModal(true);
+    setShowVotersModal(false);
     console.log("showVoterProfileModal set to true");
   };
 
@@ -202,7 +203,7 @@ export default function Vote() {
       const user = auth.currentUser;
 
       if (!user) {
-        setToastMessage("로그인이 필요합니다.");
+        setToastMessage("Login required");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
         setIsSubmitting(false);
@@ -211,7 +212,7 @@ export default function Vote() {
 
       const voterInfo = {
         uid: user.uid,
-        displayName: user.displayName || '사용자',
+        displayName: user.displayName || 'User',
         photoURL: user.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${user.displayName || 'user'}`
       };
 
@@ -257,7 +258,7 @@ export default function Vote() {
       const user = auth.currentUser;
 
       if (!user) {
-        setToastMessage("로그인이 필요합니다.");
+        setToastMessage("Login required");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
         setIsSubmitting(false);
@@ -448,77 +449,76 @@ export default function Vote() {
 
         <div className="space-y-4">
           {Array.isArray(meeting.timeBlocks) && meeting.timeBlocks.map((block) => (
-            <motion.button
-              key={block.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleSlotClick(block.id)}
-              disabled={isVotingClosed || hasVoted}
-              className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${selectedSlots.includes(block.id)
-                ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
-                : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
-                } ${(isVotingClosed || hasVoted) ? "cursor-default opacity-75" : ""}`}
-            >
-              <div className="flex justify-between items-center">
-                <div className="text-left space-y-1">
-                  <div className="font-semibold text-lg flex items-center gap-2">
-                    <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                      {block.day}
-                    </span>
-                    <span className={selectedSlots.includes(block.id) ? "text-white" : "text-gray-600"}>
-                      {block.startHour} - {block.endHour}
-                    </span>
+            <div key={block.id} className="relative">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleSlotClick(block.id)}
+                disabled={isVotingClosed || hasVoted}
+                className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${selectedSlots.includes(block.id)
+                    ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
+                    : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
+                  } ${(isVotingClosed || hasVoted) ? "cursor-default opacity-75" : ""}`}
+              >
+                <div className="flex justify-between items-center">
+                  <div className="text-left space-y-1">
+                    <div className="font-semibold text-lg flex items-center gap-2">
+                      <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                        {block.day}
+                      </span>
+                      <span className={selectedSlots.includes(block.id) ? "text-white" : "text-gray-600"}>
+                        {block.startHour} - {block.endHour}
+                      </span>
+                    </div>
                   </div>
-                  <div className={`text-sm ${selectedSlots.includes(block.id) ? "text-indigo-100" : "text-gray-500"}`}>
-                    <button 
-                      onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
-                      className="hover:underline cursor-pointer"
-                    >
-                      {getVoteCountText(block.id)}
-                    </button>
-                  </div>
-
-                  {/* Voters display */}
-                  {getVoteCount(block.id) > 0 && (
-                    <div className="mt-2 flex items-center">
-                      <div className="flex -space-x-2">
-                        {getFirstFewVoters(block.id).map((voter) => (
-                          <img
-                            key={voter.uid}
-                            src={voter.photoURL}
-                            alt={voter.displayName}
-                            title={voter.displayName}
-                            className="w-6 h-6 rounded-full border-2 border-white cursor-pointer hover:ring-2 hover:ring-indigo-300"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`);
-                            }}
-                          />
-                        ))}
-                        {hasMoreVoters(block.id) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`);
-                            }}
-                            className="w-6 h-6 rounded-full bg-gray-200 text-xs text-gray-600 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-gray-300"
-                          >
-                            ...
-                          </button>
-                        )}
-                      </div>
+                  {selectedSlots.includes(block.id) && (
+                    <div className="bg-white bg-opacity-20 p-2 rounded-full">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
                     </div>
                   )}
                 </div>
-                {selectedSlots.includes(block.id) && (
-                  <div className="bg-white bg-opacity-20 p-2 rounded-full">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+              </motion.button>
+
+              {/* Vote count and voters - Outside the button */}
+              <div className="mt-2 px-4">
+                <div className={`text-sm ${selectedSlots.includes(block.id) ? "text-indigo-100" : "text-gray-500"}`}>
+                  <button
+                    onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
+                    className="hover:underline cursor-pointer"
+                  >
+                    {getVoteCountText(block.id)}
+                  </button>
+                </div>
+
+                {/* Voters display */}
+                {getVoteCount(block.id) > 0 && (
+                  <div className="mt-2 flex items-center">
+                    <div className="flex -space-x-2">
+                      {getFirstFewVoters(block.id).map((voter) => (
+                        <img
+                          key={voter.uid}
+                          src={voter.photoURL}
+                          alt={voter.displayName}
+                          title={voter.displayName}
+                          className="w-6 h-6 rounded-full border-2 border-white cursor-pointer hover:ring-2 hover:ring-indigo-300"
+                          onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
+                        />
+                      ))}
+                      {hasMoreVoters(block.id) && (
+                        <button
+                          onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
+                          className="w-6 h-6 rounded-full bg-gray-200 text-xs text-gray-600 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-gray-300"
+                        >
+                          ...
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-            </motion.button>
+            </div>
           ))}
 
           {(!Array.isArray(meeting.timeBlocks) || meeting.timeBlocks.length === 0) && (
@@ -562,11 +562,11 @@ export default function Vote() {
 
       {/* Voters Modal */}
       {showVotersModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4" 
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
           onClick={() => setShowVotersModal(false)}
         >
-          <motion.div 
+          <motion.div
             className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -580,32 +580,35 @@ export default function Vote() {
               </h3>
               <button
                 onClick={() => setShowVotersModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 transition-colors"
               >
-                ✕
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {selectedSlotVoters && selectedSlotVoters.length > 0 ? (
                 selectedSlotVoters.map((voter) => (
-                  <div
+                  <motion.div
                     key={voter.uid}
-                    className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-md cursor-pointer transition-colors duration-150"
-                    onClick={() => {
-                      setShowVotersModal(false);
-                      showVoterProfile(voter);
-                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center space-x-3 p-3 hover:bg-indigo-50 rounded-lg cursor-pointer transition-all duration-150"
+                    onClick={() => showVoterProfile(voter)}
                   >
-                    <img 
-                      src={voter.photoURL} 
+                    <img
+                      src={voter.photoURL}
                       alt={voter.displayName}
-                      className="w-8 h-8 rounded-full border-2 border-white shadow-sm" 
+                      className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
                     />
                     <span className="text-sm font-medium text-gray-900">{voter.displayName}</span>
-                  </div>
+                  </motion.div>
                 ))
               ) : (
-                <p className="text-gray-500 text-center py-4">No voters found</p>
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No voters yet</p>
+                </div>
               )}
             </div>
           </motion.div>
@@ -614,29 +617,38 @@ export default function Vote() {
 
       {/* Voter Profile Modal */}
       {showVoterProfileModal && selectedVoter && (
-        <div 
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999]" 
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999] p-4"
           onClick={() => setShowVoterProfileModal(false)}
         >
-          <div 
-            className="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full"
+          <motion.div
+            className="bg-white p-8 rounded-xl shadow-xl max-w-sm w-full"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <img 
-              src={selectedVoter.photoURL} 
-              alt={selectedVoter.displayName}
-              className="w-24 h-24 mx-auto rounded-full border-4 border-white shadow-lg mb-4" 
-            />
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900">{selectedVoter.displayName}</h2>
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => setShowVoterProfileModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <button
-              onClick={() => setShowVoterProfileModal(false)}
-              className="mt-6 w-full py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors duration-150"
-            >
-              Close
-            </button>
-          </div>
+            <div className="text-center">
+              <img
+                src={selectedVoter.photoURL}
+                alt={selectedVoter.displayName}
+                className="w-24 h-24 mx-auto rounded-full border-4 border-indigo-100 shadow-lg mb-4"
+              />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedVoter.displayName}</h2>
+              <p className="text-gray-500">Voter</p>
+            </div>
+          </motion.div>
         </div>
       )}
     </motion.div>
