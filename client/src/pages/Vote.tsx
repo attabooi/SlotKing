@@ -450,27 +450,71 @@ export default function Vote() {
         <div className="space-y-4">
           {Array.isArray(meeting.timeBlocks) && meeting.timeBlocks.map((block) => (
             <div key={block.id} className="relative">
-              <motion.button
+              <motion.div
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => handleSlotClick(block.id)}
-                disabled={isVotingClosed || hasVoted}
-                className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${selectedSlots.includes(block.id)
+                className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${
+                  selectedSlots.includes(block.id)
                     ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
                     : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
-                  } ${(isVotingClosed || hasVoted) ? "cursor-default opacity-75" : ""}`}
+                } ${(isVotingClosed || hasVoted) ? "opacity-75" : ""}`}
               >
-                <div className="flex justify-between items-center">
-                  <div className="text-left space-y-1">
-                    <div className="font-semibold text-lg flex items-center gap-2">
-                      <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                        {block.day}
-                      </span>
-                      <span className={selectedSlots.includes(block.id) ? "text-white" : "text-gray-600"}>
-                        {block.startHour} - {block.endHour}
-                      </span>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <button
+                      onClick={() => handleSlotClick(block.id)}
+                      disabled={isVotingClosed || hasVoted}
+                      className={`w-full text-left ${(isVotingClosed || hasVoted) ? "cursor-default" : "cursor-pointer"}`}
+                    >
+                      <div className="font-semibold text-lg flex items-center gap-2">
+                        <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                          {block.day}
+                        </span>
+                        <span className={selectedSlots.includes(block.id) ? "text-white" : "text-gray-600"}>
+                          {block.startHour} - {block.endHour}
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Vote count */}
+                    <div className="mt-2">
+                      <button
+                        onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
+                        className={`text-sm hover:underline cursor-pointer ${
+                          selectedSlots.includes(block.id) ? "text-indigo-100" : "text-gray-500"
+                        }`}
+                      >
+                        {getVoteCountText(block.id)}
+                      </button>
                     </div>
+
+                    {/* Voters display */}
+                    {getVoteCount(block.id) > 0 && (
+                      <div className="mt-2 flex items-center">
+                        <div className="flex -space-x-2">
+                          {getFirstFewVoters(block.id).map((voter) => (
+                            <img
+                              key={voter.uid}
+                              src={voter.photoURL}
+                              alt={voter.displayName}
+                              title={voter.displayName}
+                              className="w-6 h-6 rounded-full border-2 border-white cursor-pointer hover:ring-2 hover:ring-indigo-300"
+                              onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
+                            />
+                          ))}
+                          {hasMoreVoters(block.id) && (
+                            <button
+                              onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
+                              className="w-6 h-6 rounded-full bg-gray-200 text-xs text-gray-600 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-gray-300"
+                            >
+                              ...
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
+
                   {selectedSlots.includes(block.id) && (
                     <div className="bg-white bg-opacity-20 p-2 rounded-full">
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -479,45 +523,7 @@ export default function Vote() {
                     </div>
                   )}
                 </div>
-              </motion.button>
-
-              {/* Vote count and voters - Outside the button */}
-              <div className="mt-2 px-4">
-                <div className={`text-sm ${selectedSlots.includes(block.id) ? "text-indigo-100" : "text-gray-500"}`}>
-                  <button
-                    onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
-                    className="hover:underline cursor-pointer"
-                  >
-                    {getVoteCountText(block.id)}
-                  </button>
-                </div>
-
-                {/* Voters display */}
-                {getVoteCount(block.id) > 0 && (
-                  <div className="mt-2 flex items-center">
-                    <div className="flex -space-x-2">
-                      {getFirstFewVoters(block.id).map((voter) => (
-                        <img
-                          key={voter.uid}
-                          src={voter.photoURL}
-                          alt={voter.displayName}
-                          title={voter.displayName}
-                          className="w-6 h-6 rounded-full border-2 border-white cursor-pointer hover:ring-2 hover:ring-indigo-300"
-                          onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
-                        />
-                      ))}
-                      {hasMoreVoters(block.id) && (
-                        <button
-                          onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
-                          className="w-6 h-6 rounded-full bg-gray-200 text-xs text-gray-600 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-gray-300"
-                        >
-                          ...
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+              </motion.div>
             </div>
           ))}
 
