@@ -118,7 +118,7 @@ export default function EditGuestProfileModal({ onComplete, onClose }: EditGuest
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 maxLength={20}
-                className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="text-black flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Enter a name (e.g. Alex)"
                 autoFocus
               />
@@ -150,7 +150,7 @@ export default function EditGuestProfileModal({ onComplete, onClose }: EditGuest
                 id="profileUrl"
                 value={customProfileUrl}
                 onChange={(e) => setCustomProfileUrl(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="https://example.com/profile.jpg"
               />
               <p className="mt-1 text-xs text-gray-500">
