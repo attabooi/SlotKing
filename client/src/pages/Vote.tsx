@@ -9,6 +9,9 @@ import UserProfile from "@/components/UserProfile";
 import type { Meeting, TimeBlock, Voter } from "@/lib/api";
 import { getCurrentUser, UserProfile as UserProfileType, hasGuestProfile } from "@/lib/user";
 import GuestUserModal from "@/components/GuestUserModal";
+import ShareModal from "@/components/ShareModal";
+import { useI18n } from "@/lib/i18n";
+import { ShareIcon } from "lucide-react";
 
 export default function Vote() {
   const { meetingId } = useParams<{ meetingId: string }>();
@@ -34,6 +37,10 @@ export default function Vote() {
     action: 'submit' | 'clear';
     slots?: string[];
   } | null>(null);
+
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const { t } = useI18n();
 
   // Get vote counts for a time block
   const getVoteCount = (blockId: string) => {
@@ -381,6 +388,16 @@ export default function Vote() {
     };
   }, [meetingId]);
 
+  // Toggle share modal
+  const handleToggleShareModal = () => {
+    setShowShareModal(!showShareModal);
+  };
+  
+  // Close share modal
+  const handleCloseShareModal = () => {
+    setShowShareModal(false);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -409,8 +426,10 @@ export default function Vote() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-between items-center">
         <SlotKingLogo />
         
-        {/* User Profile */}
-        <UserProfile />
+        <div className="flex items-center gap-4">
+          {/* User Profile */}
+          <UserProfile />
+        </div>
       </div>
 
       <motion.div
@@ -421,12 +440,14 @@ export default function Vote() {
         className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50"
       >
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            {meeting.title}
-          </h1>
+          <div className="flex justify-between items-center mb-2">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              {meeting.title}
+            </h1>
+          </div>
 
-          {/* Creator Info */}
-          <div className="flex items-center mb-4">
+          {/* Creator Info and Share Button in same row */}
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2 bg-white rounded-full px-3 py-1 shadow-sm">
               <img
                 src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
@@ -437,6 +458,17 @@ export default function Vote() {
                 Created by {meeting.creator?.displayName || 'Anonymous'}
               </span>
             </div>
+            
+            {/* Share Button - styled like Creator label */}
+            <button
+              onClick={handleToggleShareModal}
+              className="flex items-center gap-1.5 bg-white rounded-full px-3 py-1 shadow-sm text-sm font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-100 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              {t('share')}
+            </button>
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
@@ -794,6 +826,17 @@ export default function Vote() {
               </div>
             </motion.div>
           </div>
+        )}
+
+        {/* Share Modal */}
+        {showShareModal && (
+          <ShareModal
+            isOpen={showShareModal}
+            onClose={handleCloseShareModal}
+            voteUrl={typeof window !== 'undefined' 
+              ? `${window.location.origin}/vote/${meetingId}`
+              : `/vote/${meetingId}`}
+          />
         )}
 
         {/* Guest User Modal */}

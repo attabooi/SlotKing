@@ -56,7 +56,15 @@ export type TranslationKey =
   | 'failedToSubmit'
   | 'privacy'
   | 'terms'
-  | 'contact';
+  | 'contact'
+  | 'scheduleCreated'
+  | 'shareToCollectVotes'
+  | 'generateQRCode'
+  | 'hideQRCode'
+  | 'copied'
+  | 'share'
+  | 'close'
+  | 'linkCopiedToClipboard';
 
 // Define translations for the app
 export const translations = {
@@ -108,7 +116,17 @@ export const translations = {
     unavailable: 'Unavailable',
     submitAvailability: 'Submit Availability',
     availabilitySubmitted: 'Availability submitted successfully!',
-    failedToSubmit: 'Failed to submit availability. Please try again.'
+    failedToSubmit: 'Failed to submit availability. Please try again.',
+    
+    // Share Modal
+    scheduleCreated: '🎉 Schedule Created!',
+    shareToCollectVotes: 'Share this link to collect votes.',
+    generateQRCode: 'Generate QR Code',
+    hideQRCode: 'Hide QR Code',
+    copied: 'Copied!',
+    share: 'Share',
+    close: 'Close',
+    linkCopiedToClipboard: 'Link copied to clipboard!',
   },
   ko: {
     // General
@@ -158,7 +176,17 @@ export const translations = {
     unavailable: '불가능함',
     submitAvailability: '가능 시간 제출',
     availabilitySubmitted: '가능한 시간이 성공적으로 제출되었습니다!',
-    failedToSubmit: '가능 시간 제출에 실패했습니다. 다시 시도해주세요.'
+    failedToSubmit: '가능 시간 제출에 실패했습니다. 다시 시도해주세요.',
+    
+    // Share Modal
+    scheduleCreated: '🎉 일정이 생성되었습니다!',
+    shareToCollectVotes: '링크를 공유하여 투표를 수집하세요.',
+    generateQRCode: 'QR 코드 생성',
+    hideQRCode: 'QR 코드 닫기',
+    copied: '복사됨!',
+    share: '공유하기',
+    close: '닫기',
+    linkCopiedToClipboard: '링크가 클립보드에 복사되었습니다!',
   },
   ja: {
     // General
@@ -208,7 +236,17 @@ export const translations = {
     unavailable: '利用不可',
     submitAvailability: '利用可能時間を提出',
     availabilitySubmitted: '利用可能時間が正常に提出されました！',
-    failedToSubmit: '利用可能時間の提出に失敗しました。もう一度お試しください。'
+    failedToSubmit: '利用可能時間の提出に失敗しました。もう一度お試しください。',
+    
+    // Share Modal
+    scheduleCreated: '🎉 スケジュールが作成されました！',
+    shareToCollectVotes: '投票を集めるためにこのリンクを共有してください。',
+    generateQRCode: 'QRコードを生成',
+    hideQRCode: 'QRコードを隠す',
+    copied: 'コピーしました！',
+    share: '共有',
+    close: '閉じる',
+    linkCopiedToClipboard: 'リンクがクリップボードにコピーされました！',
   },
   zh: {
     // General
@@ -258,7 +296,17 @@ export const translations = {
     unavailable: '不可用',
     submitAvailability: '提交可用时间',
     availabilitySubmitted: '可用时间已成功提交！',
-    failedToSubmit: '提交可用时间失败。请重试。'
+    failedToSubmit: '提交可用时间失败。请重试。',
+    
+    // Share Modal
+    scheduleCreated: '🎉 日程已创建！',
+    shareToCollectVotes: '分享此链接以收集投票。',
+    generateQRCode: '生成二维码',
+    hideQRCode: '隐藏二维码',
+    copied: '已复制！',
+    share: '分享',
+    close: '关闭',
+    linkCopiedToClipboard: '链接已复制到剪贴板！',
   },
   es: {
     // General
@@ -308,7 +356,17 @@ export const translations = {
     unavailable: 'No disponible',
     submitAvailability: 'Enviar Disponibilidad',
     availabilitySubmitted: '¡Disponibilidad enviada con éxito!',
-    failedToSubmit: 'No se pudo enviar la disponibilidad. Por favor, inténtelo de nuevo.'
+    failedToSubmit: 'No se pudo enviar la disponibilidad. Por favor, inténtelo de nuevo.',
+    
+    // Share Modal
+    scheduleCreated: '🎉 ¡Horario Creado!',
+    shareToCollectVotes: 'Comparte este enlace para recoger votos.',
+    generateQRCode: 'Generar Código QR',
+    hideQRCode: 'Ocultar Código QR',
+    copied: '¡Copiado!',
+    share: 'Compartir',
+    close: 'Cerrar',
+    linkCopiedToClipboard: '¡Enlace copiado al portapapeles!',
   },
   fr: {
     // General
@@ -358,7 +416,17 @@ export const translations = {
     unavailable: 'Indisponible',
     submitAvailability: 'Soumettre la Disponibilité',
     availabilitySubmitted: 'Disponibilité soumise avec succès !',
-    failedToSubmit: 'Échec de la soumission de la disponibilité. Veuillez réessayer.'
+    failedToSubmit: 'Échec de la soumission de la disponibilité. Veuillez réessayer.',
+    
+    // Share Modal
+    scheduleCreated: '🎉 Horaire Créé !',
+    shareToCollectVotes: 'Partagez ce lien pour recueillir des votes.',
+    generateQRCode: 'Générer un Code QR',
+    hideQRCode: 'Masquer le Code QR',
+    copied: 'Copié !',
+    share: 'Partager',
+    close: 'Fermer',
+    linkCopiedToClipboard: 'Lien copié dans le presse-papiers !',
   }
 };
 

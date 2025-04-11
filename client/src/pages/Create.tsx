@@ -11,6 +11,7 @@ import { auth } from "@/lib/firebase";
 import { getCurrentUser } from "@/lib/user";
 import GuestUserModal from "@/components/GuestUserModal";
 import { UserProfile as UserProfileType } from "@/lib/user";
+import ShareModal from "@/components/ShareModal";
 
 interface TimeSlot {
   day: string;
@@ -155,6 +156,10 @@ export default function Create() {
     votingDeadline: Date;
     timeBlocks: TimeBlock[];
   } | null>(null);
+
+  // Share modal states
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [createdMeetingId, setCreatedMeetingId] = useState<string | null>(null);
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const hours = Array.from({ length: 16 }, (_, i) => `${i + 9}:00`);
@@ -444,10 +449,12 @@ export default function Create() {
       };
       
       const { id } = await createMeeting(meetingData);
-      navigate(`/vote/${id}`);
+      setCreatedMeetingId(id);
+      setShowShareModal(true);
     } catch (error) {
       console.error("Failed to create meeting:", error);
       setError("Failed to create meeting. Please try again.");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -468,6 +475,14 @@ export default function Create() {
     
     // Reset pending data
     setPendingScheduleData(null);
+  };
+
+  // 공유 모달을 닫고 투표 페이지로 이동
+  const handleShareModalClose = () => {
+    setShowShareModal(false);
+    if (createdMeetingId) {
+      navigate(`/vote/${createdMeetingId}`);
+    }
   };
 
   // Add event listeners for mouse up outside the calendar
@@ -772,6 +787,17 @@ export default function Create() {
         <GuestUserModal
           onComplete={handleGuestComplete}
           onClose={() => setShowGuestModal(false)}
+        />
+      )}
+      
+      {/* Share Modal */}
+      {showShareModal && createdMeetingId && (
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={handleShareModalClose}
+          voteUrl={typeof window !== 'undefined' 
+            ? `${window.location.origin}/vote/${createdMeetingId}`
+            : `/vote/${createdMeetingId}`}
         />
       )}
     </motion.div>
