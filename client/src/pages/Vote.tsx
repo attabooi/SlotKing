@@ -7,6 +7,8 @@ import { format, parseISO, isAfter, formatDistanceToNow, differenceInSeconds } f
 import { auth } from "@/lib/firebase";
 import UserProfile from "@/components/UserProfile";
 import type { Meeting, TimeBlock, Voter } from "@/lib/api";
+import { getCurrentUser, UserProfile as UserProfileType, hasGuestProfile } from "@/lib/user";
+import GuestUserModal from "@/components/GuestUserModal";
 
 export default function Vote() {
   const { meetingId } = useParams<{ meetingId: string }>();
@@ -24,6 +26,13 @@ export default function Vote() {
   const [selectedSlotInfo, setSelectedSlotInfo] = useState<{ day: string, time: string } | null>(null);
   const [showVoterProfileModal, setShowVoterProfileModal] = useState(false);
   const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
+  
+  // Guest user related states
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [pendingVoteAction, setPendingVoteAction] = useState<{
+    action: 'submit' | 'clear';
+    slots?: string[];
+  } | null>(null);
 
   // Get vote counts for a time block
   const getVoteCount = (blockId: string) => {
@@ -108,7 +117,8 @@ export default function Vote() {
           meetingData.creator = {
             uid: 'unknown',
             displayName: 'Anonymous',
-            photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
+            photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`,
+            isGuest: false
           };
         }
 
@@ -120,12 +130,13 @@ export default function Vote() {
         const isDeadlinePassed = isAfter(now, deadlineDate);
         setIsVotingClosed(isDeadlinePassed);
 
-        // Check if user has already voted
-        const user = auth.currentUser;
-        if (user) {
+        // Check if user (Firebase or guest) has already voted
+        const currentUser = getCurrentUser();
+        if (currentUser) {
           const userVotes = Object.entries(meetingData.votes)
-            .filter(([_, voters]) => voters[user.uid])
+            .filter(([_, voters]) => voters[currentUser.uid])
             .map(([blockId]) => blockId);
+          
           setSelectedSlots(userVotes);
           setHasVoted(userVotes.length > 0);
         }
@@ -195,41 +206,33 @@ export default function Vote() {
     });
   };
 
-  const handleSubmit = async () => {
-    if (selectedSlots.length === 0 || isVotingClosed) return;
-
+  // Add a handler for guest user modal completion
+  const handleGuestComplete = (guestProfile: UserProfileType) => {
+    setShowGuestModal(false);
+    
+    // Complete the pending vote action
+    if (pendingVoteAction) {
+      if (pendingVoteAction.action === 'submit' && pendingVoteAction.slots) {
+        // Submit vote with new guest profile
+        submitVoteWithUser(pendingVoteAction.slots, guestProfile);
+      } else if (pendingVoteAction.action === 'clear') {
+        // Clear vote with new guest profile
+        clearVotesWithUser(guestProfile);
+      }
+      // Reset pending action
+      setPendingVoteAction(null);
+    }
+  };
+  
+  // Extract submit vote logic to reuse
+  const submitVoteWithUser = async (slots: string[], user: UserProfileType) => {
     setIsSubmitting(true);
     try {
-      const user = auth.currentUser;
-
-      if (!user) {
-        setToastMessage("Login required");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-        setIsSubmitting(false);
-        return;
-      }
-
-      const voterInfo = {
-        uid: user.uid,
-        displayName: user.displayName || 'User',
-        photoURL: user.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${user.displayName || 'user'}`
-      };
-
-      const updatedMeeting = await submitVote(meetingId!, selectedSlots, voterInfo);
+      const updatedMeeting = await submitVote(meetingId!, slots, user);
       console.log("Updated meeting after vote:", updatedMeeting);
 
       // Ensure we have the updated votes object
       if (updatedMeeting && updatedMeeting.votes) {
-        // Ensure creator exists
-        if (!updatedMeeting.creator) {
-          updatedMeeting.creator = {
-            uid: 'unknown',
-            displayName: 'Anonymous',
-            photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
-          };
-        }
-
         // Update the entire meeting state with the new data
         setMeeting(updatedMeeting);
         setHasVoted(true);
@@ -249,47 +252,23 @@ export default function Vote() {
       setIsSubmitting(false);
     }
   };
-
-  const handleVoteAgain = async () => {
-    if (isVotingClosed) return;
-
+  
+  // Extract clear votes logic to reuse
+  const clearVotesWithUser = async (user: UserProfileType) => {
     setIsSubmitting(true);
     try {
-      const user = auth.currentUser;
-
-      if (!user) {
-        setToastMessage("Login required");
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Clear votes from backend
       const updatedMeeting = await clearVotes(meetingId!, user.uid);
-      console.log("Updated meeting after clearing votes:", updatedMeeting);
-
-      // Ensure we have the updated votes object
-      if (updatedMeeting && updatedMeeting.votes) {
-        // Ensure creator exists
-        if (!updatedMeeting.creator) {
-          updatedMeeting.creator = {
-            uid: 'unknown',
-            displayName: 'Anonymous',
-            photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
-          };
-        }
-
-        // Update the entire meeting state with the new data
+      console.log("Meeting after clearing votes:", updatedMeeting);
+      
+      if (updatedMeeting) {
+        // Update the meeting state with new data
         setMeeting(updatedMeeting);
         setHasVoted(false);
         setSelectedSlots([]);
 
-        setToastMessage("Previous votes cleared. You can now vote again!");
+        setToastMessage("Your votes have been cleared!");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
-      } else {
-        throw new Error("Invalid response from server");
       }
     } catch (error) {
       console.error("Failed to clear votes:", error);
@@ -301,7 +280,43 @@ export default function Vote() {
     }
   };
 
-  // Add WebSocket connection for real-time updates
+  // Update the handleSubmit function
+  const handleSubmit = async () => {
+    if (selectedSlots.length === 0 || isVotingClosed) return;
+
+    // Get current user (Firebase or guest)
+    const currentUser = getCurrentUser();
+    
+    // If no user and no guest profile, show the guest modal
+    if (!currentUser) {
+      setPendingVoteAction({ action: 'submit', slots: selectedSlots });
+      setShowGuestModal(true);
+      return;
+    }
+
+    // Submit vote with the current user
+    await submitVoteWithUser(selectedSlots, currentUser);
+  };
+
+  // Update the handleVoteAgain function
+  const handleVoteAgain = async () => {
+    if (isVotingClosed) return;
+
+    // Get current user (Firebase or guest)
+    const currentUser = getCurrentUser();
+    
+    // If no user and no guest profile, show the guest modal
+    if (!currentUser) {
+      setPendingVoteAction({ action: 'clear' });
+      setShowGuestModal(true);
+      return;
+    }
+
+    // Clear votes with the current user
+    await clearVotesWithUser(currentUser);
+  };
+
+  // Update the WebSocket connection handler
   useEffect(() => {
     if (!meetingId) return;
 
@@ -319,7 +334,8 @@ export default function Vote() {
               updatedMeeting.creator = {
                 uid: 'unknown',
                 displayName: 'Anonymous',
-                photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`
+                photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`,
+                isGuest: false
               };
             }
 
@@ -660,6 +676,14 @@ export default function Vote() {
               </div>
             </motion.div>
           </div>
+        )}
+
+        {/* Guest User Modal */}
+        {showGuestModal && (
+          <GuestUserModal
+            onComplete={handleGuestComplete}
+            onClose={() => setShowGuestModal(false)}
+          />
         )}
       </motion.div>
     </div>

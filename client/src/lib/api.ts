@@ -1,4 +1,5 @@
 import { auth } from "@/lib/firebase";
+import { getCurrentUser, UserProfile } from '@/lib/user';
 
 export interface TimeSlot {
   id: string;
@@ -13,14 +14,11 @@ export interface TimeBlock {
   date: string;
   startHour: string;
   endHour: string;
-  timeSlots: TimeSlot[];
+  timeSlots?: TimeSlot[];
 }
 
-export interface Voter {
-  uid: string;
-  displayName: string;
-  photoURL: string;
-}
+// Use the UserProfile type from user.ts for voters
+export type Voter = UserProfile;
 
 export interface Meeting {
   id: string;
@@ -28,38 +26,25 @@ export interface Meeting {
   timeBlocks: TimeBlock[];
   votingDeadline: string;
   votes: { [slotId: string]: { [userId: string]: Voter } };
-  creator?: {
-    uid: string;
-    displayName: string;
-    photoURL: string;
-  };
+  creator?: Voter;
 }
 
 export interface CreateMeetingRequest {
   title: string;
   votingDeadline: string;
   timeBlocks: TimeBlock[];
-  creator?: {
-    uid: string;
-    displayName: string;
-    photoURL: string;
-  };
-}
-
-// Generate a persistent anonymous user ID
-function getOrCreateUserId(): string {
-  let userId = localStorage.getItem('anonymousUserId');
-  if (!userId) {
-    userId = `anon_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-    localStorage.setItem('anonymousUserId', userId);
-  }
-  return userId;
+  creator?: Voter;
 }
 
 const API_BASE_URL = "http://localhost:3000/api";
 
-// 프로필 사진 URL 생성 함수
-function getProfilePhotoUrl(displayName: string): string {
+// Helper function to get current user info (Firebase or guest)
+const getUserInfo = (): Voter | null => {
+  return getCurrentUser();
+};
+
+// Generate a profile photo URL
+function generateProfilePhotoUrl(displayName: string): string {
   return `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(displayName)}`;
 }
 
@@ -81,23 +66,22 @@ export async function getMeeting(meetingId: string): Promise<Meeting> {
     meeting.creator = {
       uid: 'unknown',
       displayName: 'Anonymous',
-      photoURL: getProfilePhotoUrl('Anonymous')
+      photoURL: generateProfilePhotoUrl('Anonymous'),
+      isGuest: false
     };
   } else if (!meeting.creator.photoURL) {
-    meeting.creator.photoURL = getProfilePhotoUrl(meeting.creator.displayName);
+    meeting.creator.photoURL = generateProfilePhotoUrl(meeting.creator.displayName);
   }
   
   return meeting;
 }
 
 export async function createMeeting(data: CreateMeetingRequest): Promise<{ id: string }> {
-  const user = auth.currentUser;
+  // Get current user (Firebase or guest)
+  const user = getUserInfo();
   if (!user) {
-    throw new Error("User must be logged in to create a meeting");
+    throw new Error("User must be logged in or have a guest profile to create a meeting");
   }
-
-  const displayName = user.displayName || user.email?.split('@')[0] || 'User';
-  const photoURL = user.photoURL || getProfilePhotoUrl(displayName);
 
   const response = await fetch(`${API_BASE_URL}/meetings`, {
     method: "POST",
@@ -108,11 +92,7 @@ export async function createMeeting(data: CreateMeetingRequest): Promise<{ id: s
       title: data.title,
       votingDeadline: data.votingDeadline,
       timeBlocks: data.timeBlocks,
-      creator: {
-        uid: user.uid,
-        displayName,
-        photoURL
-      }
+      creator: user
     }),
   });
   
@@ -123,14 +103,12 @@ export async function createMeeting(data: CreateMeetingRequest): Promise<{ id: s
   return response.json();
 }
 
-export async function submitVote(meetingId: string, selectedSlots: string[], voterInfo: Voter): Promise<Meeting> {
-  const user = auth.currentUser;
+export async function submitVote(meetingId: string, selectedSlots: string[], voterInfo?: Voter): Promise<Meeting> {
+  // Use provided voter info or get current user
+  const user = voterInfo || getUserInfo();
   if (!user) {
-    throw new Error("User must be logged in to vote");
+    throw new Error("User must be logged in or have a guest profile to vote");
   }
-
-  const displayName = user.displayName || user.email?.split('@')[0] || 'User';
-  const photoURL = user.photoURL || getProfilePhotoUrl(displayName);
 
   const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/vote`, {
     method: "POST",
@@ -140,11 +118,7 @@ export async function submitVote(meetingId: string, selectedSlots: string[], vot
     body: JSON.stringify({ 
       selectedSlots, 
       userId: user.uid,
-      voterInfo: {
-        uid: user.uid,
-        displayName,
-        photoURL
-      }
+      voterInfo: user
     }),
   });
   
@@ -156,9 +130,10 @@ export async function submitVote(meetingId: string, selectedSlots: string[], vot
 }
 
 export async function clearVotes(meetingId: string, userId: string): Promise<Meeting> {
-  const user = auth.currentUser;
+  // Get current user (Firebase or guest)
+  const user = getUserInfo();
   if (!user) {
-    throw new Error("User must be logged in to clear votes");
+    throw new Error("User must be logged in or have a guest profile to clear votes");
   }
 
   const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/vote`, {
@@ -166,7 +141,7 @@ export async function clearVotes(meetingId: string, userId: string): Promise<Mee
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ userId: user.uid }),
+    body: JSON.stringify({ userId }),
   });
   
   if (!response.ok) {

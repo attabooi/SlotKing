@@ -1,57 +1,86 @@
 // client/src/lib/user.ts
 
 import { auth } from './firebase';
+import { v4 as uuidv4 } from "uuid";
 
-export interface UserInfo {
-  uid: string;
-  displayName: string;
+export type UserProfile = {
+  uid: string;        // example: 'guest-xyz123' or Firebase UID
+  displayName: string;  // Using displayName to maintain consistency with Firebase Auth
   photoURL: string;
-}
+  isGuest: boolean;
+};
 
-export function getCurrentUser(): UserInfo | null {
-  const fbUser = auth.currentUser;
-  if (fbUser) {
+const USER_STORAGE_KEY = "slotking_guest_user";
+
+/**
+ * Get current user profile from either Firebase Auth or localStorage
+ */
+export function getCurrentUser(): UserProfile | null {
+  // First check Firebase auth
+  const firebaseUser = auth.currentUser;
+  if (firebaseUser) {
     return {
-      uid: fbUser.uid,
-      displayName: fbUser.displayName || "Anonymous",
-      photoURL: fbUser.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${fbUser.uid}`
+      uid: firebaseUser.uid,
+      displayName: firebaseUser.displayName || "Anonymous",
+      photoURL: firebaseUser.photoURL || generateAvatarUrl(firebaseUser.uid),
+      isGuest: false
     };
   }
 
-  const guestStr = localStorage.getItem("guestUser");
-  if (guestStr) {
-    try {
-      return JSON.parse(guestStr);
-    } catch (error) {
-      console.error("Error parsing guest user data:", error);
-      return null;
+  // If no Firebase user, check localStorage for guest user
+  try {
+    const guestDataStr = localStorage.getItem(USER_STORAGE_KEY);
+    if (guestDataStr) {
+      return JSON.parse(guestDataStr) as UserProfile;
     }
+  } catch (error) {
+    console.error("Error reading guest user data:", error);
   }
 
   return null;
 }
 
-export function isGuestUser(): boolean {
-  const user = getCurrentUser();
-  return user?.uid.startsWith("guest-") || false;
-}
-
-export function createGuestUser(): UserInfo {
-  const randomId = Math.random().toString(36).substring(2, 10);
-  const nickname = `Guest-${randomId}`;
-  const photoURL = `https://api.dicebear.com/7.x/thumbs/svg?seed=${nickname}`;
-
-  const guest: UserInfo = {
-    uid: `guest-${randomId}`,
+/**
+ * Generate a new guest user profile and save to localStorage
+ */
+export function createGuestUser(nickname: string): UserProfile {
+  const guestId = `guest-${uuidv4().slice(0, 8)}`;
+  const guestUser: UserProfile = {
+    uid: guestId,
     displayName: nickname,
-    photoURL
+    photoURL: generateAvatarUrl(nickname),
+    isGuest: true
   };
 
-  localStorage.setItem("guestUser", JSON.stringify(guest));
-  return guest;
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(guestUser));
+  return guestUser;
 }
 
-export function logoutUser(): void {
-  localStorage.removeItem("guestUser");
-  auth.signOut();
+/**
+ * Check if current user is a guest
+ */
+export function isGuestUser(): boolean {
+  const user = getCurrentUser();
+  return user?.isGuest || false;
+}
+
+/**
+ * Check if user has a guest profile saved
+ */
+export function hasGuestProfile(): boolean {
+  return localStorage.getItem(USER_STORAGE_KEY) !== null;
+}
+
+/**
+ * Clear guest user data
+ */
+export function clearGuestUser(): void {
+  localStorage.removeItem(USER_STORAGE_KEY);
+}
+
+/**
+ * Generate avatar URL using DiceBear API
+ */
+export function generateAvatarUrl(seed: string): string {
+  return `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
 }

@@ -8,6 +8,9 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import UserProfile from "@/components/UserProfile";
 import { auth } from "@/lib/firebase";
+import { getCurrentUser } from "@/lib/user";
+import GuestUserModal from "@/components/GuestUserModal";
+import { UserProfile as UserProfileType } from "@/lib/user";
 
 interface TimeSlot {
   day: string;
@@ -144,6 +147,14 @@ export default function Create() {
   const [titleError, setTitleError] = useState("");
   const [deadlineError, setDeadlineError] = useState("");
   const [error, setError] = useState("");
+
+  // Add state for guest modal
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [pendingScheduleData, setPendingScheduleData] = useState<{
+    title: string;
+    votingDeadline: Date;
+    timeBlocks: TimeBlock[];
+  } | null>(null);
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const hours = Array.from({ length: 16 }, (_, i) => `${i + 9}:00`);
@@ -369,37 +380,67 @@ export default function Create() {
     setError("");
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        setError("Please log in to create a meeting");
-        navigate("/login");
-        return;
-      }
-
+      // Validate form data
       if (!meetingTitle.trim()) {
-        setError("Please enter a meeting title");
+        setTitleError("Please enter a meeting title");
+        setIsSubmitting(false);
         return;
+      } else {
+        setTitleError("");
       }
 
       if (!votingDeadline) {
-        setError("Please select a voting deadline");
+        setDeadlineError("Please select a voting deadline");
+        setIsSubmitting(false);
         return;
+      } else {
+        setDeadlineError("");
       }
 
       if (timeBlocks.length === 0) {
         setError("Please select at least one time slot");
+        setIsSubmitting(false);
         return;
       }
 
+      // Get current user (Firebase or guest)
+      const currentUser = getCurrentUser();
+      
+      // If no user and no guest profile, show the guest modal
+      if (!currentUser) {
+        setPendingScheduleData({
+          title: meetingTitle,
+          votingDeadline: votingDeadline,
+          timeBlocks: timeBlocks
+        });
+        setShowGuestModal(true);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Create meeting with the current user
+      await createScheduleWithUser(meetingTitle, votingDeadline, timeBlocks, currentUser);
+    } catch (error) {
+      console.error("Failed to create meeting:", error);
+      setError("Failed to create meeting. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Extract create schedule logic to reuse
+  const createScheduleWithUser = async (
+    title: string, 
+    deadline: Date, 
+    blocks: TimeBlock[], 
+    user: UserProfileType
+  ) => {
+    try {
       const meetingData = {
-        title: meetingTitle,
-        votingDeadline: votingDeadline.toISOString(),
-        timeBlocks,
-        creator: {
-          uid: user.uid,
-          displayName: user.displayName || user.email?.split('@')[0] || 'User',
-          photoURL: user.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${user.uid}`
-        }
+        title: title,
+        votingDeadline: deadline.toISOString(),
+        timeBlocks: blocks,
+        creator: user
       };
       
       const { id } = await createMeeting(meetingData);
@@ -407,9 +448,26 @@ export default function Create() {
     } catch (error) {
       console.error("Failed to create meeting:", error);
       setError("Failed to create meeting. Please try again.");
-    } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Handle guest modal completion
+  const handleGuestComplete = (guestProfile: UserProfileType) => {
+    setShowGuestModal(false);
+    
+    // Complete the pending schedule creation
+    if (pendingScheduleData) {
+      createScheduleWithUser(
+        pendingScheduleData.title,
+        pendingScheduleData.votingDeadline,
+        pendingScheduleData.timeBlocks,
+        guestProfile
+      );
+    }
+    
+    // Reset pending data
+    setPendingScheduleData(null);
   };
 
   // Add event listeners for mouse up outside the calendar
@@ -708,6 +766,14 @@ export default function Create() {
           {isSubmitting ? "Creating..." : "Confirm and Share"}
         </motion.button>
       </div>
+
+      {/* Guest User Modal */}
+      {showGuestModal && (
+        <GuestUserModal
+          onComplete={handleGuestComplete}
+          onClose={() => setShowGuestModal(false)}
+        />
+      )}
     </motion.div>
   );
 } 
