@@ -26,6 +26,7 @@ export default function Vote() {
   const [selectedSlotInfo, setSelectedSlotInfo] = useState<{ day: string, time: string } | null>(null);
   const [showVoterProfileModal, setShowVoterProfileModal] = useState(false);
   const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
+  const [mostVotedSlot, setMostVotedSlot] = useState<string | null>(null);
   
   // Guest user related states
   const [showGuestModal, setShowGuestModal] = useState(false);
@@ -101,6 +102,31 @@ export default function Vote() {
     e.stopPropagation();
     showVotersForSlot(blockId, day, time);
   };
+
+  // 가장 많은 득표수를 가진 슬롯을 찾는 함수
+  const findMostVotedSlot = () => {
+    if (!meeting?.votes || !meeting?.timeBlocks) return null;
+    
+    let maxVotes = 0;
+    let maxVotedSlotId: string | null = null;
+    
+    Object.entries(meeting.votes).forEach(([blockId, voters]) => {
+      const voteCount = Object.keys(voters).length;
+      if (voteCount > maxVotes) {
+        maxVotes = voteCount;
+        maxVotedSlotId = blockId;
+      }
+    });
+    
+    return maxVotedSlotId;
+  };
+
+  // 투표수가 업데이트될 때마다 가장 많은 득표수를 가진 슬롯을 업데이트
+  useEffect(() => {
+    if (meeting?.votes) {
+      setMostVotedSlot(findMostVotedSlot());
+    }
+  }, [meeting?.votes]);
 
   useEffect(() => {
     async function fetchMeeting() {
@@ -340,6 +366,11 @@ export default function Vote() {
             }
 
             setMeeting(updatedMeeting);
+            
+            // 실시간으로 가장 많은 득표수를 가진 슬롯 업데이트
+            if (updatedMeeting.votes) {
+              setMostVotedSlot(findMostVotedSlot());
+            }
           }
         });
       }
@@ -476,9 +507,59 @@ export default function Vote() {
                   className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${
                     selectedSlots.includes(block.id)
                       ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
+                      : mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                      ? "bg-gradient-to-r from-yellow-50 to-amber-50 hover:border-yellow-300 hover:shadow-md border-yellow-200 shadow-md"
                       : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
                   } ${(isVotingClosed || hasVoted) ? "opacity-75" : ""}`}
+                  animate={
+                    mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                      ? {
+                          boxShadow: [
+                            "0 0 0 rgba(250, 204, 21, 0.2)",
+                            "0 0 8px rgba(250, 204, 21, 0.6)",
+                            "0 0 0 rgba(255, 204, 0, 0.2)"
+                          ]
+                        }
+                      : {}
+                  }
+                  transition={
+                    mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                      ? { 
+                          repeat: Infinity, 
+                          duration: 2.5 
+                        }
+                      : {}
+                  }
                 >
+                  {/* 왕관 아이콘 - 가장 많은 득표수를 가진 슬롯에만 표시 */}
+                  {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ 
+                        opacity: 1, 
+                        y: 0,
+                        rotateZ: [0, 5, 0, -5, 0] 
+                      }}
+                      transition={{ 
+                        rotateZ: { repeat: Infinity, duration: 2 },
+                        default: { duration: 0.5 }
+                      }}
+                      className="absolute -top-4 -right-2 z-10"
+                    >
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        width="32" 
+                        height="32" 
+                        viewBox="0 0 24 24" 
+                        fill="gold" 
+                        stroke="#FFD700" 
+                        strokeWidth="1" 
+                        className="filter drop-shadow-md"
+                      >
+                        <path d="M3 17l5-6 4 3 5-6.5L21 17H3zm4-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+                      </svg>
+                    </motion.div>
+                  )}
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <button
@@ -487,12 +568,42 @@ export default function Vote() {
                         className={`w-full text-left ${(isVotingClosed || hasVoted) ? "cursor-default" : "cursor-pointer"}`}
                       >
                         <div className="font-semibold text-lg flex items-center gap-2">
-                          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                          <span className={`${
+                            mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                              ? "bg-gradient-to-r from-yellow-500 to-amber-600 bg-clip-text text-transparent"
+                              : "bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+                          }`}>
                             {block.day}
                           </span>
-                          <span className={selectedSlots.includes(block.id) ? "text-white" : "text-gray-600"}>
+                          <span className={
+                            selectedSlots.includes(block.id) 
+                              ? "text-white" 
+                              : mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                                ? "text-amber-700 font-bold"
+                                : "text-gray-600"
+                          }>
                             {block.startHour} - {block.endHour}
                           </span>
+                          {/* 가장 많은 득표수를 가진 슬롯에 인라인 왕관 아이콘 추가 */}
+                          {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
+                            <motion.span 
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ 
+                                scale: [1, 1.3, 1], 
+                                opacity: 1,
+                                y: [0, -3, 0]
+                              }}
+                              transition={{ 
+                                repeat: Infinity, 
+                                duration: 1.5,
+                                ease: "easeInOut" 
+                              }}
+                              className="text-yellow-500 ml-1 filter drop-shadow-md"
+                              style={{ fontSize: "1.2rem" }}
+                            >
+                              👑
+                            </motion.span>
+                          )}
                         </div>
                       </button>
 
@@ -501,10 +612,17 @@ export default function Vote() {
                         <button
                           onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
                           className={`text-sm hover:underline cursor-pointer ${
-                            selectedSlots.includes(block.id) ? "text-indigo-100" : "text-gray-500"
+                            selectedSlots.includes(block.id) 
+                              ? "text-indigo-100" 
+                              : mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                                ? "text-amber-600 font-bold"
+                                : "text-gray-500"
                           }`}
                         >
                           {getVoteCountText(block.id)}
+                          {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
+                            <span className="ml-1 text-[#FFD700] font-bold">🏆 Most Votes !</span>
+                          )}
                         </button>
                       </div>
 
