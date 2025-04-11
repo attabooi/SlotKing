@@ -5,6 +5,8 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { getCurrentUser, UserProfile as UserInfo } from '@/lib/user';
+import EditGuestProfileModal from './EditGuestProfileModal';
+import { PencilIcon } from 'lucide-react';
 
 interface UserProfileProps {
   className?: string;
@@ -14,15 +16,21 @@ const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
   const navigate = useNavigate();
   const [firebaseUser, loading] = useAuthState(auth);
   const [guestUser, setGuestUser] = useState<UserInfo | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   
-  useEffect(() => {
-    // If no Firebase user, check for guest user
-    if (!firebaseUser && !loading) {
+  // Refresh user data
+  const refreshUserData = () => {
+    if (!firebaseUser) {
       const currentUser = getCurrentUser();
       setGuestUser(currentUser);
     } else {
       setGuestUser(null);
     }
+  };
+  
+  useEffect(() => {
+    // If no Firebase user, check for guest user
+    refreshUserData();
   }, [firebaseUser, loading]);
 
   const handleLogout = async () => {
@@ -37,6 +45,11 @@ const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
     } catch (error) {
       console.error('Logout error:', error);
     }
+  };
+  
+  const handleEditProfileComplete = (updatedProfile: UserInfo) => {
+    setShowEditModal(false);
+    setGuestUser(updatedProfile);
   };
 
   if (loading) {
@@ -60,27 +73,47 @@ const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
   }
 
   return (
-    <div className={`flex items-center space-x-4 ${className}`}>
-      <img
-        src={
-          user.photoURL ??
-          `https://api.dicebear.com/7.x/thumbs/svg?seed=${user.displayName ?? "user"}`
-        }
-        alt="avatar"
-        className="w-8 h-8 rounded-full border border-gray-300 shadow-sm"
-      />
-      <span className="text-sm font-medium text-gray-800">
-        {user.displayName}
-      </span>
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={handleLogout}
-        className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm font-semibold shadow hover:shadow-md transition"
-      >
-        Logout
-      </motion.button>
-    </div>
+    <>
+      <div className={`flex items-center space-x-3 ${className}`}>
+        <div className="relative group">
+          <img
+            src={user.photoURL ?? `https://api.dicebear.com/7.x/thumbs/svg?seed=${user.displayName ?? "user"}`}
+            alt="avatar"
+            className="w-8 h-8 rounded-full border border-gray-300 shadow-sm"
+          />
+          
+          {/* Edit profile button (for guest users only) */}
+          {'isGuest' in user && user.isGuest && (
+            <button 
+              onClick={() => setShowEditModal(true)}
+              className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              title="Edit profile"
+            >
+              <PencilIcon className="w-3 h-3 text-indigo-600" />
+            </button>
+          )}
+        </div>
+        <span className="text-sm font-medium text-gray-800">
+          {user.displayName}
+        </span>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleLogout}
+          className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm font-semibold shadow hover:shadow-md transition"
+        >
+          Logout
+        </motion.button>
+      </div>
+      
+      {/* Guest Profile Edit Modal */}
+      {showEditModal && (
+        <EditGuestProfileModal
+          onComplete={handleEditProfileComplete}
+          onClose={() => setShowEditModal(false)}
+        />
+      )}
+    </>
   );
 };
 

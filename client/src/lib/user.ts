@@ -42,8 +42,10 @@ export function getCurrentUser(): UserProfile | null {
 
 /**
  * Generate a new guest user profile and save to localStorage
+ * @param nickname 사용자 닉네임 (옵션)
+ * @param customPhotoURL 사용자 정의 프로필 이미지 URL (옵션)
  */
-export function createGuestUser(nickname?: string): UserProfile {
+export function createGuestUser(nickname?: string, customPhotoURL?: string): UserProfile {
   const guestId = `guest-${uuidv4().slice(0, 8)}`;
   // 닉네임이 없으면 기본값 사용
   const userNickname = nickname?.trim() || `User-${guestId.slice(6, 10)}`;
@@ -53,7 +55,7 @@ export function createGuestUser(nickname?: string): UserProfile {
   const guestUser: UserProfile = {
     uid: guestId,
     displayName: displayName,
-    photoURL: generateAvatarUrl(displayName), // 일관된 아바타를 위해 displayName 사용
+    photoURL: customPhotoURL || generateAvatarUrl(displayName), // 커스텀 URL 또는 기본 아바타
     isGuest: true
   };
 
@@ -88,4 +90,17 @@ export function clearGuestUser(): void {
  */
 export function generateAvatarUrl(seed: string): string {
   return `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
+}
+
+/**
+ * Update an existing guest user profile
+ */
+export function updateGuestUser(userData: UserProfile): UserProfile {
+  if (!userData.isGuest) {
+    throw new Error("Cannot update non-guest user");
+  }
+  
+  // Save updated user data to localStorage
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+  return userData;
 }

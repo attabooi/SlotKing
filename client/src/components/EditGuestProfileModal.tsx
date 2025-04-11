@@ -1,19 +1,36 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { createGuestUser, UserProfile, generateAvatarUrl } from "@/lib/user";
+import { UserProfile, getCurrentUser, updateGuestUser, generateAvatarUrl } from "@/lib/user";
 
-interface GuestUserModalProps {
+interface EditGuestProfileModalProps {
   onComplete: (guestProfile: UserProfile) => void;
   onClose: () => void;
 }
 
-export default function GuestUserModal({ onComplete, onClose }: GuestUserModalProps) {
+export default function EditGuestProfileModal({ onComplete, onClose }: EditGuestProfileModalProps) {
   const [nickname, setNickname] = useState("");
   const [customProfileUrl, setCustomProfileUrl] = useState("");
   const [useCustomProfile, setUseCustomProfile] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
+  
+  // 기존 유저 정보 불러오기
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.isGuest) {
+      // 닉네임에서 Guest- 접두사 제거
+      const displayName = currentUser.displayName || "";
+      setNickname(displayName.startsWith("Guest-") ? displayName.substring(6) : displayName);
+      
+      // 기존 프로필 이미지가 DiceBear가 아닌 경우 커스텀 URL로 설정
+      const photoURL = currentUser.photoURL || "";
+      if (photoURL && !photoURL.includes("dicebear.com")) {
+        setCustomProfileUrl(photoURL);
+        setUseCustomProfile(true);
+      }
+    }
+  }, []);
+  
   // 프로필 이미지 미리보기 URL
   const previewImageUrl = useCustomProfile && customProfileUrl 
     ? customProfileUrl 
@@ -26,17 +43,27 @@ export default function GuestUserModal({ onComplete, onClose }: GuestUserModalPr
     setIsLoading(true);
     
     try {
-      // 프로필 이미지 URL 결정
+      // 현재 게스트 사용자 정보 가져오기
+      const currentUser = getCurrentUser();
+      if (!currentUser || !currentUser.isGuest) {
+        throw new Error("Not a guest user");
+      }
+      
+      // 닉네임과 프로필 이미지 업데이트
       const photoURL = useCustomProfile && customProfileUrl 
         ? customProfileUrl 
-        : undefined; // 기본 아바타 사용
+        : generateAvatarUrl(nickname || currentUser.displayName);
         
-      // 게스트 사용자 생성 (유효한 닉네임이 있는 경우만)
-      const guestProfile = createGuestUser(nickname.trim() || undefined, photoURL);
-      onComplete(guestProfile);
+      const updatedProfile = updateGuestUser({
+        ...currentUser,
+        displayName: nickname ? `Guest-${nickname}` : currentUser.displayName,
+        photoURL
+      });
+      
+      onComplete(updatedProfile);
     } catch (error) {
-      console.error("Error creating guest user:", error);
-      setError("Failed to create guest profile. Please try again.");
+      console.error("Error updating guest profile:", error);
+      setError("Failed to update profile. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +78,7 @@ export default function GuestUserModal({ onComplete, onClose }: GuestUserModalPr
       >
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-xl font-bold text-gray-900">
-            Continue as a Guest
+            Edit Guest Profile
           </h2>
           <button 
             onClick={onClose}
@@ -62,10 +89,6 @@ export default function GuestUserModal({ onComplete, onClose }: GuestUserModalPr
             </svg>
           </button>
         </div>
-        
-        <p className="text-gray-600 mb-6">
-          Enter a nickname to identify yourself to other voters. You can vote without creating an account.
-        </p>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Profile Preview */}
@@ -95,7 +118,7 @@ export default function GuestUserModal({ onComplete, onClose }: GuestUserModalPr
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 maxLength={20}
-                className="text-black flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Enter a name (e.g. Alex)"
                 autoFocus
               />
@@ -138,20 +161,23 @@ export default function GuestUserModal({ onComplete, onClose }: GuestUserModalPr
           
           {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
           
-          <div className="pt-2">
+          <div className="pt-4 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
+            >
+              Cancel
+            </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2 rounded-md font-medium shadow-md hover:shadow-lg transition-shadow disabled:opacity-70"
+              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-md text-sm font-medium shadow-md hover:shadow-lg transition-shadow disabled:opacity-70"
             >
-              {isLoading ? "Creating..." : "Continue as Guest"}
+              {isLoading ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </form>
-        
-        <p className="mt-4 text-xs text-gray-500 text-center">
-          Your guest profile will be stored locally on this device.
-        </p>
       </motion.div>
     </div>
   );
