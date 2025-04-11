@@ -12,6 +12,7 @@ import { getCurrentUser } from "@/lib/user";
 import GuestUserModal from "@/components/GuestUserModal";
 import { UserProfile as UserProfileType } from "@/lib/user";
 import ShareModal from "@/components/ShareModal";
+import confetti from 'canvas-confetti';
 
 interface TimeSlot {
   day: string;
@@ -381,11 +382,14 @@ export default function Create() {
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isSubmitting) return;
+    
     setIsSubmitting(true);
     setError("");
-
+    
     try {
-      // Validate form data
+      // Validate inputs
       if (!meetingTitle.trim()) {
         setTitleError("Please enter a meeting title");
         setIsSubmitting(false);
@@ -393,9 +397,16 @@ export default function Create() {
       } else {
         setTitleError("");
       }
-
+      
       if (!votingDeadline) {
-        setDeadlineError("Please select a voting deadline");
+        setDeadlineError("Please set a voting deadline");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Ensure deadline is in the future
+      if (votingDeadline <= new Date()) {
+        setDeadlineError("Deadline must be in the future");
         setIsSubmitting(false);
         return;
       } else {
@@ -425,12 +436,22 @@ export default function Create() {
 
       // Create meeting with the current user
       await createScheduleWithUser(meetingTitle, votingDeadline, timeBlocks, currentUser);
+      // createScheduleWithUser 함수에서 성공 시 isSubmitting을 false로 설정
     } catch (error) {
       console.error("Failed to create meeting:", error);
       setError("Failed to create meeting. Please try again.");
-    } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Trigger confetti animation
+  const launchConfetti = () => {
+    confetti({
+      particleCount: 120,
+      spread: 100,
+      origin: { y: 0.6 },
+      colors: ['#4F46E5', '#7C3AED', '#EC4899', '#F59E0B', '#10B981']
+    });
   };
 
   // Extract create schedule logic to reuse
@@ -449,13 +470,18 @@ export default function Create() {
       };
       
       const { id } = await createMeeting(meetingData);
+      
+      // 일정 생성 성공 시 confetti 효과 실행
+      launchConfetti();
+      
+      // 상태 업데이트
       setCreatedMeetingId(id);
       setShowShareModal(true);
+      setIsSubmitting(false); // 성공적인 생성 후 isSubmitting 설정
     } catch (error) {
       console.error("Failed to create meeting:", error);
       setError("Failed to create meeting. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false); // 오류 발생 시 isSubmitting 설정
     }
   };
 
@@ -465,6 +491,7 @@ export default function Create() {
     
     // Complete the pending schedule creation
     if (pendingScheduleData) {
+      setIsSubmitting(true); // 게스트 모달에서 완료 후 제출 시작
       createScheduleWithUser(
         pendingScheduleData.title,
         pendingScheduleData.votingDeadline,

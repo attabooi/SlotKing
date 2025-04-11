@@ -619,7 +619,7 @@ export default function Vote() {
                           {/* 가장 많은 득표수를 가진 슬롯에 인라인 왕관 아이콘 추가 */}
                           {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
                             <motion.span 
-                              initial={{ scale: 0.8, opacity: 0 }}
+                              initial={{ scale: 0.8, opacity: 1 }}
                               animate={{ 
                                 scale: [1, 1.3, 1], 
                                 opacity: 1,
