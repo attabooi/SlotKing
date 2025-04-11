@@ -43,12 +43,17 @@ export function getCurrentUser(): UserProfile | null {
 /**
  * Generate a new guest user profile and save to localStorage
  */
-export function createGuestUser(nickname: string): UserProfile {
+export function createGuestUser(nickname?: string): UserProfile {
   const guestId = `guest-${uuidv4().slice(0, 8)}`;
+  // 닉네임이 없으면 기본값 사용
+  const userNickname = nickname?.trim() || `User-${guestId.slice(6, 10)}`;
+  // Guest- 접두사 추가 (이미 있는 경우 건너뜀)
+  const displayName = userNickname.startsWith('Guest-') ? userNickname : `Guest-${userNickname}`;
+  
   const guestUser: UserProfile = {
     uid: guestId,
-    displayName: nickname,
-    photoURL: generateAvatarUrl(nickname),
+    displayName: displayName,
+    photoURL: generateAvatarUrl(displayName), // 일관된 아바타를 위해 displayName 사용
     isGuest: true
   };
 

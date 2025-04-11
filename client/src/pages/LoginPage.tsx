@@ -46,7 +46,7 @@ const LoginPage: React.FC = () => {
 
   const handleGuestLogin = () => {
     createGuestUser();
-    handleSuccessfulAuth();
+    navigate("/");
   };
 
   const handleSuccessfulAuth = () => {

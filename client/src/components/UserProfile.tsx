@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { getCurrentUser, UserInfo } from '@/lib/user';
+import { getCurrentUser, UserProfile as UserInfo } from '@/lib/user';
 
 interface UserProfileProps {
   className?: string;
@@ -28,7 +28,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
   const handleLogout = async () => {
     try {
       // Clear guest user data from localStorage if present
-      localStorage.removeItem("guestUser");
+      localStorage.removeItem("slotking_guest_user");
       // Sign out from Firebase
       await signOut(auth);
       // Update local state to remove guest user

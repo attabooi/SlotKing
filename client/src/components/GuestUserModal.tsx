@@ -15,17 +15,12 @@ export default function GuestUserModal({ onComplete, onClose }: GuestUserModalPr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!nickname.trim()) {
-      setError("Please enter a nickname");
-      return;
-    }
-    
     setError("");
     setIsLoading(true);
     
     try {
-      // Create a guest user with the entered nickname
-      const guestProfile = createGuestUser(nickname.trim());
+      // 닉네임이 비어있어도 createGuestUser 함수가 자동으로 기본값을 사용함
+      const guestProfile = createGuestUser(nickname);
       onComplete(guestProfile);
     } catch (error) {
       console.error("Error creating guest user:", error);
@@ -72,7 +67,7 @@ export default function GuestUserModal({ onComplete, onClose }: GuestUserModalPr
               onChange={(e) => setNickname(e.target.value)}
               maxLength={20}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="Enter your nickname"
+              placeholder="Enter a name (e.g. Alex)"
               autoFocus
             />
             {error && <p className="mt-1 text-sm text-red-600">{error}</p>}

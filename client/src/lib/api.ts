@@ -1,5 +1,5 @@
 import { auth } from "@/lib/firebase";
-import { getCurrentUser, UserProfile } from '@/lib/user';
+import { getCurrentUser, UserProfile, generateAvatarUrl } from '@/lib/user';
 
 export interface TimeSlot {
   id: string;
@@ -45,7 +45,7 @@ const getUserInfo = (): Voter | null => {
 
 // Generate a profile photo URL
 function generateProfilePhotoUrl(displayName: string): string {
-  return `https://api.dicebear.com/7.x/thumbs/svg?seed=${encodeURIComponent(displayName)}`;
+  return generateAvatarUrl(displayName);
 }
 
 export async function getMeeting(meetingId: string): Promise<Meeting> {
@@ -61,7 +61,7 @@ export async function getMeeting(meetingId: string): Promise<Meeting> {
     meeting.votes = {};
   }
   
-  // Ensure creator exists
+  // Ensure creator exists and has all required fields
   if (!meeting.creator) {
     meeting.creator = {
       uid: 'unknown',
@@ -69,8 +69,20 @@ export async function getMeeting(meetingId: string): Promise<Meeting> {
       photoURL: generateProfilePhotoUrl('Anonymous'),
       isGuest: false
     };
-  } else if (!meeting.creator.photoURL) {
-    meeting.creator.photoURL = generateProfilePhotoUrl(meeting.creator.displayName);
+  } else {
+    // Make sure creator has all required fields
+    if (!meeting.creator.photoURL) {
+      meeting.creator.photoURL = generateProfilePhotoUrl(meeting.creator.displayName || 'Unknown');
+    }
+    // Make sure isGuest field is present (for backward compatibility)
+    if (meeting.creator.isGuest === undefined) {
+      meeting.creator.isGuest = meeting.creator.uid?.startsWith('guest-') || false;
+    }
+    
+    // 게스트 사용자의 경우 displayName 확인
+    if (meeting.creator.isGuest && !meeting.creator.displayName?.startsWith('Guest-')) {
+      meeting.creator.displayName = `Guest-${meeting.creator.displayName || 'User'}`;
+    }
   }
   
   return meeting;
