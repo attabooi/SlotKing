@@ -15,6 +15,7 @@ import { ShareIcon } from "lucide-react";
 
 
 
+
 export default function Vote() {
   const { meetingId } = useParams<{ meetingId: string }>();
   const [meeting, setMeeting] = useState<Meeting | null>(null);
