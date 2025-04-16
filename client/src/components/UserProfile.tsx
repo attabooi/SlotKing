@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { getCurrentUser, UserProfile as UserInfo } from '@/lib/user';
 import EditGuestProfileModal from './EditGuestProfileModal';
-import { PencilIcon } from 'lucide-react';
+import { PencilIcon, Crown } from 'lucide-react';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 interface UserProfileProps {
   className?: string;
@@ -17,6 +18,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
   const [firebaseUser, loading] = useAuthState(auth);
   const [guestUser, setGuestUser] = useState<UserInfo | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   
   // Refresh user data
   const refreshUserData = () => {
@@ -32,6 +34,20 @@ const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
     // If no Firebase user, check for guest user
     refreshUserData();
   }, [firebaseUser, loading]);
+
+  useEffect(() => {
+    if (firebaseUser) {
+      // Subscribe to user document for premium status
+      const unsubscribe = onSnapshot(doc(db, 'users', firebaseUser.uid), (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          setIsPremium((data.isPremium === true));
+        }
+      });
+      
+      return () => unsubscribe();
+    }
+  }, [firebaseUser]);
 
   const handleLogout = async () => {
     try {
@@ -82,6 +98,13 @@ const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
             className="w-8 h-8 rounded-full border border-gray-300 shadow-sm"
           />
           
+          {/* Premium badge */}
+          {isPremium && (
+            <div className="absolute -top-1 -right-1 bg-yellow-400 rounded-full p-0.5 shadow-sm border border-yellow-500">
+              <Crown className="w-3 h-3 text-white" />
+            </div>
+          )}
+          
           {/* Edit profile button (for guest users only) */}
           {'isGuest' in user && user.isGuest && (
             <button 
@@ -93,9 +116,16 @@ const UserProfile: React.FC<UserProfileProps> = ({ className = '' }) => {
             </button>
           )}
         </div>
-        <span className="text-sm font-medium text-gray-800">
-          {user.displayName}
-        </span>
+        <div className="flex items-center space-x-1">
+          <span className="text-sm font-medium text-gray-800">
+            {user.displayName}
+          </span>
+          {isPremium && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+              Premium
+            </span>
+          )}
+        </div>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

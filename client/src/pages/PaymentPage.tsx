@@ -2,18 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { auth } from '@/lib/firebase';
 import { Crown, CheckCircle2, X, Smartphone, CreditCard } from 'lucide-react';
 import { SlotKingLogo } from '@/components/ui/SlotKingLogo';
-import UserProfile from "@/components/UserProfile";
-
+import UserProfile from '@/components/UserProfile';
+import confetti from 'canvas-confetti';
+import { useToast } from '@/components/ui/use-toast';
+import axios from 'axios';
 
 const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
   const [user, loading] = useAuthState(auth);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -40,27 +42,53 @@ const PaymentPage: React.FC = () => {
     const { IMP } = window as any;
     IMP.init('imp56132302');
 
+    const merchant_uid = `mid_${new Date().getTime()}`;
+
     IMP.request_pay({
       pg: method,
       pay_method: 'card',
-      merchant_uid: `mid_${new Date().getTime()}`,
+      merchant_uid,
       name: 'SlotKing Premium',
-      amount: 5,
+      amount: 5000,
       buyer_email: user.email,
       buyer_name: user.displayName || 'Anonymous',
       buyer_tel: '010-1234-5678',
     }, async (rsp: any) => {
       if (rsp.success) {
-        await setDoc(doc(db, 'users', user.uid), {
-          isPremium: true,
-          premiumSince: new Date().toISOString(),
-          paymentId: rsp.imp_uid,
-        }, { merge: true });
+        try {
+          const verifyRes = await axios.post('/api/verify-payment', {
+            imp_uid: rsp.imp_uid,
+            uid: user.uid,
+          });
 
-        alert('Premium subscription completed!');
-        navigate('/');
+          if (verifyRes.data.success) {
+            toast({
+              title: "🎉 Welcome to Premium!",
+              description: "You now have access to unlimited voters and more features.",
+              duration: 5000,
+            });
+            confetti({ particleCount: 200, spread: 70, origin: { y: 0.6 } });
+            setTimeout(() => navigate('/'), 1000);
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Verification failed',
+              description: verifyRes.data.reason || 'Payment could not be verified.',
+            });
+          }
+        } catch (error) {
+          toast({
+            variant: 'destructive',
+            title: 'Server Error',
+            description: 'An error occurred during payment verification.',
+          });
+        }
       } else {
-        alert(`Payment failed: ${rsp.error_msg}`);
+        toast({
+          variant: 'destructive',
+          title: 'Payment failed',
+          description: rsp.error_msg,
+        });
       }
     });
   };
