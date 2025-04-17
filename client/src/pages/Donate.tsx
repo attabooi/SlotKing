@@ -2,6 +2,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { useNavigate } from "react-router-dom";
+import { SlotKingLogo } from "@/components/ui/SlotKingLogo";
+import UserProfile from "@/components/UserProfile";
 
 const coffeeMenu = [
   { amount: 1, name: "Espresso", description: "Strong & tiny.", emoji: "☕" },
@@ -27,10 +29,24 @@ export default function Donate() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-900 flex items-center justify-center px-4">
-      <div className="flex flex-col md:flex-row items-center gap-10">
-        {/* 중앙 캐릭터 */}
-        <div className="w-60 h-60">
+    <div className="relative min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 overflow-hidden text-slate-900">
+      {/* 라디얼 배경 */}
+      <div className="absolute top-[-200px] left-[-200px] w-[600px] h-[600px] bg-cyan-200 opacity-30 rounded-full blur-3xl" />
+      <div className="absolute bottom-[-150px] right-[-150px] w-[500px] h-[500px] bg-blue-200 opacity-20 rounded-full blur-2xl" />
+
+      {/* 상단 바 */}
+      <div className="relative z-10 max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <SlotKingLogo />
+          <span className="text-lg font-bold">Murgle</span>
+        </div>
+        <UserProfile />
+      </div>
+
+      {/* 메인 콘텐츠 */}
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-center px-6 gap-10 min-h-[calc(100vh-100px)]">
+        {/* 픽셀 캐릭터 */}
+        <div className="w-64 h-64">
           <img
             src="/assets/coffee-thirsty.gif"
             alt="Coffee Character"
@@ -38,9 +54,9 @@ export default function Donate() {
           />
         </div>
 
-        {/* 우측 메뉴판 */}
-        <div className="w-64 bg-neutral-800 p-4 rounded-xl shadow-md space-y-4 text-white text-xs">
-          <h2 className="text-sm font-semibold border-b border-neutral-700 pb-2">
+        {/* 메뉴 카드 */}
+        <div className="w-64 bg-white/80 backdrop-blur-md border border-slate-200 p-4 rounded-xl shadow-md space-y-4 text-sm text-slate-900">
+          <h2 className="text-base font-semibold border-b border-slate-300 pb-2">
             ☕ Menu
           </h2>
           <ul className="space-y-2">
@@ -51,7 +67,7 @@ export default function Donate() {
                 className={`flex justify-between items-start p-2 rounded-md cursor-pointer border transition ${
                   selected.amount === item.amount
                     ? "border-yellow-400 bg-yellow-100 text-black"
-                    : "border-transparent hover:border-neutral-600"
+                    : "border-transparent hover:border-slate-300"
                 }`}
               >
                 <div>
@@ -59,7 +75,7 @@ export default function Donate() {
                     <span>{item.emoji}</span>
                     {item.name}
                   </div>
-                  <p className="text-[11px] text-neutral-400">{item.description}</p>
+                  <p className="text-xs text-slate-500">{item.description}</p>
                 </div>
                 <span className="font-bold text-xs">${item.amount}</span>
               </li>
@@ -71,7 +87,7 @@ export default function Donate() {
             whileTap={{ scale: 0.97 }}
             onClick={handleDonate}
             disabled={isProcessing || hasDonated}
-            className="w-full bg-yellow-400 text-black font-medium py-2 rounded-lg transition disabled:opacity-50 text-sm"
+            className="w-full bg-yellow-400 text-black font-semibold py-2 rounded-lg transition disabled:opacity-50"
           >
             {isProcessing
               ? "Processing..."
@@ -82,7 +98,7 @@ export default function Donate() {
 
           <button
             onClick={() => navigate("/")}
-            className="block text-[11px] text-neutral-400 mt-2 hover:underline mx-auto"
+            className="block text-[11px] text-slate-500 mt-2 hover:underline mx-auto"
           >
             ← Back to Home
           </button>
