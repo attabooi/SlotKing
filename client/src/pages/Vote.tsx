@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { getMeeting, submitVote, clearVotes } from "@/lib/api";
 import { SlotKingLogo } from "@/components/ui/SlotKingLogo";
@@ -12,14 +12,15 @@ import GuestUserModal from "@/components/GuestUserModal";
 import ShareModal from "@/components/ShareModal";
 import { useI18n } from "@/lib/i18n";
 import { ShareIcon } from "lucide-react";
-
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 
 
 export default function Vote() {
   const { meetingId } = useParams<{ meetingId: string }>();
   const [meeting, setMeeting] = useState<Meeting | null>(null);
-  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]); setMeeting
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -33,13 +34,25 @@ export default function Vote() {
   const [showVoterProfileModal, setShowVoterProfileModal] = useState(false);
   const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
   const [mostVotedSlot, setMostVotedSlot] = useState<string | null>(null);
-  
+
   // Guest user related states
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [pendingVoteAction, setPendingVoteAction] = useState<{
     action: 'submit' | 'clear';
     slots?: string[];
   } | null>(null);
+
+
+  const [isPremiumHost, setIsPremiumHost] = useState(false);
+  const totalVotersCount = useMemo(() => {
+    if (!meeting) return 0;
+
+    const allVoters = new Set<string>();
+    Object.values(meeting.votes || {}).forEach(voters => {
+      Object.keys(voters).forEach(uid => allVoters.add(uid));
+    });
+    return allVoters.size;
+  }, [meeting?.votes]);
 
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -116,10 +129,10 @@ export default function Vote() {
   // 가장 많은 득표수를 가진 슬롯을 찾는 함수
   const findMostVotedSlot = () => {
     if (!meeting?.votes || !meeting?.timeBlocks) return null;
-    
+
     let maxVotes = 0;
     let maxVotedSlotId: string | null = null;
-    
+
     Object.entries(meeting.votes).forEach(([blockId, voters]) => {
       const voteCount = Object.keys(voters).length;
       if (voteCount > maxVotes) {
@@ -127,7 +140,7 @@ export default function Vote() {
         maxVotedSlotId = blockId;
       }
     });
-    
+
     return maxVotedSlotId;
   };
 
@@ -160,6 +173,23 @@ export default function Vote() {
 
         setMeeting(meetingData);
 
+        // 🔥 Premium 여부 확인
+        try {
+
+          const userDoc = await getDoc(doc(db, "users", meetingData.creator.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            console.log("🔥 Firestore userData:", userData);
+            console.log("👑 isPremiumHost = ", userData.isPremium);
+            setIsPremiumHost(userData.isPremium === true);
+          } else {
+            setIsPremiumHost(false);
+          }
+        } catch (err) {
+          console.error("Failed to fetch premium status:", err);
+          setIsPremiumHost(false);
+        }
+
         // Check if voting is closed based on deadline
         const deadlineDate = parseISO(meetingData.votingDeadline);
         const now = new Date();
@@ -172,7 +202,7 @@ export default function Vote() {
           const userVotes = Object.entries(meetingData.votes)
             .filter(([_, voters]) => voters[currentUser.uid])
             .map(([blockId]) => blockId);
-          
+
           setSelectedSlots(userVotes);
           setHasVoted(userVotes.length > 0);
         }
@@ -245,7 +275,7 @@ export default function Vote() {
   // Add a handler for guest user modal completion
   const handleGuestComplete = (guestProfile: UserProfileType) => {
     setShowGuestModal(false);
-    
+
     // Complete the pending vote action
     if (pendingVoteAction) {
       if (pendingVoteAction.action === 'submit' && pendingVoteAction.slots) {
@@ -259,7 +289,7 @@ export default function Vote() {
       setPendingVoteAction(null);
     }
   };
-  
+
   // Extract submit vote logic to reuse
   const submitVoteWithUser = async (slots: string[], user: UserProfileType) => {
     setIsSubmitting(true);
@@ -288,14 +318,14 @@ export default function Vote() {
       setIsSubmitting(false);
     }
   };
-  
+
   // Extract clear votes logic to reuse
   const clearVotesWithUser = async (user: UserProfileType) => {
     setIsSubmitting(true);
     try {
       const updatedMeeting = await clearVotes(meetingId!, user.uid);
       console.log("Meeting after clearing votes:", updatedMeeting);
-      
+
       if (updatedMeeting) {
         // Update the meeting state with new data
         setMeeting(updatedMeeting);
@@ -322,7 +352,7 @@ export default function Vote() {
 
     // Get current user (Firebase or guest)
     const currentUser = getCurrentUser();
-    
+
     // If no user and no guest profile, show the guest modal
     if (!currentUser) {
       setPendingVoteAction({ action: 'submit', slots: selectedSlots });
@@ -331,6 +361,20 @@ export default function Vote() {
     }
 
     // Submit vote with the current user
+    if (!isPremiumHost) {
+      // 전체 unique voter 수 계산
+      const allVoters = new Set<string>();
+      Object.values(meeting.votes || {}).forEach(voters => {
+        Object.keys(voters).forEach(uid => allVoters.add(uid));
+      });
+
+      if (!hasVoted && allVoters.size >= 5) {
+        setToastMessage("❌ Free hosts are limited to 10 voters. \n✨ Upgrade to Premium for unlimited access!");
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 5000);
+        return;
+      }
+    }
     await submitVoteWithUser(selectedSlots, currentUser);
   };
 
@@ -340,7 +384,7 @@ export default function Vote() {
 
     // Get current user (Firebase or guest)
     const currentUser = getCurrentUser();
-    
+
     // If no user and no guest profile, show the guest modal
     if (!currentUser) {
       setPendingVoteAction({ action: 'clear' });
@@ -376,7 +420,7 @@ export default function Vote() {
             }
 
             setMeeting(updatedMeeting);
-            
+
             // 실시간으로 가장 많은 득표수를 가진 슬롯 업데이트
             if (updatedMeeting.votes) {
               setMostVotedSlot(findMostVotedSlot());
@@ -395,7 +439,7 @@ export default function Vote() {
   const handleToggleShareModal = () => {
     setShowShareModal(!showShareModal);
   };
-  
+
   // Close share modal
   const handleCloseShareModal = () => {
     setShowShareModal(false);
@@ -428,7 +472,7 @@ export default function Vote() {
       {/* Header with logo */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-between items-center">
         <SlotKingLogo />
-        
+
         <div className="flex items-center gap-4">
           {/* User Profile */}
           <UserProfile />
@@ -461,7 +505,7 @@ export default function Vote() {
                 Created by {meeting.creator?.displayName || 'Anonymous'}
               </span>
             </div>
-            
+
             {/* Share Button - styled like Creator label */}
             <button
               onClick={handleToggleShareModal}
@@ -539,56 +583,55 @@ export default function Vote() {
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${
-                    selectedSlots.includes(block.id)
-                      ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
-                      : mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${selectedSlots.includes(block.id)
+                    ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
+                    : mostVotedSlot === block.id && getVoteCount(block.id) > 0
                       ? "bg-gradient-to-r from-yellow-50 to-amber-50 hover:border-yellow-300 hover:shadow-md border-yellow-200 shadow-md"
                       : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
-                  } ${(isVotingClosed || hasVoted) ? "opacity-75" : ""}`}
+                    } ${(isVotingClosed || hasVoted) ? "opacity-75" : ""}`}
                   animate={
                     mostVotedSlot === block.id && getVoteCount(block.id) > 0
                       ? {
-                          boxShadow: [
-                            "0 0 0 rgba(250, 204, 21, 0.2)",
-                            "0 0 8px rgba(250, 204, 21, 0.6)",
-                            "0 0 0 rgba(255, 204, 0, 0.2)"
-                          ]
-                        }
+                        boxShadow: [
+                          "0 0 0 rgba(250, 204, 21, 0.2)",
+                          "0 0 8px rgba(250, 204, 21, 0.6)",
+                          "0 0 0 rgba(255, 204, 0, 0.2)"
+                        ]
+                      }
                       : {}
                   }
                   transition={
                     mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                      ? { 
-                          repeat: Infinity, 
-                          duration: 2.5 
-                        }
+                      ? {
+                        repeat: Infinity,
+                        duration: 2.5
+                      }
                       : {}
                   }
                 >
                   {/* 왕관 아이콘 - 가장 많은 득표수를 가진 슬롯에만 표시 */}
                   {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: -10 }}
-                      animate={{ 
-                        opacity: 1, 
+                      animate={{
+                        opacity: 1,
                         y: 0,
-                        rotateZ: [0, 5, 0, -5, 0] 
+                        rotateZ: [0, 5, 0, -5, 0]
                       }}
-                      transition={{ 
+                      transition={{
                         rotateZ: { repeat: Infinity, duration: 2 },
                         default: { duration: 0.5 }
                       }}
                       className="absolute -top-4 -right-2 z-10"
                     >
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        width="32" 
-                        height="32" 
-                        viewBox="0 0 24 24" 
-                        fill="gold" 
-                        stroke="#FFD700" 
-                        strokeWidth="1" 
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="32"
+                        height="32"
+                        viewBox="0 0 24 24"
+                        fill="gold"
+                        stroke="#FFD700"
+                        strokeWidth="1"
                         className="filter drop-shadow-md"
                       >
                         <path d="M3 17l5-6 4 3 5-6.5L21 17H3zm4-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
@@ -603,16 +646,15 @@ export default function Vote() {
                         className={`w-full text-left ${(isVotingClosed || hasVoted) ? "cursor-default" : "cursor-pointer"}`}
                       >
                         <div className="font-semibold text-lg flex items-center gap-2">
-                          <span className={`${
-                            mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                              ? "bg-gradient-to-r from-yellow-500 to-amber-600 bg-clip-text text-transparent"
-                              : "bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
-                          }`}>
+                          <span className={`${mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                            ? "bg-gradient-to-r from-yellow-500 to-amber-600 bg-clip-text text-transparent"
+                            : "bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+                            }`}>
                             {block.day}
                           </span>
                           <span className={
-                            selectedSlots.includes(block.id) 
-                              ? "text-white" 
+                            selectedSlots.includes(block.id)
+                              ? "text-white"
                               : mostVotedSlot === block.id && getVoteCount(block.id) > 0
                                 ? "text-amber-700 font-bold"
                                 : "text-gray-600"
@@ -621,17 +663,17 @@ export default function Vote() {
                           </span>
                           {/* 가장 많은 득표수를 가진 슬롯에 인라인 왕관 아이콘 추가 */}
                           {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
-                            <motion.span 
+                            <motion.span
                               initial={{ scale: 0.8, opacity: 1 }}
-                              animate={{ 
-                                scale: [1, 1.3, 1], 
+                              animate={{
+                                scale: [1, 1.3, 1],
                                 opacity: 1,
                                 y: [0, -3, 0]
                               }}
-                              transition={{ 
-                                repeat: Infinity, 
+                              transition={{
+                                repeat: Infinity,
                                 duration: 1.5,
-                                ease: "easeInOut" 
+                                ease: "easeInOut"
                               }}
                               className="text-yellow-500 ml-1 filter drop-shadow-md"
                               style={{ fontSize: "1.2rem" }}
@@ -646,13 +688,12 @@ export default function Vote() {
                       <div className="mt-2">
                         <button
                           onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
-                          className={`text-sm hover:underline cursor-pointer ${
-                            selectedSlots.includes(block.id) 
-                              ? "text-indigo-100" 
-                              : mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                                ? "text-amber-600 font-bold"
-                                : "text-gray-500"
-                          }`}
+                          className={`text-sm hover:underline cursor-pointer ${selectedSlots.includes(block.id)
+                            ? "text-indigo-100"
+                            : mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                              ? "text-amber-600 font-bold"
+                              : "text-gray-500"
+                            }`}
                         >
                           {getVoteCountText(block.id)}
                           {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
@@ -712,14 +753,11 @@ export default function Vote() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleSubmit}
-              disabled={selectedSlots.length === 0 || isSubmitting}
-              className={`mt-8 w-full py-4 rounded-lg font-semibold text-lg shadow-lg transition-shadow ${selectedSlots.length === 0 || isSubmitting
-                ? "bg-slate-300 cursor-not-allowed"
-                : "bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-xl"
-                }`}
+              className="mt-8 w-full py-4 rounded-lg font-semibold text-lg shadow-lg transition-shadow bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-xl"
             >
               {isSubmitting ? "Submitting..." : "Submit Vote"}
             </motion.button>
+
           )}
 
           {isVotingClosed && (
@@ -734,7 +772,7 @@ export default function Vote() {
         {/* Toast */}
         <div
           className={`fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ${showToast ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
+            } whitespace-pre-line `}
         >
           {toastMessage}
         </div>
@@ -836,7 +874,7 @@ export default function Vote() {
           <ShareModal
             isOpen={showShareModal}
             onClose={handleCloseShareModal}
-            voteUrl={typeof window !== 'undefined' 
+            voteUrl={typeof window !== 'undefined'
               ? `${window.location.origin}/vote/${meetingId}`
               : `/vote/${meetingId}`}
           />
