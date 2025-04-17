@@ -9,7 +9,7 @@ export function MurgleLogo() {
     <div className="flex items-center justify-center space-x-2">
       <Crown className="w-8 h-8 text-blue-500" />
       <span className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent">
-        SlotKing
+        Murgle
       </span>
     </div>
   );
@@ -91,8 +91,18 @@ export default function Home() {
           >
             Upgrade Plan
           </motion.button>
+          <motion.button
+  whileHover={{ scale: 1.04 }}
+  whileTap={{ scale: 0.96 }}
+  onClick={() => navigate("/donate")}
+  className="px-6 py-3 border border-yellow-400 text-yellow-400 rounded-lg font-semibold text-base hover:bg-yellow-400 hover:text-black transition"
+>
+  ☕ Buy me a Coffee
+</motion.button>
+
         </motion.div>
       </motion.div>
+      
     </div>
   );
 }

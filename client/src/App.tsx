@@ -11,6 +11,7 @@ import PaymentPage from "./pages/PaymentPage";
 import SignUpPage from "./pages/SignUpPage";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
+import Donate from "@/pages/Donate"; 
 
 export default function App() {
   const [user] = useAuthState(auth);
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/payment" element={<PaymentPage />} />
             <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/donate" element={<Donate />} />
           </Routes>
         </Router>
         <Toaster />
