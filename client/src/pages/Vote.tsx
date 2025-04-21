@@ -14,6 +14,7 @@ import { useI18n } from "@/lib/i18n";
 import { ShareIcon } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import Footer from '@/components/Footer';
 
 
 
@@ -468,54 +469,46 @@ export default function Vote() {
   const formattedDeadline = format(deadlineDate, "MMMM d, yyyy 'at' h:mm a");
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
-      {/* Header with logo */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-between items-center">
-        <SlotKingLogo />
-
-        <div className="flex items-center gap-4">
-          {/* User Profile */}
-          <UserProfile />
-        </div>
+    <div className="min-h-screen flex flex-col justify-between bg-gradient-to-br from-white to-slate-100 overflow-hidden">
+      {/* Background blur effects */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-teal-300 rounded-full blur-[100px] opacity-40" />
+        <div className="absolute bottom-0 right-10 w-[300px] h-[300px] bg-blue-300 rounded-full blur-[80px] opacity-30" />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.4, ease: "easeInOut" }}
-        className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50"
-      >
-        <div className="max-w-2xl mx-auto">
-          <div className="flex justify-between items-center mb-2">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+      {/* Header */}
+      <header className="relative z-10 w-full flex justify-between items-center px-6 py-3">
+        <SlotKingLogo />
+        <div className="flex items-center gap-4">
+          <UserProfile />
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="relative z-10 flex-grow container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Meeting Title and Creator Info */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 mb-6">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent mb-4">
               {meeting.title}
             </h1>
-          </div>
-
-          {/* Creator Info and Share Button in same row */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2 bg-white rounded-full px-3 py-1 shadow-sm">
-              <img
-                src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
-                alt="Creator"
-                className="w-6 h-6 rounded-full"
-              />
-              <span className="text-sm font-medium text-gray-700">
-                Created by {meeting.creator?.displayName || 'Anonymous'}
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <img
+                  src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
+                  alt="Creator"
+                  className="w-6 h-6 rounded-full"
+                />
+                <span className="text-sm text-slate-600">
+                  Created by {meeting.creator?.displayName || 'Anonymous'}
+                </span>
+              </div>
+              {meeting.votingDeadline && (
+                <div className="text-sm text-slate-600">
+                  Deadline: {format(parseISO(meeting.votingDeadline), 'yyyy-MM-dd HH:mm')}
+                </div>
+              )}
             </div>
-
-            {/* Share Button - styled like Creator label */}
-            <button
-              onClick={handleToggleShareModal}
-              className="flex items-center gap-1.5 bg-white rounded-full px-3 py-1 shadow-sm text-sm font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-100 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-              {t('share')}
-            </button>
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
@@ -768,126 +761,128 @@ export default function Vote() {
             </div>
           )}
         </div>
+      </main>
 
-        {/* Toast */}
+      <Footer />
+
+      {/* Toast */}
+      <div
+        className={`fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ${showToast ? "opacity-100" : "opacity-0 pointer-events-none"
+          } whitespace-pre-line `}
+      >
+        {toastMessage}
+      </div>
+
+      {/* Voters Modal */}
+      {showVotersModal && (
         <div
-          className={`fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ${showToast ? "opacity-100" : "opacity-0 pointer-events-none"
-            } whitespace-pre-line `}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+          onClick={() => setShowVotersModal(false)}
         >
-          {toastMessage}
+          <motion.div
+            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Voters for {selectedSlotInfo?.day || 'Unknown'} ({selectedSlotInfo?.time || 'Unknown'})
+              </h3>
+              <button
+                onClick={() => setShowVotersModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {selectedSlotVoters && selectedSlotVoters.length > 0 ? (
+                selectedSlotVoters.map((voter) => (
+                  <motion.div
+                    key={voter.uid}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center space-x-3 p-3 hover:bg-indigo-50 rounded-lg cursor-pointer transition-all duration-150"
+                    onClick={() => showVoterProfile(voter)}
+                  >
+                    <img
+                      src={voter.photoURL}
+                      alt={voter.displayName}
+                      className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
+                    />
+                    <span className="text-sm font-medium text-gray-900">{voter.displayName}</span>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No voters yet</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
         </div>
+      )}
 
-        {/* Voters Modal */}
-        {showVotersModal && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
-            onClick={() => setShowVotersModal(false)}
+      {/* Voter Profile Modal */}
+      {showVoterProfileModal && selectedVoter && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999] p-4"
+          onClick={() => setShowVoterProfileModal(false)}
+        >
+          <motion.div
+            className="bg-white p-8 rounded-xl shadow-xl max-w-sm w-full"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Voters for {selectedSlotInfo?.day || 'Unknown'} ({selectedSlotInfo?.time || 'Unknown'})
-                </h3>
-                <button
-                  onClick={() => setShowVotersModal(false)}
-                  className="text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {selectedSlotVoters && selectedSlotVoters.length > 0 ? (
-                  selectedSlotVoters.map((voter) => (
-                    <motion.div
-                      key={voter.uid}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex items-center space-x-3 p-3 hover:bg-indigo-50 rounded-lg cursor-pointer transition-all duration-150"
-                      onClick={() => showVoterProfile(voter)}
-                    >
-                      <img
-                        src={voter.photoURL}
-                        alt={voter.displayName}
-                        className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
-                      />
-                      <span className="text-sm font-medium text-gray-900">{voter.displayName}</span>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No voters yet</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => setShowVoterProfileModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="text-center">
+              <img
+                src={selectedVoter.photoURL}
+                alt={selectedVoter.displayName}
+                className="w-24 h-24 mx-auto rounded-full border-4 border-indigo-100 shadow-lg mb-4"
+              />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedVoter.displayName}</h2>
+              <p className="text-gray-500">Voter</p>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
-        {/* Voter Profile Modal */}
-        {showVoterProfileModal && selectedVoter && (
-          <div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999] p-4"
-            onClick={() => setShowVoterProfileModal(false)}
-          >
-            <motion.div
-              className="bg-white p-8 rounded-xl shadow-xl max-w-sm w-full"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => setShowVoterProfileModal(false)}
-                  className="text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="text-center">
-                <img
-                  src={selectedVoter.photoURL}
-                  alt={selectedVoter.displayName}
-                  className="w-24 h-24 mx-auto rounded-full border-4 border-indigo-100 shadow-lg mb-4"
-                />
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedVoter.displayName}</h2>
-                <p className="text-gray-500">Voter</p>
-              </div>
-            </motion.div>
-          </div>
-        )}
+      {/* Share Modal */}
+      {showShareModal && (
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={handleCloseShareModal}
+          voteUrl={typeof window !== 'undefined'
+            ? `${window.location.origin}/vote/${meetingId}`
+            : `/vote/${meetingId}`}
+        />
+      )}
 
-        {/* Share Modal */}
-        {showShareModal && (
-          <ShareModal
-            isOpen={showShareModal}
-            onClose={handleCloseShareModal}
-            voteUrl={typeof window !== 'undefined'
-              ? `${window.location.origin}/vote/${meetingId}`
-              : `/vote/${meetingId}`}
-          />
-        )}
-
-        {/* Guest User Modal */}
-        {showGuestModal && (
-          <GuestUserModal
-            onComplete={handleGuestComplete}
-            onClose={() => setShowGuestModal(false)}
-          />
-        )}
-      </motion.div>
+      {/* Guest User Modal */}
+      {showGuestModal && (
+        <GuestUserModal
+          onComplete={handleGuestComplete}
+          onClose={() => setShowGuestModal(false)}
+        />
+      )}
     </div>
   );
 }
