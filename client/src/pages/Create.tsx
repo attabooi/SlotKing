@@ -598,8 +598,14 @@ export default function Create() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.4, ease: "easeInOut" }}
-      className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50"
+      className="relative min-h-screen p-4 md:p-8 bg-gradient-to-br from-white to-slate-100 overflow-hidden"
     >
+      {/* 배경 빛 번짐 요소 추가 */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-teal-300 rounded-full blur-[100px] opacity-40" />
+        <div className="absolute bottom-0 right-10 w-[300px] h-[300px] bg-blue-300 rounded-full blur-[80px] opacity-30" />
+      </div>
+    
       <style>{datePickerStyles}</style>
       
       <div className="max-w-4xl mx-auto">
@@ -608,7 +614,7 @@ export default function Create() {
           <UserProfile />
         </div>
 
-        <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent">
           Select Available Time Slots
         </h1>
 
@@ -678,7 +684,7 @@ export default function Create() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={goToPreviousWeek}
-            className="px-3 py-1 bg-indigo-100 text-indigo-600 rounded-md font-medium"
+            className="px-3 py-1 bg-blue-100 text-blue-600 rounded-md font-medium"
           >
             Previous Week
           </motion.button>
@@ -687,7 +693,7 @@ export default function Create() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={goToNextWeek}
-            className="px-3 py-1 bg-indigo-100 text-indigo-600 rounded-md font-medium"
+            className="px-3 py-1 bg-blue-100 text-blue-600 rounded-md font-medium"
           >
             Next Week
           </motion.button>
@@ -732,10 +738,10 @@ export default function Create() {
                     isInDragSelection(day, hour, dayIndex)
                       ? "bg-indigo-300 text-white border-indigo-400"
                       : isSlotSelected(day, hour, dayIndex)
-                      ? "bg-indigo-500 text-white border-indigo-600" 
+                      ? "bg-blue-500 text-white border-blue-600" 
                       : isDayToday(dayIndex)
                       ? "hover:bg-purple-50 border-purple-200 text-slate-900"
-                      : "hover:bg-indigo-50 border-slate-200 text-slate-900"
+                      : "hover:bg-blue-50 border-slate-200 text-slate-800"
                   }`}
                 />
               ))}
