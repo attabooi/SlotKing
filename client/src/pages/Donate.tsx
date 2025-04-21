@@ -12,12 +12,20 @@ export default function DonateGolemPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-6">
-      {/* 골렘 애니메이션 */}
       <img
-        src="/golem.png"
-        alt="Golem"
-        className="w-64 h-64 mb-4"
+        src="/Sprite-0002.gif"
+        alt="Golem Animation"
+        className="w-[256px] h-[256px] mb-6 image-render-pixel"
       />
+
+      <style>{`
+    .image-render-pixel {
+      image-rendering: pixelated;
+    }
+  `}</style>
+
+      {/* 이하 동일 */}
+
 
       {/* 꽃 게이지 */}
       <div className="text-center mb-6">
