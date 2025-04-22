@@ -6,9 +6,9 @@ import { Crown } from "lucide-react";
 // 로고
 export function MurgleLogo() {
   return (
-    <div className="flex items-center space-x-2">
-      <Crown className="w-5 h-5 text-blue-400" />
-      <span className="text-xl font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent">
+    <div className="flex items-center justify-center space-x-2">
+       <Crown className="w-8 h-8 text-blue-500" />
+       <span className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent">
         Murgle
       </span>
     </div>
