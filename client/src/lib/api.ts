@@ -36,7 +36,11 @@ export interface CreateMeetingRequest {
   creator?: Voter;
 }
 
-const API_BASE_URL = "http://localhost:3000/api";
+export const API_BASE_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000/api"
+    : "/api"; // ✅ Firebase Hosting에서는 이 경로로 rewrite됨
+
 
 // Helper function to get current user info (Firebase or guest)
 const getUserInfo = (): Voter | null => {

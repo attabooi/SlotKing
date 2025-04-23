@@ -4,13 +4,13 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCVBURTovuNnoljp6z09imXmRdntPkci-8",
-  authDomain: "slotking-db3c0.firebaseapp.com",
-  projectId: "slotking-db3c0",
-  storageBucket: "slotking-db3c0.appspot.com",
-  messagingSenderId: "921019918279",
-  appId: "1:921019918279:web:d93a08abdd4975fa5bdbe2",
-  measurementId: "G-P34V2ZDX54"
+  apiKey: "AIzaSyA43u3P3S97R7rFwy26VCXu2lhyhR5vW04",
+  authDomain: "murgle.firebaseapp.com",
+  projectId: "murgle",
+  storageBucket: "murgle.firebasestorage.app",
+  messagingSenderId: "1032847672231",
+  appId: "1:1032847672231:web:05b1b288d7409276c9ec82",
+  measurementId: "G-XSGMXC3T4E"
 };
 
 const app = initializeApp(firebaseConfig);

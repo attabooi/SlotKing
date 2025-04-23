@@ -31,12 +31,12 @@ export default function Home() {
         <MurgleLogo />
         <div className="flex gap-2 items-center">
           {/* ✅ 색 있는 버튼으로 변경 */}
-          <button
+          {/* <button
             onClick={() => navigate("/payment")}
             className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-400 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition"
           >
             Upgrade
-          </button>
+          </button> */}
           <button
             onClick={() => navigate("/donate")}
             className="px-4 py-2 bg-yellow-400 text-black text-sm font-medium rounded-lg shadow-sm hover:bg-yellow-300 hover:shadow-md transition"

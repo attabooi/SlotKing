@@ -688,7 +688,7 @@ export default function Create() {
           >
             Previous Week
           </motion.button>
-          <span className="text-lg font-medium text-indigo-700">{weekRange}</span>
+          <span className="text-lg font-medium text-indigo-700 ext-blue-600">{weekRange}</span>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
