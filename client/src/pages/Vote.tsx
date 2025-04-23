@@ -487,61 +487,48 @@ export default function Vote() {
       {/* Main Content */}
       <main className="relative z-10 flex-grow container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Meeting Title and Creator Info */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 mb-6">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent mb-4">
-              {meeting.title}
-            </h1>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <img
-                  src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
-                  alt="Creator"
-                  className="w-6 h-6 rounded-full"
-                />
-                <span className="text-sm text-slate-600">
-                  Created by {meeting.creator?.displayName || 'Anonymous'}
-                </span>
-              </div>
-              {meeting.votingDeadline && (
-                <div className="text-sm text-slate-600">
-                  Deadline: {format(parseISO(meeting.votingDeadline), 'yyyy-MM-dd HH:mm')}
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 mb-6">
+  {/* 상단: 제목 + 오른쪽 작성자 */}
+  <div className="flex justify-between items-start mb-2">
+    <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent">
+      {meeting.title}
+    </h1>
 
-          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-            <div className="flex flex-col space-y-2">
-              <div className="text-sm text-gray-600">Voting Deadline</div>
-              <div className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                {formattedDeadline}
-              </div>
-              <div className="flex items-center">
-                {isVotingClosed ? (
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                    className="text-sm font-bold text-red-600"
-                  >
-                    Voting has ended
-                  </motion.span>
-                ) : (
-                  <>
-                    <span className="text-sm font-medium text-gray-600 mr-2">
-                      ⏳ Voting ends in
-                    </span>
-                    <span
-                      className={`text-sm font-bold transition-all duration-500 ${getTimeLeftAnimation()}`}
-                    >
-                      {timeLeft}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+    <div className="flex items-center gap-2">
+      <img
+        src={
+          meeting.creator?.photoURL ||
+          `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`
+        }
+        alt="Creator"
+        className="w-6 h-6 rounded-full"
+      />
+      <span className="text-sm text-slate-600 whitespace-nowrap">
+        Created by {meeting.creator?.displayName || 'Anonymous'}
+      </span>
+    </div>
+  </div>
+
+  {/* 하단: 마감 시간 및 카운트다운 */}
+  {meeting.votingDeadline && (
+    <div className="text-sm text-right text-gray-800 space-y-1">
+      <div className="font-medium text-gray-800">
+        <span className="font-medium text-gray-800">Deadline:</span>{" "}
+        {format(parseISO(meeting.votingDeadline), 'yyyy-MM-dd HH:mm')}
+      </div>
+      {!isVotingClosed ? (
+        <div className="flex items-center justify-end gap-1">
+          <span className="text-xs text-gray-600">⏳ Voting ends in</span>
+          <span className={`font-bold ${getTimeLeftAnimation()}`}>{timeLeft}</span>
+        </div>
+      ) : (
+        <div className="text-red-600 font-semibold">Voting closed</div>
+      )}
+    </div>
+  )}
+</div>
+
+
 
           {(isVotingClosed || hasVoted) && (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
