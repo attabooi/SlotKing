@@ -1,73 +1,135 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import confetti from "canvas-confetti";
+import { SlotKingLogo } from "@/components/ui/SlotKingLogo";
+import UserProfile from "@/components/UserProfile";
+import Footer from "@/components/Footer";
+import { motion, AnimatePresence } from "framer-motion";
 
-export default function DonateGolemPage() {
-  const [flowers, setFlowers] = useState(12);
-  const [message, setMessage] = useState("");
-
-  const handleDonate = (amount: number) => {
-    setFlowers((prev) => prev + amount);
-    alert(`🌸 ${amount}개의 꽃이 골렘에게 전달됐어요!`);
-    setMessage("");
-  };
+export default function DonatePage() {
+  const navigate = useNavigate();
+  const [showQR, setShowQR] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-6">
-      <img
-        src="/Sprite-0002.gif"
-        alt="Golem Animation"
-        className="w-[256px] h-[256px] mb-6 image-render-pixel"
-      />
+    <div className="min-h-screen bg-gradient-to-br from-white to-slate-100 flex flex-col justify-between relative overflow-hidden">
+      {/* Background blur */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-teal-300 rounded-full blur-[100px] opacity-40" />
+        <div className="absolute bottom-0 right-10 w-[300px] h-[300px] bg-blue-300 rounded-full blur-[80px] opacity-30" />
+      </div>
 
-      <style>{`
-    .image-render-pixel {
-      image-rendering: pixelated;
-    }
-  `}</style>
+      {/* Header */}
+      <header className="relative z-10 w-full flex justify-between items-center px-6 py-3">
+        <SlotKingLogo />
+        <UserProfile />
+      </header>
 
-      {/* 이하 동일 */}
-
-
-      {/* 꽃 게이지 */}
-      <div className="text-center mb-6">
-        <p className="text-xl font-bold text-slate-800">
-          총 받은 꽃 🌸 {flowers}개
-        </p>
-        <div className="w-64 h-3 bg-slate-200 rounded-full mt-2">
-          <div
-            className="h-full bg-pink-400 rounded-full"
-            style={{ width: `${Math.min(flowers, 100)}%` }}
+      {/* Main Content */}
+      <main className="relative z-10 flex-grow flex items-center justify-center px-4">
+        <div className="bg-white shadow-md rounded-2xl p-8 max-w-md w-full text-center space-y-5">
+          {/* .gif 캐릭터 */}
+          <img
+            src="/Sprite-0002.gif"
+            alt="Golem Coffee Animation"
+            className="w-48 h-48 mx-auto image-render-pixel"
           />
-        </div>
-      </div>
+          <style>{`
+            .image-render-pixel {
+              image-rendering: pixelated;
+            }
+          `}</style>
 
-      {/* 후원 입력 */}
-      <div className="bg-white shadow-lg rounded-xl p-6 w-full max-w-md space-y-4">
-        <label className="block text-slate-600 font-medium">
-          💬 응원 멘트
-        </label>
-        <input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          className="w-full px-4 py-2 rounded-lg border border-slate-300"
-          placeholder="예: 골렘아 힘내!"
-        />
-        <div className="flex gap-2 justify-between">
-          {[1, 3, 5].map((amount) => (
-            <button
-              key={amount}
-              onClick={() => handleDonate(amount)}
-              className="flex-1 bg-pink-400 hover:bg-pink-500 text-white rounded-lg py-2 font-semibold"
+          {/* 멘트 */}
+          <p className="inline-block bg-slate-100 text-slate-600 text-xs px-3 py-1 rounded-md font-mono tracking-tight">
+            coffee = hope
+          </p>
+
+          {/* 버튼 그룹 */}
+          <div className="flex justify-center gap-3">
+            {/* BuyMeACoffee 버튼 */}
+            <a
+              href="https://www.buymeacoffee.com/Jaggiesbit"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black font-semibold text-sm rounded-md transition"
             >
-              🌸 꽃 {amount}개 주기
-            </button>
-          ))}
-        </div>
-      </div>
+              <img
+                src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+                alt="BMC"
+                className="w-4 h-4"
+              />
+              Revive me
+            </a>
 
-      {/* 후원자 리스트 */}
-      <div className="mt-8 text-center text-sm text-slate-400">
-        👑 Top Supporters 랭킹은 곧 추가됩니다...
-      </div>
+            {/* QR 버튼 */}
+            <button
+              onClick={() => {
+                confetti({ particleCount: 60, spread: 100, origin: { y: 0.6 } });
+                setShowQR(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-300 hover:border-slate-400 text-slate-700 font-medium text-sm rounded-md transition"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h3v3H3V4zm3 13H3v3h3v-3zM18 4h3v3h-3V4zM18 17h3v3h-3v-3zM7 7h10v10H7V7z" />
+              </svg>
+              Show QR
+            </button>
+          </div>
+
+          {/* 뒤로 가기 */}
+          <button
+            onClick={() => navigate("/")}
+            className="text-xs text-slate-400 hover:underline"
+          >
+            
+          </button>
+        </div>
+      </main>
+
+      <Footer />
+
+      {/* QR 모달 */}
+      <AnimatePresence>
+        {showQR && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowQR(false)}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-xl shadow-xl w-full max-w-xs text-center"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                Scan to support ☕
+              </h3>
+              <img
+                src="/bmc_qr.png"
+                alt="Buy Me a Coffee QR"
+                className="w-48 h-48 mx-auto rounded-lg shadow"
+              />
+              <button
+                onClick={() => setShowQR(false)}
+                className="mt-4 text-xs text-slate-400 hover:underline"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
