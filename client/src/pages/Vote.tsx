@@ -125,29 +125,30 @@ export default function Vote() {
   };
 
   // 가장 많은 득표수를 가진 슬롯을 찾는 함수
-  const findMostVotedSlot = () => {
-    if (!meeting?.votes || !meeting?.timeBlocks) return null;
-
+  function findMostVotedSlot(votes: Meeting["votes"]): string | null {
+    if (!votes) return null;
+  
     let maxVotes = 0;
     let maxVotedSlotId: string | null = null;
-
-    Object.entries(meeting.votes).forEach(([blockId, voters]) => {
+  
+    Object.entries(votes).forEach(([blockId, voters]) => {
       const voteCount = Object.keys(voters).length;
       if (voteCount > maxVotes) {
         maxVotes = voteCount;
         maxVotedSlotId = blockId;
       }
     });
-
+  
     return maxVotedSlotId;
-  };
+  }
+  
 
   // 투표수가 업데이트될 때마다 가장 많은 득표수를 가진 슬롯을 업데이트
-  useEffect(() => {
-    if (meeting?.votes) {
-      setMostVotedSlot(findMostVotedSlot());
-    }
-  }, [meeting?.votes]);
+  getMeeting(meetingId!).then((meetingData) => {
+    setMeeting(meetingData);
+    setMostVotedSlot(findMostVotedSlot(meetingData.votes));
+  });
+  
 
   useEffect(() => {
     async function fetchMeeting() {
@@ -392,45 +393,55 @@ export default function Vote() {
     // Clear votes with the current user
     await clearVotesWithUser(currentUser);
   };
+  
 
-  // Update the WebSocket connection handler
   useEffect(() => {
     if (!meetingId) return;
-
-    const ws = new WebSocket(`ws://localhost:3000/ws`);
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.type === 'votes_updated' && data.data.meetingId === meetingId) {
-        // Fetch the latest meeting data when votes are updated
-        getMeeting(meetingId).then(updatedMeeting => {
-          if (updatedMeeting) {
-            // Ensure creator exists
-            if (!updatedMeeting.creator) {
-              updatedMeeting.creator = {
-                uid: 'unknown',
-                displayName: 'Anonymous',
-                photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`,
-                isGuest: false
-              };
-            }
-
-            setMeeting(updatedMeeting);
-
-            // 실시간으로 가장 많은 득표수를 가진 슬롯 업데이트
-            if (updatedMeeting.votes) {
-              setMostVotedSlot(findMostVotedSlot());
-            }
-          }
-        });
-      }
-    };
-
-    return () => {
-      ws.close();
-    };
+  
+    getMeeting(meetingId).then((meetingData) => {
+      setMeeting(meetingData);
+      // Optional: most voted 계산
+      setMostVotedSlot(findMostVotedSlot(meetingData.votes));
+    });
   }, [meetingId]);
+  // // Update the WebSocket connection handler
+  // useEffect(() => {
+  //   if (!meetingId) return;
+
+  //   const ws = new WebSocket(`ws://localhost:3000/ws`);
+
+  //   ws.onmessage = (event) => {
+  //     const data = JSON.parse(event.data);
+
+  //     if (data.type === 'votes_updated' && data.data.meetingId === meetingId) {
+  //       // Fetch the latest meeting data when votes are updated
+  //       getMeeting(meetingId).then(updatedMeeting => {
+  //         if (updatedMeeting) {
+  //           // Ensure creator exists
+  //           if (!updatedMeeting.creator) {
+  //             updatedMeeting.creator = {
+  //               uid: 'unknown',
+  //               displayName: 'Anonymous',
+  //               photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=anonymous`,
+  //               isGuest: false
+  //             };
+  //           }
+
+  //           setMeeting(updatedMeeting);
+
+  //           // 실시간으로 가장 많은 득표수를 가진 슬롯 업데이트
+  //           if (updatedMeeting.votes) {
+  //             setMostVotedSlot(findMostVotedSlot());
+  //           }
+  //         }
+  //       });
+  //     }
+  //   };
+
+  //   return () => {
+  //     ws.close();
+  //   };
+  // }, [meetingId]);
 
   // Toggle share modal
   const handleToggleShareModal = () => {

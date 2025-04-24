@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SlotKingLogo } from "@/components/ui/SlotKingLogo";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addWeeks, subWeeks, startOfWeek, endOfWeek, addDays, isToday, parseISO, addDays as dateFnsAddDays } from "date-fns";
-import { createMeeting } from "@/lib/api";
+import { createMeetingInFirestore } from "@/lib/firestore-service";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import UserProfile from "@/components/UserProfile";
@@ -469,7 +469,7 @@ export default function Create() {
         creator: user
       };
       
-      const { id } = await createMeeting(meetingData);
+      const { id } = await createMeetingInFirestore(meetingData);
       
       // 일정 생성 성공 시 confetti 효과 실행
       launchConfetti();

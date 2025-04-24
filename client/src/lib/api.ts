@@ -1,5 +1,12 @@
 import { auth } from "@/lib/firebase";
 import { getCurrentUser, UserProfile, generateAvatarUrl } from '@/lib/user';
+import {
+  getMeetingFromFirestore,
+  createMeetingInFirestore,
+  submitVoteToFirestore,
+  clearVotesInFirestore
+} from "./firestore-service";
+
 
 export interface TimeSlot {
   id: string;
