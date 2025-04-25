@@ -1,12 +1,6 @@
-import { auth } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { collection, doc, getDoc, setDoc, addDoc, deleteField, updateDoc } from "firebase/firestore";
 import { getCurrentUser, UserProfile, generateAvatarUrl } from '@/lib/user';
-import {
-  getMeetingFromFirestore,
-  createMeetingInFirestore,
-  submitVoteToFirestore,
-  clearVotesInFirestore
-} from "./firestore-service";
-
 
 export interface TimeSlot {
   id: string;
@@ -24,7 +18,6 @@ export interface TimeBlock {
   timeSlots?: TimeSlot[];
 }
 
-// Use the UserProfile type from user.ts for voters
 export type Voter = UserProfile;
 
 export interface Meeting {
@@ -43,133 +36,79 @@ export interface CreateMeetingRequest {
   creator?: Voter;
 }
 
-export const API_BASE_URL =
-  window.location.hostname === "localhost"
-    ? "http://localhost:3000/api"
-    : "/api"; // ✅ Firebase Hosting에서는 이 경로로 rewrite됨
-
-
-// Helper function to get current user info (Firebase or guest)
-const getUserInfo = (): Voter | null => {
-  return getCurrentUser();
-};
-
-// Generate a profile photo URL
-function generateProfilePhotoUrl(displayName: string): string {
-  return generateAvatarUrl(displayName);
-}
-
+// Firestore 기반 getMeeting
 export async function getMeeting(meetingId: string): Promise<Meeting> {
-  const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch meeting");
-  }
-  
-  const meeting = await response.json();
-  
-  // Ensure the meeting has the required structure
-  if (!meeting.votes) {
-    meeting.votes = {};
-  }
-  
-  // Ensure creator exists and has all required fields
-  if (!meeting.creator) {
-    meeting.creator = {
-      uid: 'unknown',
-      displayName: 'Anonymous',
-      photoURL: generateProfilePhotoUrl('Anonymous'),
-      isGuest: false
-    };
-  } else {
-    // Make sure creator has all required fields
-    if (!meeting.creator.photoURL) {
-      meeting.creator.photoURL = generateProfilePhotoUrl(meeting.creator.displayName || 'Unknown');
-    }
-    // Make sure isGuest field is present (for backward compatibility)
-    if (meeting.creator.isGuest === undefined) {
-      meeting.creator.isGuest = meeting.creator.uid?.startsWith('guest-') || false;
-    }
-    
-    // 게스트 사용자의 경우 displayName 확인
-    if (meeting.creator.isGuest && !meeting.creator.displayName?.startsWith('Guest-')) {
-      meeting.creator.displayName = `Guest-${meeting.creator.displayName || 'User'}`;
-    }
-  }
-  
-  return meeting;
+  const snap = await getDoc(doc(db, "meetings", meetingId));
+  if (!snap.exists()) throw new Error("Meeting not found");
+
+  const data = snap.data() as Omit<Meeting, "id">;
+  return { ...data, id: snap.id };
 }
 
+// Firestore 기반 createMeeting
 export async function createMeeting(data: CreateMeetingRequest): Promise<{ id: string }> {
-  // Get current user (Firebase or guest)
-  const user = getUserInfo();
-  if (!user) {
-    throw new Error("User must be logged in or have a guest profile to create a meeting");
-  }
+  const user = getCurrentUser();
+  if (!user) throw new Error("User must be logged in or have a guest profile to create a meeting");
 
-  const response = await fetch(`${API_BASE_URL}/meetings`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      title: data.title,
-      votingDeadline: data.votingDeadline,
-      timeBlocks: data.timeBlocks,
-      creator: user
-    }),
+  const docRef = await addDoc(collection(db, "meetings"), {
+    ...data,
+    creator: user,
+    votes: {},
   });
-  
-  if (!response.ok) {
-    throw new Error("Failed to create meeting");
-  }
-  
-  return response.json();
+
+  return { id: docRef.id };
 }
 
+// Firestore 기반 submitVote
 export async function submitVote(meetingId: string, selectedSlots: string[], voterInfo?: Voter): Promise<Meeting> {
-  // Use provided voter info or get current user
-  const user = voterInfo || getUserInfo();
-  if (!user) {
-    throw new Error("User must be logged in or have a guest profile to vote");
+  const user = voterInfo || getCurrentUser();
+  if (!user) throw new Error("User must be logged in or have a guest profile to vote");
+
+  const meetingRef = doc(db, "meetings", meetingId);
+  const meetingSnap = await getDoc(meetingRef);
+  if (!meetingSnap.exists()) throw new Error("Meeting not found");
+
+
+  const data = meetingSnap.data();
+  const updatedVotes: Record<string, Record<string, Voter>> = { ...(data.votes || {}) };
+  
+
+  // 모든 슬롯에서 기존 유저 투표 제거
+  for (const slotId of Object.keys(updatedVotes)) {
+    delete updatedVotes[slotId]?.[user.uid];
   }
 
-  const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/vote`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ 
-      selectedSlots, 
-      userId: user.uid,
-      voterInfo: user
-    }),
-  });
-  
-  if (!response.ok) {
-    throw new Error("Failed to submit vote");
+  // 새로운 슬롯에 유저 투표 추가
+  for (const slotId of selectedSlots) {
+    if (!updatedVotes[slotId]) updatedVotes[slotId] = {};
+    updatedVotes[slotId][user.uid] = user;
   }
-  
-  return response.json();
+
+  await updateDoc(meetingRef, { votes: updatedVotes });
+
+  return { ...(data as Meeting), id: meetingId, votes: updatedVotes };
 }
 
+// Firestore 기반 clearVotes
 export async function clearVotes(meetingId: string, userId: string): Promise<Meeting> {
-  // Get current user (Firebase or guest)
-  const user = getUserInfo();
-  if (!user) {
-    throw new Error("User must be logged in or have a guest profile to clear votes");
+  const user = getCurrentUser();
+  if (!user) throw new Error("User must be logged in or have a guest profile to clear votes");
+
+  const meetingRef = doc(db, "meetings", meetingId);
+  const meetingSnap = await getDoc(meetingRef);
+  if (!meetingSnap.exists()) throw new Error("Meeting not found");
+
+  const data = meetingSnap.data();
+  const updatedVotes: Record<string, Record<string, Voter>> = { ...(data.votes || {}) };
+  
+
+  for (const slotId of Object.keys(updatedVotes)) {
+    if (updatedVotes[slotId][userId]) {
+      delete updatedVotes[slotId][userId];
+    }
   }
 
-  const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/vote`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ userId }),
-  });
-  
-  if (!response.ok) {
-    throw new Error("Failed to clear votes");
-  }
-  
-  return response.json();
-} 
+  await updateDoc(meetingRef, { votes: updatedVotes });
+
+  return { ...(data as Meeting), id: meetingId, votes: updatedVotes };
+}

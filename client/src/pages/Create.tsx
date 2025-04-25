@@ -142,7 +142,7 @@ export default function Create() {
   const [dragStart, setDragStart] = useState<{ day: string; hour: string; date: string } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ day: string; hour: string; date: string } | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
-  
+
   // 새로운 상태 추가
   const [meetingTitle, setMeetingTitle] = useState("");
   const [votingDeadline, setVotingDeadline] = useState<Date | null>(null);
@@ -208,9 +208,9 @@ export default function Create() {
   // Check if a time block already exists to prevent duplicates
   const isTimeBlockDuplicate = (date: string, startHour: string, endHour: string): boolean => {
     return timeBlocks.some(
-      block => 
-        block.date === date && 
-        block.startHour === startHour && 
+      block =>
+        block.date === date &&
+        block.startHour === startHour &&
         block.endHour === endHour
     );
   };
@@ -239,7 +239,7 @@ export default function Create() {
       if (dragStart.day === dragEnd.day) {
         const startIndex = hours.indexOf(dragStart.hour);
         const endIndex = hours.indexOf(dragEnd.hour);
-        
+
         // If start and end are the same (single click), create a 1-hour block
         if (startIndex === endIndex) {
           // 단일 클릭인 경우 handleSlotClick 호출
@@ -248,7 +248,7 @@ export default function Create() {
           // Ensure start is before end
           const actualStart = Math.min(startIndex, endIndex);
           const actualEnd = Math.max(startIndex, endIndex);
-          
+
           // Create a new time block
           const newBlock: TimeBlock = {
             id: `${crypto.randomUUID()}`,
@@ -257,23 +257,23 @@ export default function Create() {
             startHour: hours[actualStart],
             endHour: hours[actualEnd],
           };
-          
+
           // Check if this block already exists to prevent duplicates
           if (!isTimeBlockDuplicate(newBlock.date, newBlock.startHour, newBlock.endHour)) {
             // Add to time blocks
             setTimeBlocks(prev => [...prev, newBlock]);
-            
+
             // Add all slots in the range to selected slots
             const newSlots: TimeSlot[] = [];
             for (let i = actualStart; i <= actualEnd; i++) {
               newSlots.push({ day: dragStart.day, hour: hours[i], date: dragStart.date });
             }
-            
+
             setSelectedSlots(prev => {
               // Remove any existing slots for this day in this range
-              const filtered = prev.filter(slot => 
-                slot.date !== dragStart.date || 
-                hours.indexOf(slot.hour) < actualStart || 
+              const filtered = prev.filter(slot =>
+                slot.date !== dragStart.date ||
+                hours.indexOf(slot.hour) < actualStart ||
                 hours.indexOf(slot.hour) > actualEnd
               );
               return [...filtered, ...newSlots];
@@ -282,7 +282,7 @@ export default function Create() {
         }
       }
     }
-    
+
     setIsDragging(false);
     setDragStart(null);
     setDragEnd(null);
@@ -291,28 +291,28 @@ export default function Create() {
   // Handle individual slot click
   const handleSlotClick = (day: string, hour: string, dayIndex: number) => {
     const dateString = getDateStringForDay(dayIndex);
-    
+
     // Check if the slot is already selected
     const isSelected = selectedSlots.some(
       slot => slot.date === dateString && slot.hour === hour
     );
-    
+
     if (isSelected) {
       // If already selected, remove it
-      setSelectedSlots(prev => 
+      setSelectedSlots(prev =>
         prev.filter(slot => !(slot.date === dateString && slot.hour === hour))
       );
-      
+
       // Also remove the corresponding time block
-      setTimeBlocks(prev => 
-        prev.filter(block => 
+      setTimeBlocks(prev =>
+        prev.filter(block =>
           !(block.date === dateString && block.startHour === hour && block.endHour === hour)
         )
       );
     } else {
       // If not selected, add it as a 1-hour block
       setSelectedSlots(prev => [...prev, { day, hour, date: dateString }]);
-      
+
       // Create a time block for single hour selections
       const newBlock: TimeBlock = {
         id: `${dateString}-${hour}-${Date.now()}`,
@@ -321,7 +321,7 @@ export default function Create() {
         startHour: hour,
         endHour: hour,
       };
-      
+
       // Check if this block already exists to prevent duplicates
       if (!isTimeBlockDuplicate(newBlock.date, newBlock.startHour, newBlock.endHour)) {
         setTimeBlocks(prev => [...prev, newBlock]);
@@ -335,15 +335,15 @@ export default function Create() {
     if (block) {
       // Remove the block
       setTimeBlocks(prev => prev.filter(b => b.id !== id));
-      
+
       // Remove all slots in this block
       const startIndex = hours.indexOf(block.startHour);
       const endIndex = hours.indexOf(block.endHour);
-      
-      setSelectedSlots(prev => 
-        prev.filter(slot => 
-          slot.date !== block.date || 
-          hours.indexOf(slot.hour) < startIndex || 
+
+      setSelectedSlots(prev =>
+        prev.filter(slot =>
+          slot.date !== block.date ||
+          hours.indexOf(slot.hour) < startIndex ||
           hours.indexOf(slot.hour) > endIndex
         )
       );
@@ -353,14 +353,14 @@ export default function Create() {
   // Validate form before submission
   const validateForm = () => {
     let isValid = true;
-    
+
     if (!meetingTitle.trim()) {
       setTitleError("Meeting title is required");
       isValid = false;
     } else {
       setTitleError("");
     }
-    
+
     if (!votingDeadline) {
       setDeadlineError("Voting deadline is required");
       isValid = false;
@@ -370,24 +370,24 @@ export default function Create() {
     } else {
       setDeadlineError("");
     }
-    
+
     if (timeBlocks.length === 0) {
       alert("Please select at least one time slot");
       isValid = false;
     }
-    
+
     return isValid;
   };
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (isSubmitting) return;
-    
+
     setIsSubmitting(true);
     setError("");
-    
+
     try {
       // Validate inputs
       if (!meetingTitle.trim()) {
@@ -397,13 +397,13 @@ export default function Create() {
       } else {
         setTitleError("");
       }
-      
+
       if (!votingDeadline) {
         setDeadlineError("Please set a voting deadline");
         setIsSubmitting(false);
         return;
       }
-      
+
       // Ensure deadline is in the future
       if (votingDeadline <= new Date()) {
         setDeadlineError("Deadline must be in the future");
@@ -421,7 +421,7 @@ export default function Create() {
 
       // Get current user (Firebase or guest)
       const currentUser = getCurrentUser();
-      
+
       // If no user and no guest profile, show the guest modal
       if (!currentUser) {
         setPendingScheduleData({
@@ -456,9 +456,9 @@ export default function Create() {
 
   // Extract create schedule logic to reuse
   const createScheduleWithUser = async (
-    title: string, 
-    deadline: Date, 
-    blocks: TimeBlock[], 
+    title: string,
+    deadline: Date,
+    blocks: TimeBlock[],
     user: UserProfileType
   ) => {
     try {
@@ -468,12 +468,14 @@ export default function Create() {
         timeBlocks: blocks,
         creator: user
       };
-      
+
+      console.log("📤 sending to firestore", meetingData);
       const { id } = await createMeetingInFirestore(meetingData);
-      
+      console.log("✅ created!", id);
+
       // 일정 생성 성공 시 confetti 효과 실행
       launchConfetti();
-      
+
       // 상태 업데이트
       setCreatedMeetingId(id);
       setShowShareModal(true);
@@ -488,7 +490,7 @@ export default function Create() {
   // Handle guest modal completion
   const handleGuestComplete = (guestProfile: UserProfileType) => {
     setShowGuestModal(false);
-    
+
     // Complete the pending schedule creation
     if (pendingScheduleData) {
       setIsSubmitting(true); // 게스트 모달에서 완료 후 제출 시작
@@ -499,7 +501,7 @@ export default function Create() {
         guestProfile
       );
     }
-    
+
     // Reset pending data
     setPendingScheduleData(null);
   };
@@ -529,16 +531,16 @@ export default function Create() {
   // Check if a slot is in the current drag selection
   const isInDragSelection = (day: string, hour: string, dayIndex: number) => {
     if (!isDragging || !dragStart || !dragEnd) return false;
-    
+
     if (day !== dragStart.day) return false;
-    
+
     const hourIndex = hours.indexOf(hour);
     const startIndex = hours.indexOf(dragStart.hour);
     const endIndex = hours.indexOf(dragEnd.hour);
-    
+
     const minIndex = Math.min(startIndex, endIndex);
     const maxIndex = Math.max(startIndex, endIndex);
-    
+
     return hourIndex >= minIndex && hourIndex <= maxIndex;
   };
 
@@ -557,7 +559,7 @@ export default function Create() {
   // Get text color based on day and time
   const getTextColorClass = (day: string, startHour: string) => {
     const hour = parseInt(startHour.split(':')[0]);
-    
+
     // 시간대별 색상 (모든 요일에 동일하게 적용)
     if (hour < 12) {
       return 'text-blue-600'; // 오전
@@ -593,7 +595,7 @@ export default function Create() {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
@@ -605,9 +607,9 @@ export default function Create() {
         <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-teal-300 rounded-full blur-[100px] opacity-40" />
         <div className="absolute bottom-0 right-10 w-[300px] h-[300px] bg-blue-300 rounded-full blur-[80px] opacity-30" />
       </div>
-    
+
       <style>{datePickerStyles}</style>
-      
+
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <SlotKingLogo />
@@ -629,14 +631,13 @@ export default function Create() {
               id="meetingTitle"
               value={meetingTitle}
               onChange={(e) => setMeetingTitle(e.target.value)}
-              className={`w-full px-4 py-2 border text-sm font-medium text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                titleError ? "border-red-500" : "border-gray-300"
-              }`}
+              className={`w-full px-4 py-2 border text-sm font-medium text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${titleError ? "border-red-500" : "border-gray-300"
+                }`}
               placeholder="Enter meeting title"
             />
             {titleError && <p className="mt-1 text-sm text-red-500">{titleError}</p>}
           </div>
-          
+
           <div>
             <label htmlFor="votingDeadline" className="block text-sm font-medium text-gray-900 mb-1">
               Voting Deadline
@@ -654,19 +655,18 @@ export default function Create() {
                 filterTime={(time) => {
                   const now = new Date();
                   const selected = new Date(time);
-                  
+
                   // If selected date is today, only allow future times
                   if (format(selected, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd')) {
                     return selected > now;
                   }
-                  
+
                   // For future dates, allow all times
                   return true;
                 }}
                 placeholderText="Select date and time"
-                className={`w-full px-4 py-2 border rounded-md text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  deadlineError ? "border-red-500" : "border-gray-300"
-                }`}
+                className={`w-full px-4 py-2 border rounded-md text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${deadlineError ? "border-red-500" : "border-gray-300"
+                  }`}
                 isClearable
                 popperClassName="react-datepicker-popper"
                 popperPlacement="bottom-start"
@@ -700,19 +700,18 @@ export default function Create() {
         </div>
 
         {/* Calendar */}
-        <div 
+        <div
           ref={calendarRef}
           className="grid grid-cols-8 gap-2 bg-white p-4 rounded-lg shadow-md mb-6"
         >
           <div className="col-span-1" />
           {days.map((day, index) => (
-            <div 
-              key={day} 
-              className={`text-center font-medium p-2 rounded-md ${
-                isDayToday(index) 
-                  ? "bg-purple-100 text-purple-600 border border-purple-300" 
+            <div
+              key={day}
+              className={`text-center font-medium p-2 rounded-md ${isDayToday(index)
+                  ? "bg-purple-100 text-purple-600 border border-purple-300"
                   : "text-purple-500"
-              }`}
+                }`}
             >
               {day}
               {isDayToday(index) && (
@@ -732,17 +731,17 @@ export default function Create() {
                   whileTap={{ scale: 0.9 }}
                   onMouseDown={() => handleMouseDown(day, hour, dayIndex)}
                   onMouseEnter={() => handleMouseEnter(day, hour, dayIndex)}
-                  onMouseUp={() => {handleMouseUp()
+                  onMouseUp={() => {
+                    handleMouseUp()
                   }}
-                  className={`p-2 border rounded transition-colors text-sm font-medium ${
-                    isInDragSelection(day, hour, dayIndex)
+                  className={`p-2 border rounded transition-colors text-sm font-medium ${isInDragSelection(day, hour, dayIndex)
                       ? "bg-indigo-300 text-white border-indigo-400"
                       : isSlotSelected(day, hour, dayIndex)
-                      ? "bg-blue-500 text-white border-blue-600" 
-                      : isDayToday(dayIndex)
-                      ? "hover:bg-purple-50 border-purple-200 text-slate-900"
-                      : "hover:bg-blue-50 border-slate-200 text-slate-800"
-                  }`}
+                        ? "bg-blue-500 text-white border-blue-600"
+                        : isDayToday(dayIndex)
+                          ? "hover:bg-purple-50 border-purple-200 text-slate-900"
+                          : "hover:bg-blue-50 border-slate-200 text-slate-800"
+                    }`}
                 />
               ))}
             </React.Fragment>
@@ -751,7 +750,7 @@ export default function Create() {
 
         {/* Selected Time Blocks Summary */}
         {timeBlocks.length > 0 && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-white p-4 rounded-lg shadow-md mb-6"
@@ -805,11 +804,10 @@ export default function Create() {
           whileTap={{ scale: 0.95 }}
           onClick={handleSubmit}
           disabled={timeBlocks.length === 0 || isSubmitting}
-          className={`mt-8 w-full py-4 rounded-lg font-semibold text-lg shadow-lg transition-shadow ${
-            timeBlocks.length === 0 || isSubmitting
+          className={`mt-8 w-full py-4 rounded-lg font-semibold text-lg shadow-lg transition-shadow ${timeBlocks.length === 0 || isSubmitting
               ? "bg-slate-300 cursor-not-allowed"
               : "bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-xl"
-          }`}
+            }`}
         >
           {isSubmitting ? "Creating..." : "Confirm and Share"}
         </motion.button>
@@ -822,13 +820,13 @@ export default function Create() {
           onClose={() => setShowGuestModal(false)}
         />
       )}
-      
+
       {/* Share Modal */}
       {showShareModal && createdMeetingId && (
         <ShareModal
           isOpen={showShareModal}
           onClose={handleShareModalClose}
-          voteUrl={typeof window !== 'undefined' 
+          voteUrl={typeof window !== 'undefined'
             ? `${window.location.origin}/vote/${createdMeetingId}`
             : `/vote/${createdMeetingId}`}
         />

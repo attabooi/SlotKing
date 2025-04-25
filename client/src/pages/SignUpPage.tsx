@@ -4,6 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Footer from '@/components/Footer';
+import { db } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
+
+
+
+
+
 
 const SignUpPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -17,13 +24,25 @@ const SignUpPage: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-
+  
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, {
+      const user = userCredential.user;
+  
+      await updateProfile(user, {
         displayName: nickname,
         photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=${nickname}`
       });
+  
+      // ✅ Firestore에 유저 정보 저장
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        displayName: nickname,
+        email: email,
+        photoURL: `https://api.dicebear.com/7.x/thumbs/svg?seed=${nickname}`,
+        isPremium: false,
+      });
+  
       navigate('/');
     } catch (err: any) {
       setError(err.message);
