@@ -127,10 +127,10 @@ export default function Vote() {
   // 가장 많은 득표수를 가진 슬롯을 찾는 함수
   function findMostVotedSlot(votes: Meeting["votes"]): string | null {
     if (!votes) return null;
-  
+
     let maxVotes = 0;
     let maxVotedSlotId: string | null = null;
-  
+
     Object.entries(votes).forEach(([blockId, voters]) => {
       const voteCount = Object.keys(voters).length;
       if (voteCount > maxVotes) {
@@ -138,17 +138,17 @@ export default function Vote() {
         maxVotedSlotId = blockId;
       }
     });
-  
+
     return maxVotedSlotId;
   }
-  
+
 
   // 투표수가 업데이트될 때마다 가장 많은 득표수를 가진 슬롯을 업데이트
   getMeeting(meetingId!).then((meetingData) => {
     setMeeting(meetingData);
     setMostVotedSlot(findMostVotedSlot(meetingData.votes));
   });
-  
+
 
   useEffect(() => {
     async function fetchMeeting() {
@@ -393,11 +393,11 @@ export default function Vote() {
     // Clear votes with the current user
     await clearVotesWithUser(currentUser);
   };
-  
+
 
   useEffect(() => {
     if (!meetingId) return;
-  
+
     getMeeting(meetingId).then((meetingData) => {
       setMeeting(meetingData);
       // Optional: most voted 계산
@@ -494,88 +494,49 @@ export default function Vote() {
       {/* Main Content */}
       <main className="relative z-10 flex-grow container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Meeting Title and Creator Info */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 mb-6">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent mb-4">
-              {meeting.title}
-            </h1>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <img
-                  src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
-                  alt="Creator"
-                  className="w-6 h-6 rounded-full"
-                />
-                <span className="text-sm text-slate-600">
-                  Created by {meeting.creator?.displayName || 'Anonymous'}
-                </span>
-              </div>
-              {meeting.votingDeadline && (
-                <div className="text-sm text-slate-600">
-                  Deadline: {format(parseISO(meeting.votingDeadline), 'yyyy-MM-dd HH:mm')}
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-4 mb-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+              {/* Left side: Title and creator */}
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent mb-1">
+                  {meeting.title}
+                </h1>
+                <div className="flex items-center gap-2">
+                  <img
+                    src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
+                    alt="Creator"
+                    className="w-5 h-5 rounded-full"
+                  />
+                  <span className="text-sm text-gray-600 font-medium">Created by {meeting.creator?.displayName || 'Anonymous'}</span>
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-            <div className="flex flex-col space-y-2">
-              <div className="text-sm text-gray-600">Voting Deadline</div>
-              <div className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                {formattedDeadline}
               </div>
-              <div className="flex items-center">
-                {isVotingClosed ? (
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                    className="text-sm font-bold text-red-600"
-                  >
+
+              {/* Right side: Deadline + Countdown */}
+              <div className="flex flex-col items-start md:items-end text-sm">
+                <div className="text-sm text-gray-700">Deadline</div>
+                <div className="font-semibold text-purple-700">{format(parseISO(meeting.votingDeadline), 'MMMM d, yyyy h:mm a')}</div>
+
+                {!isVotingClosed && (
+                  <div className="mt-1 flex items-center gap-1">
+  <Clock className={`w-4 h-4 ${getTimeLeftAnimation()}`} />
+  <span className={`font-mono text-sm font-semibold ${getTimeLeftAnimation()}`}>
+    {timeLeft}
+  </span>
+</div>
+
+
+                )}
+
+                {isVotingClosed && (
+                  <div className="mt-1 text-red-600 font-semibold text-sm flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4" />
                     Voting has ended
-                  </motion.span>
-                ) : (
-                  <>
-                    <span className="text-sm font-medium text-gray-600 mr-2">
-                      ⏳ Voting ends in
-                    </span>
-                    <span
-                      className={`text-sm font-bold transition-all duration-500 ${getTimeLeftAnimation()}`}
-                    >
-                      {timeLeft}
-                    </span>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
           </div>
 
-          {(isVotingClosed || hasVoted) && (
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3 flex justify-between items-center w-full">
-                  <p className="text-sm text-yellow-700">
-                    {isVotingClosed
-                      ? " Voting's over! Check out the final results 👇"
-                      : "✅ You've already voted! Here's the current result "}
-                  </p>
-                  {!isVotingClosed && (
-                    <button
-                      onClick={handleVoteAgain}
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
-                    >
-                      Vote Again
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="space-y-4">
             {Array.isArray(meeting.timeBlocks) && meeting.timeBlocks.map((block) => (
