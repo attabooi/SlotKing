@@ -476,201 +476,294 @@ export default function Vote() {
   const formattedDeadline = format(deadlineDate, "MMMM d, yyyy 'at' h:mm a");
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header - simplified and flattened */}
-      <header className="w-full flex justify-between items-center px-4 py-3 border-b border-gray-200 bg-white">
+    <div className="min-h-screen flex flex-col justify-between bg-gradient-to-br from-white to-slate-100 overflow-hidden">
+      {/* Background blur effects */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-teal-300 rounded-full blur-[100px] opacity-40" />
+        <div className="absolute bottom-0 right-10 w-[300px] h-[300px] bg-blue-300 rounded-full blur-[80px] opacity-30" />
+      </div>
+
+      {/* Header */}
+      <header className="relative z-10 w-full flex justify-between items-center px-6 py-3">
         <SlotKingLogo />
-        <UserProfile />
+        <div className="flex items-center gap-4">
+          <UserProfile />
+        </div>
       </header>
 
-      {/* Main Content - consistent width and simplified */}
-      <main className="flex-grow container mx-auto px-4 py-6">
-        <div className="max-w-2xl mx-auto">
-          {/* Title and creator section - more compact and left-aligned */}
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">{meeting.title}</h1>
-              <div className="flex items-center gap-2 mt-1">
+      {/* Main Content */}
+      <main className="relative z-10 flex-grow container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Meeting Title and Creator Info */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 mb-6">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent mb-4">
+              {meeting.title}
+            </h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
                 <img
-                  src={
-                    meeting.creator?.photoURL ||
-                    `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`
-                  }
+                  src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
                   alt="Creator"
-                  className="w-5 h-5 rounded-full"
+                  className="w-6 h-6 rounded-full"
                 />
-                <span className="text-xs text-gray-500">
+                <span className="text-sm text-slate-600">
                   Created by {meeting.creator?.displayName || 'Anonymous'}
                 </span>
               </div>
-            </div>
-
-            {/* Deadline info - more compact */}
-            {meeting.votingDeadline && (
-              <div className="text-right">
-                <div className="text-xs text-gray-500 flex items-center justify-end gap-1">
-                  <Clock size={12} className="inline" />
-                  <span>{format(parseISO(meeting.votingDeadline), 'yyyy-MM-dd HH:mm')}</span>
+              {meeting.votingDeadline && (
+                <div className="text-sm text-slate-600">
+                  Deadline: {format(parseISO(meeting.votingDeadline), 'yyyy-MM-dd HH:mm')}
                 </div>
-                {!isVotingClosed ? (
-                  <div className="flex items-center justify-end gap-1 mt-1">
-                    <span className="text-xs text-gray-500">Ends in</span>
-                    <span className={`text-xs font-medium ${timeLeft.includes("00:") ? "text-red-500" : "text-blue-500"}`}>
-                      {timeLeft}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="text-xs font-medium text-red-500">Voting closed</div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Status message - simplified with subtle styling */}
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div className="flex flex-col space-y-2">
+              <div className="text-sm text-gray-600">Voting Deadline</div>
+              <div className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                {formattedDeadline}
+              </div>
+              <div className="flex items-center">
+                {isVotingClosed ? (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="text-sm font-bold text-red-600"
+                  >
+                    Voting has ended
+                  </motion.span>
+                ) : (
+                  <>
+                    <span className="text-sm font-medium text-gray-600 mr-2">
+                      ⏳ Voting ends in
+                    </span>
+                    <span
+                      className={`text-sm font-bold transition-all duration-500 ${getTimeLeftAnimation()}`}
+                    >
+                      {timeLeft}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
           {(isVotingClosed || hasVoted) && (
-            <div className="flex items-center bg-amber-50 px-3 py-2 rounded mb-4">
-              <AlertTriangle size={14} className="text-amber-500 mr-2" />
-              <p className="text-xs text-amber-700 flex-grow">
-                {isVotingClosed
-                  ? "Voting's over! Check out the final results below."
-                  : "You've already voted! Here's the current result."}
-              </p>
-              {!isVotingClosed && (
-                <button
-                  onClick={handleVoteAgain}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-500 transition-colors"
-                >
-                  Vote Again
-                </button>
-              )}
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3 flex justify-between items-center w-full">
+                  <p className="text-sm text-yellow-700">
+                    {isVotingClosed
+                      ? " Voting's over! Check out the final results 👇"
+                      : "✅ You've already voted! Here's the current result "}
+                  </p>
+                  {!isVotingClosed && (
+                    <button
+                      onClick={handleVoteAgain}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
+                    >
+                      Vote Again
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Time blocks list - redesigned to be more compact and flat */}
-          <div className="bg-white rounded shadow-sm p-4 mb-4">
-            <div className="space-y-2">
-              {Array.isArray(meeting.timeBlocks) && meeting.timeBlocks.map((block) => (
-                <div key={block.id} className="relative">
-                  <motion.div
-                    whileHover={{ y: -1 }}
-                    whileTap={{ scale: 0.99 }}
-                    className={`w-full px-3 py-2 rounded flex items-center justify-between transition-all ${
-                      selectedSlots.includes(block.id)
-                        ? "bg-blue-50 border-l-4 border-blue-500"
-                        : mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                          ? "bg-amber-50 border-l-4 border-amber-400"
-                          : "bg-gray-50 border-l-4 border-transparent hover:border-gray-200"
-                    } ${(isVotingClosed || hasVoted) ? "opacity-90" : ""}`}
-                  >
-                    <button
-                      onClick={() => handleSlotClick(block.id)}
-                      disabled={isVotingClosed || hasVoted}
-                      className={`flex-grow text-left flex items-center ${(isVotingClosed || hasVoted) ? "cursor-default" : "cursor-pointer"}`}
+          <div className="space-y-4">
+            {Array.isArray(meeting.timeBlocks) && meeting.timeBlocks.map((block) => (
+              <div key={block.id} className="relative">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${selectedSlots.includes(block.id)
+                    ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
+                    : mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                      ? "bg-gradient-to-r from-yellow-50 to-amber-50 hover:border-yellow-300 hover:shadow-md border-yellow-200 shadow-md"
+                      : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
+                    } ${(isVotingClosed || hasVoted) ? "opacity-75" : ""}`}
+                  animate={
+                    mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                      ? {
+                        boxShadow: [
+                          "0 0 0 rgba(250, 204, 21, 0.2)",
+                          "0 0 8px rgba(250, 204, 21, 0.6)",
+                          "0 0 0 rgba(255, 204, 0, 0.2)"
+                        ]
+                      }
+                      : {}
+                  }
+                  transition={
+                    mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                      ? {
+                        repeat: Infinity,
+                        duration: 2.5
+                      }
+                      : {}
+                  }
+                >
+                  {/* 왕관 아이콘 - 가장 많은 득표수를 가진 슬롯에만 표시 */}
+                  {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        rotateZ: [0, 5, 0, -5, 0]
+                      }}
+                      transition={{
+                        rotateZ: { repeat: Infinity, duration: 2 },
+                        default: { duration: 0.5 }
+                      }}
+                      className="absolute -top-4 -right-2 z-10"
                     >
-                      <div className="flex-grow">
-                        <div className="flex items-center">
-                          <span className={`text-sm font-medium ${
-                            selectedSlots.includes(block.id)
-                              ? "text-blue-700"
-                              : mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                                ? "text-amber-700"
-                                : "text-gray-700"
-                          }`}>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="32"
+                        height="32"
+                        viewBox="0 0 24 24"
+                        fill="gold"
+                        stroke="#FFD700"
+                        strokeWidth="1"
+                        className="filter drop-shadow-md"
+                      >
+                        <path d="M3 17l5-6 4 3 5-6.5L21 17H3zm4-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+                      </svg>
+                    </motion.div>
+                  )}
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <button
+                        onClick={() => handleSlotClick(block.id)}
+                        disabled={isVotingClosed || hasVoted}
+                        className={`w-full text-left ${(isVotingClosed || hasVoted) ? "cursor-default" : "cursor-pointer"}`}
+                      >
+                        <div className="font-semibold text-lg flex items-center gap-2">
+                          <span className={`${mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                            ? "bg-gradient-to-r from-yellow-500 to-amber-600 bg-clip-text text-transparent"
+                            : "bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+                            }`}>
                             {block.day}
                           </span>
-                          <span className={`ml-2 text-sm ${
+                          <span className={
                             selectedSlots.includes(block.id)
-                              ? "text-blue-600"
+                              ? "text-white"
                               : mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                                ? "text-amber-600"
+                                ? "text-amber-700 font-bold"
                                 : "text-gray-600"
-                          }`}>
+                          }>
                             {block.startHour} - {block.endHour}
                           </span>
+                          {/* 가장 많은 득표수를 가진 슬롯에 인라인 왕관 아이콘 추가 */}
                           {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
-                            <span className="text-amber-500 ml-1 text-xs font-medium">
-                              (Most votes)
-                            </span>
+                            <motion.span
+                              initial={{ scale: 0.8, opacity: 1 }}
+                              animate={{
+                                scale: [1, 1.3, 1],
+                                opacity: 1,
+                                y: [0, -3, 0]
+                              }}
+                              transition={{
+                                repeat: Infinity,
+                                duration: 1.5,
+                                ease: "easeInOut"
+                              }}
+                              className="text-yellow-500 ml-1 filter drop-shadow-md"
+                              style={{ fontSize: "1.2rem" }}
+                            >
+                              👑
+                            </motion.span>
                           )}
                         </div>
-                      
-                        <div className="flex items-center mt-1">
-                          <button
-                            onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
-                            className={`text-xs hover:underline ${
-                              selectedSlots.includes(block.id)
-                                ? "text-blue-500"
-                                : mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                                  ? "text-amber-500 font-medium"
-                                  : "text-gray-500"
+                      </button>
+
+                      {/* Vote count */}
+                      <div className="mt-2">
+                        <button
+                          onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
+                          className={`text-sm hover:underline cursor-pointer ${selectedSlots.includes(block.id)
+                            ? "text-indigo-100"
+                            : mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                              ? "text-amber-600 font-bold"
+                              : "text-gray-500"
                             }`}
-                          >
-                            {getVoteCountText(block.id)}
-                          </button>
-                        
-                          {/* Voters avatars - simplified */}
-                          {getVoteCount(block.id) > 0 && (
-                            <div className="flex -space-x-1 ml-2">
-                              {getFirstFewVoters(block.id, 2).map((voter) => (
-                                <img
-                                  key={voter.uid}
-                                  src={voter.photoURL}
-                                  alt={voter.displayName}
-                                  title={voter.displayName}
-                                  className="w-4 h-4 rounded-full border border-white"
-                                  onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
-                                />
-                              ))}
-                              {hasMoreVoters(block.id, 2) && (
-                                <button
-                                  onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
-                                  className="w-4 h-4 rounded-full bg-gray-200 text-xs text-gray-600 border border-white flex items-center justify-center"
-                                >
-                                  <span className="text-[8px]">+</span>
-                                </button>
-                              )}
-                            </div>
+                        >
+                          {getVoteCountText(block.id)}
+                          {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
+                            <span className="ml-1 text-[#FFD700] font-bold">🏆 Most Votes !</span>
                           )}
-                        </div>
+                        </button>
                       </div>
-                    </button>
-                    
-                    {/* Checkmark for selected slots - simplified */}
+
+                      {/* Voters display */}
+                      {getVoteCount(block.id) > 0 && (
+                        <div className="mt-2 flex items-center">
+                          <div className="flex -space-x-2">
+                            {getFirstFewVoters(block.id).map((voter) => (
+                              <img
+                                key={voter.uid}
+                                src={voter.photoURL}
+                                alt={voter.displayName}
+                                title={voter.displayName}
+                                className="w-6 h-6 rounded-full border-2 border-white cursor-pointer hover:ring-2 hover:ring-indigo-300"
+                                onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
+                              />
+                            ))}
+                            {hasMoreVoters(block.id) && (
+                              <button
+                                onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
+                                className="w-6 h-6 rounded-full bg-gray-200 text-xs text-gray-600 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-gray-300"
+                              >
+                                ...
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {selectedSlots.includes(block.id) && (
-                      <div className="text-blue-500">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="bg-white bg-opacity-20 p-2 rounded-full">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
                     )}
-                  </motion.div>
-                </div>
-              ))}
+                  </div>
+                </motion.div>
+              </div>
+            ))}
 
-              {(!Array.isArray(meeting.timeBlocks) || meeting.timeBlocks.length === 0) && (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500">No time blocks available for this meeting.</p>
-                </div>
-              )}
-            </div>
+            {(!Array.isArray(meeting.timeBlocks) || meeting.timeBlocks.length === 0) && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No time blocks available for this meeting.</p>
+              </div>
+            )}
           </div>
 
-          {/* Submit button - simplified */}
           {!isVotingClosed && !hasVoted && (
             <motion.button
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleSubmit}
-              className="w-full py-2 rounded bg-blue-600 text-white text-sm font-medium shadow-sm hover:bg-blue-700 transition-colors"
+              className="mt-8 w-full py-4 rounded-lg font-semibold text-lg shadow-lg transition-shadow bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-xl"
             >
               {isSubmitting ? "Submitting..." : "Submit Vote"}
             </motion.button>
+
           )}
 
           {isVotingClosed && (
-            <div className="text-center mt-4">
-              <p className="text-sm text-gray-600">
-                Voting is closed. Results will be shared with the host.
+            <div className="mt-8 text-center">
+              <p className="text-gray-600">
+                🎉 Voting is closed! Results will be shared with the host.
               </p>
             </div>
           )}
@@ -679,62 +772,62 @@ export default function Vote() {
 
       <Footer />
 
-      {/* Toast - simplified styling */}
+      {/* Toast */}
       <div
-        className={`fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded text-sm shadow-sm transition-opacity duration-300 ${
-          showToast ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ${showToast ? "opacity-100" : "opacity-0 pointer-events-none"
+          } whitespace-pre-line `}
       >
         {toastMessage}
       </div>
 
-      {/* Voters Modal - simplified styling */}
+      {/* Voters Modal */}
       {showVotersModal && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[9999] p-4"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
           onClick={() => setShowVotersModal(false)}
         >
           <motion.div
-            className="bg-white rounded shadow-sm max-w-md w-full p-4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.2 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium text-gray-900">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
                 Voters for {selectedSlotInfo?.day || 'Unknown'} ({selectedSlotInfo?.time || 'Unknown'})
               </h3>
               <button
                 onClick={() => setShowVotersModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-500 hover:text-gray-700 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
+            <div className="space-y-3 max-h-80 overflow-y-auto">
               {selectedSlotVoters && selectedSlotVoters.length > 0 ? (
                 selectedSlotVoters.map((voter) => (
                   <motion.div
                     key={voter.uid}
-                    whileHover={{ backgroundColor: "rgba(243, 244, 246, 1)" }}
-                    className="flex items-center gap-2 p-2 rounded cursor-pointer"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center space-x-3 p-3 hover:bg-indigo-50 rounded-lg cursor-pointer transition-all duration-150"
                     onClick={() => showVoterProfile(voter)}
                   >
                     <img
                       src={voter.photoURL}
                       alt={voter.displayName}
-                      className="w-6 h-6 rounded-full"
+                      className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
                     />
-                    <span className="text-xs text-gray-700">{voter.displayName}</span>
+                    <span className="text-sm font-medium text-gray-900">{voter.displayName}</span>
                   </motion.div>
                 ))
               ) : (
-                <div className="text-center py-4">
-                  <p className="text-xs text-gray-500">No voters yet</p>
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No voters yet</p>
                 </div>
               )}
             </div>
@@ -742,26 +835,26 @@ export default function Vote() {
         </div>
       )}
 
-      {/* Voter Profile Modal - simplified styling */}
+      {/* Voter Profile Modal */}
       {showVoterProfileModal && selectedVoter && (
         <div
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-[9999] p-4"
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999] p-4"
           onClick={() => setShowVoterProfileModal(false)}
         >
           <motion.div
-            className="bg-white rounded shadow-sm max-w-xs w-full p-4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            className="bg-white p-8 rounded-xl shadow-xl max-w-sm w-full"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.2 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-end">
+            <div className="flex justify-end mb-4">
               <button
                 onClick={() => setShowVoterProfileModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-500 hover:text-gray-700 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -770,10 +863,10 @@ export default function Vote() {
               <img
                 src={selectedVoter.photoURL}
                 alt={selectedVoter.displayName}
-                className="w-16 h-16 mx-auto rounded-full border-2 border-gray-100 mb-2"
+                className="w-24 h-24 mx-auto rounded-full border-4 border-indigo-100 shadow-lg mb-4"
               />
-              <h2 className="text-sm font-medium text-gray-900 mb-1">{selectedVoter.displayName}</h2>
-              <p className="text-xs text-gray-500">Voter</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedVoter.displayName}</h2>
+              <p className="text-gray-500">Voter</p>
             </div>
           </motion.div>
         </div>
