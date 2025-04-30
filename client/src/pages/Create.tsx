@@ -648,7 +648,7 @@ export default function Create() {
                 onChange={(date) => setVotingDeadline(date)}
                 showTimeSelect
                 timeFormat="HH:mm"
-                timeIntervals={15}
+                timeIntervals={5}
                 timeCaption="Time"
                 dateFormat="MMMM d, yyyy h:mm aa"
                 minDate={new Date()}

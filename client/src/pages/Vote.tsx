@@ -105,7 +105,7 @@ export default function Vote() {
     const deadline = parseISO(meeting.votingDeadline);
     const secondsLeft = differenceInSeconds(deadline, now);
 
-    if (secondsLeft <= 60) return "animate-pulse text-red-600"; // 🔴 1분 이하면 긴급
+    if (secondsLeft <= 60) return "animate-bounce text-red-600"; // 🔴 1분 이하면 통통 튀기
     if (secondsLeft <= 300) return "animate-bounce text-orange-600"; // 🟠 5분 이하
     if (secondsLeft <= 3600) return "animate-wiggle text-yellow-600"; // 🟡 1시간 이하
     return "text-indigo-600"; // 🔵 그 외
@@ -493,223 +493,228 @@ export default function Vote() {
 
       {/* Main Content */}
       <main className="relative z-10 flex-grow container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-4 mb-6">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-              {/* Left side: Title and creator */}
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent mb-1">
-                  {meeting.title}
-                </h1>
-                <div className="flex items-center gap-2">
-                  <img
-                    src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
-                    alt="Creator"
-                    className="w-5 h-5 rounded-full"
-                  />
-                  <span className="text-sm text-gray-600 font-medium">Created by {meeting.creator?.displayName || 'Anonymous'}</span>
-                </div>
+        <div className="max-w-2xl mx-auto mb-8">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md py-6 px-6 text-center">
+            <div className="inline-block bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-2 rounded-lg border border-indigo-100 shadow-sm mb-4">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                {meeting.title}
+              </h1>
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100 shadow-sm">
+                <img
+                  src={meeting.creator?.photoURL || `https://api.dicebear.com/7.x/thumbs/svg?seed=${meeting.creator?.displayName || 'creator'}`}
+                  alt="Creator"
+                  className="w-5 h-5 rounded-full"
+                />
+                <span className="text-sm text-gray-600 font-medium">Created by {meeting.creator?.displayName || 'Anonymous'}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-center gap-6 text-sm">
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-100 shadow-sm px-4 py-2 w-40 h-24 flex flex-col items-center justify-center">
+                <div className="text-sm text-gray-500 font-medium mb-1">Deadline</div>
+                <div className="font-semibold text-purple-700">{format(parseISO(meeting.votingDeadline), 'MMMM d, yyyy')}</div>
+                <div className="font-semibold text-purple-700">{format(parseISO(meeting.votingDeadline), 'h:mm a')}</div>
               </div>
 
-              {/* Right side: Deadline + Countdown */}
-              <div className="flex flex-col items-start md:items-end text-sm">
-                <div className="text-sm text-gray-700">Deadline</div>
-                <div className="font-semibold text-purple-700">{format(parseISO(meeting.votingDeadline), 'MMMM d, yyyy h:mm a')}</div>
+              {!isVotingClosed && (
+                <div className="bg-blue-50 rounded-lg border border-blue-100 shadow-sm px-4 py-2 w-40 h-24 flex flex-col items-center justify-center">
+                  <div className="text-sm text-blue-500 font-medium mb-1">Time Left</div>
+                  <div className="flex items-center gap-1">
+                   <Clock className={`w-4 h-4 ${getTimeLeftAnimation()}`} />
+                   <span className={`font-mono text-sm font-semibold ${getTimeLeftAnimation()}`}>
+                     {timeLeft}
+                   </span>
+                  </div>
+                </div>
+              )}
 
-                {!isVotingClosed && (
-                  <div className="mt-1 flex items-center gap-1">
-  <Clock className={`w-4 h-4 ${getTimeLeftAnimation()}`} />
-  <span className={`font-mono text-sm font-semibold ${getTimeLeftAnimation()}`}>
-    {timeLeft}
-  </span>
-</div>
-
-
-                )}
-
-                {isVotingClosed && (
-                  <div className="mt-1 text-red-600 font-semibold text-sm flex items-center gap-1">
+              {isVotingClosed && (
+                <div className="bg-red-50 rounded-lg border border-red-100 shadow-sm px-4 py-2 w-40 h-24 flex flex-col items-center justify-center">
+                  <div className="text-sm text-red-500 font-medium mb-1">Status</div>
+                  <div className="text-red-600 font-semibold text-sm flex items-center gap-1">
                     <AlertTriangle className="w-4 h-4" />
                     Voting has ended
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
+        </div>
 
-
-          <div className="space-y-4">
-            {Array.isArray(meeting.timeBlocks) && meeting.timeBlocks.map((block) => (
-              <div key={block.id} className="relative">
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 ${selectedSlots.includes(block.id)
-                    ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
-                    : mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                      ? "bg-gradient-to-r from-yellow-50 to-amber-50 hover:border-yellow-300 hover:shadow-md border-yellow-200 shadow-md"
-                      : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
-                    } ${(isVotingClosed || hasVoted) ? "opacity-75" : ""}`}
-                  animate={
-                    mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                      ? {
-                        boxShadow: [
-                          "0 0 0 rgba(250, 204, 21, 0.2)",
-                          "0 0 8px rgba(250, 204, 21, 0.6)",
-                          "0 0 0 rgba(255, 204, 0, 0.2)"
-                        ]
-                      }
-                      : {}
-                  }
-                  transition={
-                    mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                      ? {
-                        repeat: Infinity,
-                        duration: 2.5
-                      }
-                      : {}
-                  }
-                >
-                  {/* 왕관 아이콘 - 가장 많은 득표수를 가진 슬롯에만 표시 */}
-                  {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{
-                        opacity: 1,
-                        y: 0,
-                        rotateZ: [0, 5, 0, -5, 0]
-                      }}
-                      transition={{
-                        rotateZ: { repeat: Infinity, duration: 2 },
-                        default: { duration: 0.5 }
-                      }}
-                      className="absolute -top-4 -right-2 z-10"
+        <div className="space-y-4 max-w-2xl mx-auto">
+          {Array.isArray(meeting.timeBlocks) && meeting.timeBlocks.map((block) => (
+            <div key={block.id} className="relative">
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`w-full p-3 rounded-lg border-2 transition-all duration-200 text-base ${selectedSlots.includes(block.id)
+                  ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-lg"
+                  : mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                    ? "bg-gradient-to-r from-yellow-50 to-amber-50 hover:border-yellow-300 hover:shadow-md border-yellow-200 shadow-md"
+                    : "bg-white hover:border-indigo-300 hover:shadow-md border-slate-200"
+                  } ${(isVotingClosed || hasVoted) ? "opacity-75" : ""}`}
+                animate={
+                  mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                    ? {
+                      boxShadow: [
+                        "0 0 0 rgba(250, 204, 21, 0.2)",
+                        "0 0 8px rgba(250, 204, 21, 0.6)",
+                        "0 0 0 rgba(255, 204, 0, 0.2)"
+                      ]
+                    }
+                    : {}
+                }
+                transition={
+                  mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                    ? {
+                      repeat: Infinity,
+                      duration: 2.5
+                    }
+                    : {}
+                }
+              >
+                {/* 왕관 아이콘 - 가장 많은 득표수를 가진 슬롯에만 표시 */}
+                {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                      rotateZ: [0, 5, 0, -5, 0]
+                    }}
+                    transition={{
+                      rotateZ: { repeat: Infinity, duration: 2 },
+                      default: { duration: 0.5 }
+                    }}
+                    className="absolute -top-4 -right-2 z-10"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="gold"
+                      stroke="#FFD700"
+                      strokeWidth="1"
+                      className="filter drop-shadow-md"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="32"
-                        height="32"
-                        viewBox="0 0 24 24"
-                        fill="gold"
-                        stroke="#FFD700"
-                        strokeWidth="1"
-                        className="filter drop-shadow-md"
-                      >
-                        <path d="M3 17l5-6 4 3 5-6.5L21 17H3zm4-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
-                      </svg>
-                    </motion.div>
-                  )}
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <button
-                        onClick={() => handleSlotClick(block.id)}
-                        disabled={isVotingClosed || hasVoted}
-                        className={`w-full text-left ${(isVotingClosed || hasVoted) ? "cursor-default" : "cursor-pointer"}`}
-                      >
-                        <div className="font-semibold text-lg flex items-center gap-2">
-                          <span className={`${mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                            ? "bg-gradient-to-r from-yellow-500 to-amber-600 bg-clip-text text-transparent"
-                            : "bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
-                            }`}>
-                            {block.day}
-                          </span>
-                          <span className={
-                            selectedSlots.includes(block.id)
-                              ? "text-white"
-                              : mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                                ? "text-amber-700 font-bold"
-                                : "text-gray-600"
-                          }>
-                            {block.startHour} - {block.endHour}
-                          </span>
-                          {/* 가장 많은 득표수를 가진 슬롯에 인라인 왕관 아이콘 추가 */}
-                          {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
-                            <motion.span
-                              initial={{ scale: 0.8, opacity: 1 }}
-                              animate={{
-                                scale: [1, 1.3, 1],
-                                opacity: 1,
-                                y: [0, -3, 0]
-                              }}
-                              transition={{
-                                repeat: Infinity,
-                                duration: 1.5,
-                                ease: "easeInOut"
-                              }}
-                              className="text-yellow-500 ml-1 filter drop-shadow-md"
-                              style={{ fontSize: "1.2rem" }}
-                            >
-                              👑
-                            </motion.span>
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Vote count */}
-                      <div className="mt-2">
-                        <button
-                          onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
-                          className={`text-sm hover:underline cursor-pointer ${selectedSlots.includes(block.id)
-                            ? "text-indigo-100"
+                      <path d="M3 17l5-6 4 3 5-6.5L21 17H3zm4-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+                    </svg>
+                  </motion.div>
+                )}
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <button
+                      onClick={() => handleSlotClick(block.id)}
+                      disabled={isVotingClosed || hasVoted}
+                      className={`w-full text-left ${(isVotingClosed || hasVoted) ? "cursor-default" : "cursor-pointer"}`}
+                    >
+                      <div className="font-semibold text-lg flex items-center gap-2">
+                        <span className={`${mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                          ? "bg-gradient-to-r from-yellow-500 to-amber-600 bg-clip-text text-transparent"
+                          : "bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+                          }`}>
+                          {block.day}
+                        </span>
+                        <span className={
+                          selectedSlots.includes(block.id)
+                            ? "text-white"
                             : mostVotedSlot === block.id && getVoteCount(block.id) > 0
-                              ? "text-amber-600 font-bold"
-                              : "text-gray-500"
-                            }`}
-                        >
-                          {getVoteCountText(block.id)}
-                          {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
-                            <span className="ml-1 text-[#FFD700] font-bold">🏆 Most Votes !</span>
-                          )}
-                        </button>
+                              ? "text-amber-700 font-bold"
+                              : "text-gray-600"
+                        }>
+                          {block.startHour} - {block.endHour}
+                        </span>
+                        {/* 가장 많은 득표수를 가진 슬롯에 인라인 왕관 아이콘 추가 */}
+                        {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
+                          <motion.span
+                            initial={{ scale: 0.8, opacity: 1 }}
+                            animate={{
+                              scale: [1, 1.3, 1],
+                              opacity: 1,
+                              y: [0, -3, 0]
+                            }}
+                            transition={{
+                              repeat: Infinity,
+                              duration: 1.5,
+                              ease: "easeInOut"
+                            }}
+                            className="text-yellow-500 ml-1 filter drop-shadow-md"
+                            style={{ fontSize: "1.2rem" }}
+                          >
+                            👑
+                          </motion.span>
+                        )}
                       </div>
+                    </button>
 
-                      {/* Voters display */}
-                      {getVoteCount(block.id) > 0 && (
-                        <div className="mt-2 flex items-center">
-                          <div className="flex -space-x-2">
-                            {getFirstFewVoters(block.id).map((voter) => (
-                              <img
-                                key={voter.uid}
-                                src={voter.photoURL}
-                                alt={voter.displayName}
-                                title={voter.displayName}
-                                className="w-6 h-6 rounded-full border-2 border-white cursor-pointer hover:ring-2 hover:ring-indigo-300"
-                                onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
-                              />
-                            ))}
-                            {hasMoreVoters(block.id) && (
-                              <button
-                                onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
-                                className="w-6 h-6 rounded-full bg-gray-200 text-xs text-gray-600 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-gray-300"
-                              >
-                                ...
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    {/* Vote count */}
+                    <div className="mt-2">
+                      <button
+                        onClick={(e) => handleVoteCountClick(block.id, block.day, `${block.startHour} - ${block.endHour}`, e)}
+                        className={`text-sm hover:underline cursor-pointer ${selectedSlots.includes(block.id)
+                          ? "text-indigo-100"
+                          : mostVotedSlot === block.id && getVoteCount(block.id) > 0
+                            ? "text-amber-600 font-bold"
+                            : "text-gray-500"
+                          }`}
+                      >
+                        {getVoteCountText(block.id)}
+                        {mostVotedSlot === block.id && getVoteCount(block.id) > 0 && (
+                          <span className="ml-1 text-[#FFD700] font-bold">🏆 Most Votes !</span>
+                        )}
+                      </button>
                     </div>
 
-                    {selectedSlots.includes(block.id) && (
-                      <div className="bg-white bg-opacity-20 p-2 rounded-full">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                    {/* Voters display */}
+                    {getVoteCount(block.id) > 0 && (
+                      <div className="mt-2 flex items-center">
+                        <div className="flex -space-x-2">
+                          {getFirstFewVoters(block.id).map((voter) => (
+                            <img
+                              key={voter.uid}
+                              src={voter.photoURL}
+                              alt={voter.displayName}
+                              title={voter.displayName}
+                              className="w-6 h-6 rounded-full border-2 border-white cursor-pointer hover:ring-2 hover:ring-indigo-300"
+                              onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
+                            />
+                          ))}
+                          {hasMoreVoters(block.id) && (
+                            <button
+                              onClick={() => showVotersForSlot(block.id, block.day, `${block.startHour} - ${block.endHour}`)}
+                              className="w-6 h-6 rounded-full bg-gray-200 text-xs text-gray-600 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-gray-300"
+                            >
+                              ...
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
-                </motion.div>
-              </div>
-            ))}
 
-            {(!Array.isArray(meeting.timeBlocks) || meeting.timeBlocks.length === 0) && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No time blocks available for this meeting.</p>
-              </div>
-            )}
-          </div>
+                  {selectedSlots.includes(block.id) && (
+                    <div className="bg-white bg-opacity-20 p-2 rounded-full">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          ))}
 
-          {!isVotingClosed && !hasVoted && (
+          {(!Array.isArray(meeting.timeBlocks) || meeting.timeBlocks.length === 0) && (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No time blocks available for this meeting.</p>
+            </div>
+          )}
+        </div>
+
+        {!isVotingClosed && !hasVoted && (
+          <div className="max-w-2xl mx-auto">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -718,17 +723,29 @@ export default function Vote() {
             >
               {isSubmitting ? "Submitting..." : "Submit Vote"}
             </motion.button>
+          </div>
+        )}
 
-          )}
+        {!isVotingClosed && hasVoted && (
+          <div className="max-w-2xl mx-auto">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleVoteAgain}
+              className="mt-8 w-full py-4 rounded-lg font-semibold text-lg shadow-lg transition-shadow bg-gradient-to-r from-teal-500 to-green-600 text-white hover:shadow-xl"
+            >
+              {isSubmitting ? "Processing..." : "Vote Again"}
+            </motion.button>
+          </div>
+        )}
 
-          {isVotingClosed && (
-            <div className="mt-8 text-center">
-              <p className="text-gray-600">
-                🎉 Voting is closed! Results will be shared with the host.
-              </p>
-            </div>
-          )}
-        </div>
+        {isVotingClosed && (
+          <div className="mt-8 text-center">
+            <p className="text-gray-600">
+              🎉 Voting is closed! Results will be shared with the host.
+            </p>
+          </div>
+        )}
       </main>
 
       <Footer />
