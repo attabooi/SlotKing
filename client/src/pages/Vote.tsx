@@ -497,7 +497,7 @@ export default function Vote() {
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 flex-grow container mx-auto px-4 py-8">
+      <main className="relative z-10 flex-grow px-4 py-6">
         <div className="max-w-2xl mx-auto mb-8">
           <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md py-6 px-6 text-center">
             <div className="inline-block bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-2 rounded-lg border border-indigo-100 shadow-sm mb-4">
@@ -752,10 +752,12 @@ export default function Vote() {
           </div>
         )}
 
-        {/* Feedback Box */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
-          <FeedbackBox />
-        </div>
++        {/* Feedback Box (컴팩트하게 제한) */}
++        <div className="mt-8 pt-6 border-t border-gray-200">
++          <div className="max-w-md mx-auto">
++            <FeedbackBox />
++          </div>
++        </div>
       </main>
 
       <Footer />
