@@ -15,6 +15,8 @@ import { ShareIcon, Clock, AlertTriangle } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Footer from '@/components/Footer';
+import FeedbackBox from "@/components/FeedbackBox";
+
 
 export default function Vote() {
   const { meetingId } = useParams<{ meetingId: string }>();
@@ -34,6 +36,9 @@ export default function Vote() {
   const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
   const [mostVotedSlot, setMostVotedSlot] = useState<string | null>(null);
 
+
+
+  
   // Guest user related states
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [pendingVoteAction, setPendingVoteAction] = useState<{
@@ -746,6 +751,11 @@ export default function Vote() {
             </p>
           </div>
         )}
+
+        {/* Feedback Box */}
+        <div className="mt-12 pt-8 border-t border-gray-200">
+          <FeedbackBox />
+        </div>
       </main>
 
       <Footer />
