@@ -16,6 +16,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Footer from '@/components/Footer';
 import FeedbackBox from "@/components/FeedbackBox";
+import { useNavigate } from "react-router-dom";
 
 
 export default function Vote() {
@@ -35,10 +36,11 @@ export default function Vote() {
   const [showVoterProfileModal, setShowVoterProfileModal] = useState(false);
   const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
   const [mostVotedSlot, setMostVotedSlot] = useState<string | null>(null);
+  const navigate = useNavigate();
 
 
 
-  
+
   // Guest user related states
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [pendingVoteAction, setPendingVoteAction] = useState<{
@@ -453,6 +455,7 @@ export default function Vote() {
     setShowShareModal(!showShareModal);
   };
 
+
   // Close share modal
   const handleCloseShareModal = () => {
     setShowShareModal(false);
@@ -491,7 +494,14 @@ export default function Vote() {
       {/* Header */}
       <header className="relative z-10 w-full flex justify-between items-center px-6 py-3">
         <SlotKingLogo />
+
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate("/donate")}
+            className="px-4 py-2 bg-yellow-400 text-black text-sm font-medium rounded-lg shadow-sm hover:bg-yellow-300 hover:shadow-md transition"
+          >
+            ☕ Donate
+          </button>
           <UserProfile />
         </div>
       </header>
@@ -526,10 +536,10 @@ export default function Vote() {
                 <div className="bg-blue-50 rounded-lg border border-blue-100 shadow-sm px-4 py-2 w-40 h-24 flex flex-col items-center justify-center">
                   <div className="text-sm text-blue-500 font-medium mb-1">Time Left</div>
                   <div className="flex items-center gap-1">
-                   <Clock className={`w-4 h-4 ${getTimeLeftAnimation()}`} />
-                   <span className={`font-mono text-sm font-semibold ${getTimeLeftAnimation()}`}>
-                     {timeLeft}
-                   </span>
+                    <Clock className={`w-4 h-4 ${getTimeLeftAnimation()}`} />
+                    <span className={`font-mono text-sm font-semibold ${getTimeLeftAnimation()}`}>
+                      {timeLeft}
+                    </span>
                   </div>
                 </div>
               )}
@@ -752,12 +762,12 @@ export default function Vote() {
           </div>
         )}
 
-+        {/* Feedback Box (컴팩트하게 제한) */}
-+        <div className="mt-8 pt-6 border-t border-gray-200">
-+          <div className="max-w-md mx-auto">
-+            <FeedbackBox />
-+          </div>
-+        </div>
+        +        {/* Feedback Box (컴팩트하게 제한) */}
+        +        <div className="mt-8 pt-6 border-t border-gray-200">
+          +          <div className="max-w-md mx-auto">
+            +            <FeedbackBox />
+            +          </div>
+          +        </div>
       </main>
 
       <Footer />
